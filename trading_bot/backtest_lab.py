@@ -30,6 +30,103 @@ os.makedirs(CHARTS_DIR, exist_ok=True)
 INITIAL_BALANCE  = 1000.0   # €
 COMMISSION_RATE  = Config.COMMISSION_RATE  # Centralizzato in Config (Futures: 0.02% per side)
 
+
+
+# ------------------------------------------------------------------ #
+#  BACKTEST LIFECYCLE HELPERS                                         #
+# ------------------------------------------------------------------ #
+def _row_time(row) -> str:
+    return str(row["datetime"]) if "datetime" in row else str(row.name)
+
+
+def _canonical_trade_pnl(trade: dict) -> float:
+    from core.backtest_lifecycle import canonical_trade_pnl
+    return canonical_trade_pnl(trade)
+
+
+def _apply_trade_close(
+    *,
+    trades: list,
+    risk_mgr: DynamicRiskEngine,
+    df: pd.DataFrame,
+    row,
+    open_trade: dict,
+    result: str,
+    realized_pnl: float,
+    balance_before: float,
+    balance_after: float,
+    peak_balance: float,
+    max_drawdown: float,
+    save_charts: bool,
+    sl_for_report: float,
+    tp_for_report: float,
+) -> tuple[float, float, dict]:
+    """Close a trade through one canonical lifecycle path.
+
+    This function is the single source of truth for closed-trade accounting:
+    it updates equity state, appends the closed trade, emits the risk event and
+    optionally creates the visualizer artifact.  Keeping this centralized avoids
+    the historical failure mode where balance changed but risk analytics still
+    reported zero analysed trades.
+    """
+    risk_mgr.update_equity(balance_after)
+
+    if balance_after > peak_balance:
+        peak_balance = balance_after
+    dd = (peak_balance - balance_after) / peak_balance * 100 if peak_balance > 0 else 0.0
+    if dd > max_drawdown:
+        max_drawdown = dd
+
+    trade_num = len(trades) + 1
+    side = open_trade["side"]
+    entry = float(open_trade["entry"])
+
+    trade = {
+        "side": side,
+        "result": result,
+        "pnl": float(realized_pnl),
+        "realized_pnl": float(realized_pnl),
+        "balance_before": float(balance_before),
+        "balance_after": float(balance_after),
+        "balance": float(balance_after),
+        "entry": entry,
+        "sl": float(sl_for_report),
+        "tp": float(tp_for_report),
+        "position_size": float(open_trade.get("size", 0.0) or 0.0),
+        "effective_leverage": float(open_trade.get("effective_leverage", 0.0) or 0.0),
+        "risk_snapshot_trade_num": open_trade.get("risk_snapshot_trade_num"),
+        "risk_snapshot_pct": float(open_trade.get("risk_snapshot_pct", 0.0) or 0.0),
+        "confluence_comb": open_trade.get("confluence_comb", "None"),
+        "ai_prob": open_trade.get("ai_prob", 50.0),
+        "entry_time": open_trade["entry_time"],
+        "exit_time": _row_time(row),
+        "regime": open_trade["regime"],
+        "adx": open_trade["adx"],
+        "atr_pct": open_trade["atr_pct"],
+        "volume": open_trade["volume"],
+        "volume_ratio": open_trade["volume_ratio"],
+        "close_vs_ema": open_trade["close_vs_ema"],
+        "setup_quality": open_trade.get("setup_quality", 0.0),
+    }
+
+    trades.append(trade)
+    risk_mgr.record_trade_event(trade, balance_before, balance_after)
+
+    if save_charts:
+        chart_path = f"{CHARTS_DIR}/trade_{trade_num:03d}_{result}.html"
+        save_trade_chart(
+            df=open_trade["window_df"],
+            trade_data={"side": side, "entry": entry, "sl": sl_for_report, "tp": tp_for_report},
+            filename=chart_path,
+        )
+
+    return peak_balance, max_drawdown, trade
+
+
+def _write_lifecycle_report(result: dict, output_path: str = "data/lifecycle_consistency_report.json") -> dict:
+    from core.backtest_lifecycle import write_lifecycle_report
+    return write_lifecycle_report(result, CHARTS_DIR, output_path)
+
 # ------------------------------------------------------------------ #
 #  FETCH + ANALISI                                                     #
 # ------------------------------------------------------------------ #
@@ -245,37 +342,24 @@ def simulate_backtest(
                         pnl = size * (sl - entry) if side == "BUY" else size * (entry - sl)
                         commission = size * entry * COMMISSION_RATE * 2
                         net_pnl = pnl - commission
+                        balance_before = balance
                         balance += net_pnl
-                        risk_mgr.update_equity(balance)  # circuit-breaker equity update
-
-                        if balance > peak_balance: peak_balance = balance
-                        dd = (peak_balance - balance) / peak_balance * 100
-                        if dd > max_drawdown: max_drawdown = dd
-
-                        trade_num = len(trades) + 1
-                        trades.append({
-                            "side": side, "result": "LOSS", "pnl": net_pnl, "realized_pnl": net_pnl,
-                            "balance": balance, "entry": entry,
-                            "sl": open_trade["initial_sl"], "tp": tp2,
-                            "confluence_comb": open_trade.get("confluence_comb", "None"),
-                            "ai_prob": open_trade.get("ai_prob", 50.0),
-                            "entry_time": open_trade["entry_time"],
-                            "exit_time": str(row["datetime"]) if "datetime" in row else str(row.name),
-                            "regime": open_trade["regime"],
-                            "adx": open_trade["adx"],
-                            "atr_pct": open_trade["atr_pct"],
-                            "volume": open_trade["volume"],
-                            "volume_ratio": open_trade["volume_ratio"],
-                            "close_vs_ema": open_trade["close_vs_ema"],
-                            "setup_quality": open_trade.get("setup_quality", 0.0)
-                        })
-                        risk_mgr.record_trade_event(trades[-1], balance - net_pnl, balance)
-
-                        if save_charts:
-                            chart_path = f"{CHARTS_DIR}/trade_{trade_num:03d}_LOSS.html"
-                            save_trade_chart(df=open_trade["window_df"],
-                                trade_data={"side": side, "entry": entry, "sl": open_trade["initial_sl"], "tp": tp2},
-                                filename=chart_path)
+                        peak_balance, max_drawdown, _closed_trade = _apply_trade_close(
+                            trades=trades,
+                            risk_mgr=risk_mgr,
+                            df=df,
+                            row=row,
+                            open_trade=open_trade,
+                            result="LOSS",
+                            realized_pnl=net_pnl,
+                            balance_before=balance_before,
+                            balance_after=balance,
+                            peak_balance=peak_balance,
+                            max_drawdown=max_drawdown,
+                            save_charts=save_charts,
+                            sl_for_report=open_trade["initial_sl"],
+                            tp_for_report=tp2,
+                        )
 
                         open_trade = None
                         if balance <= 0: break
@@ -295,36 +379,26 @@ def simulate_backtest(
                         pnl_2 = (size / 2) * (exit_price_2 - entry) if side == "BUY" else (size / 2) * (entry - exit_price_2)
                         comm_2 = (size / 2) * entry * COMMISSION_RATE * 2
                         net_pnl_2 = pnl_2 - comm_2
-                        balance += net_pnl_2
                         net_pnl_total = open_trade["pnl_tp1_net"] + net_pnl_2
+                        balance_before = balance - open_trade["pnl_tp1_net"]
+                        balance += net_pnl_2
 
-                        if balance > peak_balance: peak_balance = balance
-                        dd = (peak_balance - balance) / peak_balance * 100
-                        if dd > max_drawdown: max_drawdown = dd
-
-                        trade_num = len(trades) + 1
-                        trades.append({
-                            "side": side, "result": result, "pnl": net_pnl_total, "realized_pnl": net_pnl_total,
-                            "balance": balance, "entry": entry, "sl": sl, "tp": tp2,
-                            "confluence_comb": open_trade.get("confluence_comb", "None"),
-                            "ai_prob": open_trade.get("ai_prob", 50.0),
-                            "entry_time": open_trade["entry_time"],
-                            "exit_time": str(row["datetime"]) if "datetime" in row else str(row.name),
-                            "regime": open_trade["regime"],
-                            "adx": open_trade["adx"],
-                            "atr_pct": open_trade["atr_pct"],
-                            "volume": open_trade["volume"],
-                            "volume_ratio": open_trade["volume_ratio"],
-                            "close_vs_ema": open_trade["close_vs_ema"],
-                            "setup_quality": open_trade.get("setup_quality", 0.0)
-                        })
-                        risk_mgr.record_trade_event(trades[-1], balance - net_pnl_total, balance)
-
-                        if save_charts:
-                            chart_path = f"{CHARTS_DIR}/trade_{trade_num:03d}_{result}.html"
-                            save_trade_chart(df=open_trade["window_df"],
-                                trade_data={"side": side, "entry": entry, "sl": sl, "tp": tp2},
-                                filename=chart_path)
+                        peak_balance, max_drawdown, _closed_trade = _apply_trade_close(
+                            trades=trades,
+                            risk_mgr=risk_mgr,
+                            df=df,
+                            row=row,
+                            open_trade=open_trade,
+                            result=result,
+                            realized_pnl=net_pnl_total,
+                            balance_before=balance_before,
+                            balance_after=balance,
+                            peak_balance=peak_balance,
+                            max_drawdown=max_drawdown,
+                            save_charts=save_charts,
+                            sl_for_report=sl,
+                            tp_for_report=tp2,
+                        )
 
                         open_trade = None
                         if balance <= 0: break
@@ -351,34 +425,23 @@ def simulate_backtest(
                     net_pnl = None
 
                 if net_pnl is not None:
-                    risk_mgr.update_equity(balance)  # circuit-breaker equity update
-                    if balance > peak_balance: peak_balance = balance
-                    dd = (peak_balance - balance) / peak_balance * 100
-                    if dd > max_drawdown: max_drawdown = dd
-
-                    trade_num = len(trades) + 1
-                    trades.append({
-                        "side": side, "result": result, "pnl": net_pnl, "realized_pnl": net_pnl,
-                        "balance": balance, "entry": entry, "sl": sl, "tp": tp,
-                        "confluence_comb": open_trade.get("confluence_comb", "None"),
-                        "ai_prob": open_trade.get("ai_prob", 50.0),
-                        "entry_time": open_trade["entry_time"],
-                        "exit_time": str(row["datetime"]) if "datetime" in row else str(row.name),
-                        "regime": open_trade["regime"],
-                        "adx": open_trade["adx"],
-                        "atr_pct": open_trade["atr_pct"],
-                        "volume": open_trade["volume"],
-                        "volume_ratio": open_trade["volume_ratio"],
-                        "close_vs_ema": open_trade["close_vs_ema"],
-                        "setup_quality": open_trade.get("setup_quality", 0.0)
-                    })
-                    risk_mgr.record_trade_event(trades[-1], balance - net_pnl, balance)
-
-                    if save_charts:
-                        chart_path = f"{CHARTS_DIR}/trade_{trade_num:03d}_{result}.html"
-                        save_trade_chart(df=open_trade["window_df"],
-                            trade_data={"side": side, "entry": entry, "sl": sl, "tp": tp},
-                            filename=chart_path)
+                    balance_before = balance - net_pnl
+                    peak_balance, max_drawdown, _closed_trade = _apply_trade_close(
+                        trades=trades,
+                        risk_mgr=risk_mgr,
+                        df=df,
+                        row=row,
+                        open_trade=open_trade,
+                        result=result,
+                        realized_pnl=net_pnl,
+                        balance_before=balance_before,
+                        balance_after=balance,
+                        peak_balance=peak_balance,
+                        max_drawdown=max_drawdown,
+                        save_charts=save_charts,
+                        sl_for_report=sl,
+                        tp_for_report=tp,
+                    )
 
                     open_trade = None
                     if balance <= 0: break
@@ -838,6 +901,17 @@ def run_backtest(df: pd.DataFrame) -> None:
             sel_engine.export_risk_log("data/risk_log.json", fmt="json")
             if hasattr(sel_engine, "export_trade_events"):
                 sel_engine.export_trade_events("data/risk_event_log.json")
+            lifecycle_report = _write_lifecycle_report(sel_res, "data/lifecycle_consistency_report.json")
+            print(f"  [LifecycleAudit] Report exported -> data/lifecycle_consistency_report.json  ({lifecycle_report['status']})")
+            if lifecycle_report["status"] != "PASS":
+                print(
+                    "  [LIFECYCLE AUDIT WARNING] "
+                    f"closed={lifecycle_report['closed_trades']} | "
+                    f"risk_events={lifecycle_report['risk_events']} | "
+                    f"risk_sizing={lifecycle_report['risk_bearing_snapshots']} | "
+                    f"visualized={lifecycle_report['visualized_trades']} | "
+                    f"balance_mismatches={lifecycle_report['balance_mutation_mismatches']}"
+                )
             for warning_msg in sel_res.get("risk_event_warnings", []):
                 print(f"  [RISK AUDIT WARNING] {warning_msg}")
             

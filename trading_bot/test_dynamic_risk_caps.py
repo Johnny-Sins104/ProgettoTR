@@ -14,7 +14,7 @@ def main() -> None:
         engine._push_atr(100.0)
 
     dynamic_cap = float(getattr(Config, "DYNAMIC_MAX_RISK_PCT", 0.03))
-    raw_risk = engine.calculate_kelly_risk_pct(ai_probability=90.0,rr_ratio=2.0,default_risk=Config.DYNAMIC_DEFAULT_RISK_PCT)
+    raw_risk = engine.calculate_kelly_risk_pct(ai_probability=90.0, rr_ratio=2.0, default_risk=Config.DYNAMIC_DEFAULT_RISK_PCT)
     capped_risk = min(raw_risk, dynamic_cap)
 
     size, snap = engine.size_position(
