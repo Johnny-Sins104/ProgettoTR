@@ -165,8 +165,11 @@ def simulate_portfolio(
         "trades_executed": 0,
         "leverage_violations_gated": 0,
         "var_violations_gated": 0,
-        "sector_violations_gated": 0,
+        "sector_violations_gated": 0,  # backward-compatible: true full sector blocks only
+        "sector_reductions": 0,
+        "sector_blocks": 0,
         "correlation_reductions": 0,
+        "scaled_trades": 0,
         "total_pnl": 0.0
     }
     
@@ -272,21 +275,31 @@ def simulate_portfolio(
                             balance=balance
                         )
                         
-                        # Process compliance outputs
+                        # Process compliance outputs. Keep full blocks separate from
+                        # size reductions; otherwise diagnostics overstate hard gating.
+                        trade_was_scaled = size_multiplier < 0.999
                         for w in warnings_list:
-                            if "leverage" in w.lower():
+                            w_lower = w.lower()
+                            if "leverage" in w_lower:
                                 metrics["leverage_violations_gated"] += 1
-                            elif "var budget" in w.lower():
+                            elif "var budget" in w_lower:
                                 metrics["var_violations_gated"] += 1
-                            elif "sector" in w.lower():
-                                metrics["sector_violations_gated"] += 1
-                            elif "correlation" in w.lower():
+                            elif "sector" in w_lower:
+                                if size_multiplier == 0.0:
+                                    metrics["sector_blocks"] += 1
+                                    metrics["sector_violations_gated"] += 1
+                                else:
+                                    metrics["sector_reductions"] += 1
+                            elif "correlation" in w_lower:
                                 metrics["correlation_reductions"] += 1
-                                
+
+                        if trade_was_scaled:
+                            metrics["scaled_trades"] += 1
+
                         if not is_allowed and size_multiplier == 0.0:
                             # Blocked entirely by portfolio rules
                             continue
-                            
+
                         # Scale down trade size based on portfolio recommendation
                         final_notional = proposed_notional * size_multiplier
                         proposed_size = final_notional / close
@@ -389,7 +402,7 @@ def main():
     print(f"  Metric                      Unconstrained       Constrained       Advantage")
     print(f"  ----------------------------------------------------------------------------")
     print(f"  Total Attempts              {unconstrained_results['trades_attempted']:<19} {constrained_results['trades_attempted']:<17} --")
-    print(f"  Executed Trades             {unconstrained_results['trades_executed']:<19} {constrained_results['trades_executed']:<17} Gated {unconstrained_results['trades_executed'] - constrained_results['trades_executed']} noise trades")
+    print(f"  Executed Trades             {unconstrained_results['trades_executed']:<19} {constrained_results['trades_executed']:<17} Blocked {unconstrained_results['trades_executed'] - constrained_results['trades_executed']} trades")
     
     pnl_un = unconstrained_results['net_pnl_pct']
     pnl_co = constrained_results['net_pnl_pct']
@@ -408,8 +421,10 @@ def main():
     print(f"\n🎯 \033[1m\033[93mPORTFOLIO MANAGER COMPLIANCE GATING ACTIVITY:\033[0m")
     print(f"  • Leverage Limit Breaches Blocked/Scaled: {constrained_results['leverage_violations_gated']}")
     print(f"  • Value at Risk (VaR) Limit Gates       : {constrained_results['var_violations_gated']}")
-    print(f"  • Sector Overconcentration Gated        : {constrained_results['sector_violations_gated']}")
+    print(f"  • Sector Overconcentration Blocks       : {constrained_results['sector_blocks']}")
+    print(f"  • Sector Exposure Size Reductions       : {constrained_results['sector_reductions']}")
     print(f"  • Correlated Asset Exposures Scaled     : {constrained_results['correlation_reductions']}")
+    print(f"  • Total Size-Scaled Trades              : {constrained_results['scaled_trades']}")
     print("-" * 80)
     
     # ── 6. EXPORT REPORT TO JSON ──────────────────────────────────────────────
@@ -432,7 +447,10 @@ def main():
             "leverage_violations_gated": constrained_results["leverage_violations_gated"],
             "var_violations_gated": constrained_results["var_violations_gated"],
             "sector_violations_gated": constrained_results["sector_violations_gated"],
-            "correlation_reductions": constrained_results["correlation_reductions"]
+            "sector_blocks": constrained_results["sector_blocks"],
+            "sector_reductions": constrained_results["sector_reductions"],
+            "correlation_reductions": constrained_results["correlation_reductions"],
+            "scaled_trades": constrained_results["scaled_trades"]
         },
         "market_correlations": corr_matrix.to_dict(),
         "volatility_clustering": clustering

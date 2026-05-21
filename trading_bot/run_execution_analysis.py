@@ -259,6 +259,9 @@ def run_friction_backtest(
     missed_trades = 0
     partial_trades = 0
     total_friction_pnl_lost = 0.0
+    total_missed_naive_pnl = 0.0
+    missed_winners = 0
+    missed_losers = 0
 
     for t in trades:
         side       = t["side"]
@@ -274,6 +277,18 @@ def run_friction_backtest(
         exit_type  = t["exit_type"]
         volume_ratio = t["volume_ratio"]
 
+        # Compute naive opportunity PnL before fill simulation. This lets us
+        # quantify fill-selection bias: skipped no-fill opportunities must still
+        # remain in the opportunity timeline, otherwise risk metrics such as
+        # Sharpe are computed on fewer observations and are not comparable to
+        # the naive backtest.
+        naive_notional = size * price
+        naive_commission = naive_notional * commission_rate * 2
+        if side == "BUY":
+            naive_pnl = size * (exit_price_theoretical - price) - naive_commission
+        else:
+            naive_pnl = size * (price - exit_price_theoretical) - naive_commission
+
         # ── 1. Check fill probability ─────────────────────────────────────
         fill_result = liquidity_model.simulate_fill(
             order_size_notional=notional,
@@ -287,6 +302,23 @@ def run_friction_backtest(
 
         if fill_result.is_no_fill:
             missed_trades += 1
+            total_missed_naive_pnl += naive_pnl
+            if naive_pnl > 0:
+                missed_winners += 1
+            else:
+                missed_losers += 1
+
+            # Preserve the opportunity timeline with a flat equity observation.
+            # This prevents false Sharpe improvement from simply removing
+            # no-fill trades from the return sequence.
+            equity_curve.append(balance)
+            trade_results.append({
+                "pnl": 0.0,
+                "balance": balance,
+                "missed_fill": True,
+                "naive_pnl": naive_pnl,
+                "friction_cost": -naive_pnl,
+            })
             continue
 
         if fill_result.is_partial_fill:
@@ -331,21 +363,19 @@ def run_friction_backtest(
         else:
             pnl = filled_size * (actual_entry - actual_exit) - commission
 
-        # Compute naive PnL for comparison
-        naive_notional = size * price
-        naive_commission = naive_notional * commission_rate * 2
-        if side == "BUY":
-            naive_pnl = size * (exit_price_theoretical - price) - naive_commission
-        else:
-            naive_pnl = size * (price - exit_price_theoretical) - naive_commission
-
         friction_cost = pnl - naive_pnl
         total_friction_pnl_lost += friction_cost
 
         balance += pnl
         balance = max(0.01, balance)
         equity_curve.append(balance)
-        trade_results.append({"pnl": pnl, "balance": balance})
+        trade_results.append({
+            "pnl": pnl,
+            "balance": balance,
+            "missed_fill": False,
+            "naive_pnl": naive_pnl,
+            "friction_cost": friction_cost,
+        })
 
         # ── 6. Record for ExecutionAnalytics ─────────────────────────────
         analytics.record_from_slippage(
@@ -370,8 +400,10 @@ def run_friction_backtest(
     returns = np.diff(eq) / eq[:-1]
     sharpe = float(np.mean(returns) / np.std(returns) * np.sqrt(252)) if np.std(returns) > 0 else 0.0
 
-    executed_trades = len([t for t in trade_results])
-    wins  = sum(1 for r in trade_results if r["pnl"] > 0)
+    executed_trades = sum(1 for r in trade_results if not r.get("missed_fill", False))
+    opportunity_count = len(trade_results)
+    wins = sum(1 for r in trade_results if (not r.get("missed_fill", False)) and r["pnl"] > 0)
+    opportunity_wins = sum(1 for r in trade_results if r["pnl"] > 0)
 
     return {
         "label":            "Friction-Adjusted (Realistic Execution)",
@@ -381,9 +413,14 @@ def run_friction_backtest(
         "max_drawdown":     max_dd,
         "sharpe":           sharpe,
         "win_rate":         wins / max(executed_trades, 1) * 100,
+        "opportunity_win_rate": opportunity_wins / max(opportunity_count, 1) * 100,
         "total_trades":     executed_trades,
+        "opportunity_count": opportunity_count,
         "missed_trades":    missed_trades,
+        "missed_winners":   missed_winners,
+        "missed_losers":    missed_losers,
         "partial_trades":   partial_trades,
+        "total_missed_naive_pnl": total_missed_naive_pnl,
         "total_friction_pnl_lost": total_friction_pnl_lost,
         "equity_curve":     equity_curve,
         "trade_results":    trade_results,
@@ -494,10 +531,17 @@ def main():
     comparison_row("Win Rate (%)",                 naive_results["win_rate"],         friction_results["win_rate"],         fmt="{:.1f}", suffix="%")
     comparison_row("Executed Trades",              naive_results["total_trades"],     friction_results["total_trades"],     fmt="{:.0f}")
     print(f"  {'Missed Trades (no fill)':<35} {'—':>15}  {friction_results['missed_trades']:>15}  {'—':>12}")
+    print(f"  {'Missed Winners / Losers':<35} {'—':>15}  {friction_results['missed_winners']:>6} / {friction_results['missed_losers']:<6}  {'—':>12}")
+    print(f"  {'Opportunity Win Rate (%)':<35} {'—':>15}  {friction_results['opportunity_win_rate']:>14.1f}%  {'—':>12}")
     print(f"  {'Partial Fills':<35} {'—':>15}  {friction_results['partial_trades']:>15}  {'—':>12}")
     friction_pnl_lost = friction_results['total_friction_pnl_lost']
     sign = "+" if friction_pnl_lost >= 0 else ""
     print(f"  {'Total PnL Lost to Friction':<35} {'—':>15}  {sign}{friction_pnl_lost:>14,.2f}  {'—':>12}")
+    missed_opportunity = friction_results['total_missed_naive_pnl']
+    sign_missed = "+" if missed_opportunity >= 0 else ""
+    print(f"  {'No-Fill Naive Opportunity PnL':<35} {'—':>15}  {sign_missed}{missed_opportunity:>14,.2f}  {'—':>12}")
+    if friction_results['sharpe'] > naive_results['sharpe']:
+        print("  [AUDIT WARNING] Friction Sharpe > naive Sharpe. Inspect no-fill selection bias and sample-size effects.")
     print(sep)
 
     # ── Print slippage model example ──────────────────────────────────────
@@ -620,9 +664,14 @@ def main():
             "max_drawdown":   friction_results["max_drawdown"],
             "sharpe":         friction_results["sharpe"],
             "win_rate":       friction_results["win_rate"],
+            "opportunity_win_rate": friction_results["opportunity_win_rate"],
             "total_trades":   friction_results["total_trades"],
+            "opportunity_count": friction_results["opportunity_count"],
             "missed_trades":  friction_results["missed_trades"],
+            "missed_winners": friction_results["missed_winners"],
+            "missed_losers":  friction_results["missed_losers"],
             "partial_trades": friction_results["partial_trades"],
+            "total_missed_naive_pnl": friction_results["total_missed_naive_pnl"],
         },
         "friction_metrics": {
             "avg_entry_slippage_bps": summary.avg_entry_slippage_bps,
