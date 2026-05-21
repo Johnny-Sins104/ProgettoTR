@@ -1048,6 +1048,24 @@ def run_backtest(df: pd.DataFrame) -> None:
                             f"avg_net={row_opt.get('avg_expected_net_edge_r'):+.4f}R | "
                             f"avg_cost={row_opt.get('avg_expected_cost_bps'):.2f}bps"
                         )
+                adaptive = signal_report.get('adaptive_regime_threshold_optimization', {})
+                regimes = adaptive.get('regimes', {}) if adaptive else {}
+                if regimes:
+                    print("\n  Adaptive regime threshold candidates (diagnostic-only):")
+                    for regime_name, regime_report in list(regimes.items())[:6]:
+                        best = regime_report.get('best_threshold') or {}
+                        if not best:
+                            continue
+                        print(
+                            "    - "
+                            f"{regime_name}: p>={best.get('probability_threshold')} "
+                            f"q>={best.get('quality_threshold')} | "
+                            f"pass={best.get('selected_count')} | "
+                            f"avg_net={best.get('avg_expected_net_edge_r'):+.4f}R | "
+                            f"status={best.get('status')}"
+                        )
+                    print("  [AdaptiveRegimeThresholds] Full report -> data/adaptive_regime_threshold_report.json")
+
                 top_reasons = list(signal_report.get('rejection_reasons', {}).items())[:5]
                 if top_reasons:
                     print("\n  Top rejection reasons:")

@@ -103,6 +103,14 @@ class Config:
     META_MAX_COST_TO_EDGE_RATIO: float = float(os.getenv("META_MAX_COST_TO_EDGE_RATIO", "1.00"))
     COST_AWARE_REPORT_PATH: str = os.getenv("COST_AWARE_REPORT_PATH", os.path.join("data", "cost_aware_threshold_report.json"))
 
+    # Adaptive regime threshold diagnostics. Diagnostic-only by default.
+    # These settings analyze regime-specific probability/quality gates without
+    # changing trading decisions unless explicitly wired and validated.
+    ADAPTIVE_REGIME_THRESHOLDS_ENABLED: bool = os.getenv("ADAPTIVE_REGIME_THRESHOLDS_ENABLED", "1") == "1"
+    ADAPTIVE_REGIME_THRESHOLDS_GATING: bool = os.getenv("ADAPTIVE_REGIME_THRESHOLDS_GATING", "0") == "1"
+    ADAPTIVE_REGIME_MIN_TRADES: int = int(os.getenv("ADAPTIVE_REGIME_MIN_TRADES", "3"))
+    ADAPTIVE_REGIME_THRESHOLD_REPORT_PATH: str = os.getenv("ADAPTIVE_REGIME_THRESHOLD_REPORT_PATH", os.path.join("data", "adaptive_regime_threshold_report.json"))
+
     # Kelly Criterion Configuration
     USE_KELLY_SIZING:   bool  = True
     KELLY_FRACTION:     float = 0.5         # Half-Kelly baseline (full-Kelly is typically too aggressive)

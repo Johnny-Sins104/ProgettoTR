@@ -265,6 +265,22 @@ class SignalDensityMonitor:
         samples = self.accepted_samples + self.rejected_samples
         return CostAwareMetaLabeler.optimize_thresholds_from_samples(samples, min_trades=3)[:25]
 
+    def adaptive_regime_threshold_report(self) -> Dict[str, Any]:
+        """Optimizes thresholds separately per regime using cost-adjusted edge."""
+        try:
+            from config import Config
+            from core.adaptive_regime_thresholds import AdaptiveRegimeThresholdOptimizer
+        except Exception:
+            return {}
+        samples = self.accepted_samples + self.rejected_samples
+        if not getattr(Config, "ADAPTIVE_REGIME_THRESHOLDS_ENABLED", True):
+            return {}
+        return AdaptiveRegimeThresholdOptimizer.build_report(
+            samples,
+            min_trades_per_regime=int(getattr(Config, "ADAPTIVE_REGIME_MIN_TRADES", 3)),
+            top_n=5,
+        )
+
     def build_report(self) -> Dict[str, Any]:
         funnel = {
             "bars_evaluated": self.bars_evaluated,
@@ -300,6 +316,7 @@ class SignalDensityMonitor:
             "cost_to_edge_ratio_distribution": self._summary(self.cost_to_edge_ratios),
             "threshold_sweep": self.threshold_sweep(),
             "cost_aware_threshold_optimization": self.cost_aware_threshold_optimization(),
+            "adaptive_regime_threshold_optimization": self.adaptive_regime_threshold_report(),
             "sample_rejected_setups": self.rejected_samples[:25],
             "sample_accepted_setups": self.accepted_samples[:25],
             "diagnostic_interpretation": self._interpret(funnel),
@@ -329,5 +346,16 @@ class SignalDensityMonitor:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
+        adaptive_report = report.get("adaptive_regime_threshold_optimization") or {}
+        if adaptive_report:
+            try:
+                from config import Config
+                adaptive_path = Path(getattr(Config, "ADAPTIVE_REGIME_THRESHOLD_REPORT_PATH", "data/adaptive_regime_threshold_report.json"))
+                adaptive_path.parent.mkdir(parents=True, exist_ok=True)
+                with adaptive_path.open("w", encoding="utf-8") as af:
+                    json.dump(adaptive_report, af, indent=2)
+                print(f"  [AdaptiveRegimeThresholds] Report exported -> {adaptive_path}")
+            except Exception:
+                pass
         print(f"  [SignalDensity] Report exported -> {path}")
         return report
