@@ -82,6 +82,15 @@ class Config:
     AI_EXPANDED_MIN_SAMPLES: int = int(os.getenv("AI_EXPANDED_MIN_SAMPLES", "10000"))
     AI_MIN_REGIME_SAMPLES: int = int(os.getenv("AI_MIN_REGIME_SAMPLES", "1000"))
 
+    # Prompt 26 — Macro + market-structure feature layer. External files are
+    # optional; when absent, the dataset builder emits neutral defaults and
+    # availability flags so the training path stays offline reproducible.
+    MARKET_STRUCTURE_FEATURES_ENABLED: bool = os.getenv("MARKET_STRUCTURE_FEATURES_ENABLED", "1") == "1"
+    MARKET_STRUCTURE_REPORT_PATH: str = os.getenv("MARKET_STRUCTURE_REPORT_PATH", os.path.join("data", "datasets", "market_structure_report.json"))
+    FUNDING_DATA_PATH: str = os.getenv("FUNDING_DATA_PATH", "")
+    OPEN_INTEREST_DATA_PATH: str = os.getenv("OPEN_INTEREST_DATA_PATH", "")
+    BTC_DOMINANCE_DATA_PATH: str = os.getenv("BTC_DOMINANCE_DATA_PATH", "")
+
     # Parquet Dataset Metadata & Integrity Rules
     DATASET_VERSION:            str   = "1.0.0"
     MAX_NULL_TOLERANCE:         float = 0.05

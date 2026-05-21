@@ -28,6 +28,8 @@ import numpy as np
 import pandas as pd
 import polars as pl
 
+from core.market_structure_features import MarketStructureFeatureBuilder, MarketStructureConfig
+
 
 DEFAULT_ASSETS: Tuple[str, ...] = ("BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT")
 CANONICAL_COLUMNS: Tuple[str, ...] = ("datetime", "asset", "Open", "High", "Low", "Close", "Volume")
@@ -50,6 +52,11 @@ class DatasetBuildConfig:
     min_regime_samples: int = 1_000
     min_asset_years: float = 2.0
     compression: str = "snappy"
+    enable_market_structure_features: bool = True
+    market_structure_report_path: str = "data/datasets/market_structure_report.json"
+    funding_data_path: str = ""
+    open_interest_data_path: str = ""
+    btc_dominance_data_path: str = ""
 
 
 @dataclass
@@ -265,6 +272,20 @@ class MultiAssetDatasetBuilder:
             pd_df["regime_confidence"] = self._regime_confidence(pd_df["trend_strength"], pd_df["rolling_vol_96"])
             frames.append(pl.from_pandas(pd_df))
         features = pl.concat(frames, how="diagonal_relaxed").sort(["asset", "datetime"])
+        if self.config.enable_market_structure_features:
+            external_sources = {}
+            if self.config.funding_data_path:
+                external_sources["funding"] = self.config.funding_data_path
+            if self.config.open_interest_data_path:
+                external_sources["open_interest"] = self.config.open_interest_data_path
+            if self.config.btc_dominance_data_path:
+                external_sources["btc_dominance"] = self.config.btc_dominance_data_path
+            features, _ = MarketStructureFeatureBuilder(
+                MarketStructureConfig(
+                    timeframe_minutes=self.config.timeframe_minutes,
+                    output_report_path=self.config.market_structure_report_path,
+                )
+            ).enrich(features, external_sources=external_sources or None, write_report=True)
         return features
 
     def _volatility_regime(self, vol: pd.Series) -> pd.Series:
@@ -319,6 +340,17 @@ class MultiAssetDatasetBuilder:
             "volume_ratio_96", "ema_slope_48", "trend_strength", "atr_proxy_pct",
             "momentum_4h", "momentum_1d", "volatility_regime", "market_regime",
             "regime_confidence", "setup_quality",
+            "realized_vol_1d_ms", "realized_vol_1w_ms", "volatility_compression",
+            "is_vol_compressed", "is_vol_expanding", "htf_1h_return",
+            "htf_4h_return", "htf_1h_trend", "htf_4h_trend",
+            "htf_trend_alignment", "session_asia", "session_london", "session_ny",
+            "session_overlap_london_ny", "day_of_week", "sweep_high", "sweep_low",
+            "liquidity_sweep_score", "volume_z_1d", "range_z_1d",
+            "funding_rate", "funding_rate_z", "funding_available",
+            "open_interest", "open_interest_change_1d", "open_interest_available",
+            "btc_dominance", "btc_dominance_change_1d", "btc_dominance_available",
+            "btc_return_1", "btc_realized_vol_1d", "btc_htf_4h_trend",
+            "asset_vs_btc_return_1",
         ]
         return pl.from_pandas(candidates[keep]).sort(["asset", "datetime"])
 

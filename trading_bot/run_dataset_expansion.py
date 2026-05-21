@@ -10,6 +10,9 @@ Generate an offline synthetic smoke dataset:
 
 Download from Binance Futures (requires internet + ccxt):
     python run_dataset_expansion.py --download --years 2
+
+Optional macro sources:
+    python run_dataset_expansion.py --download --years 2 --funding data/funding.parquet --open-interest data/oi.parquet
 """
 from __future__ import annotations
 
@@ -73,9 +76,21 @@ def main() -> None:
     parser.add_argument("--synthetic", action="store_true", help="Build an offline smoke dataset.")
     parser.add_argument("--synthetic-rows", type=int, default=3000)
     parser.add_argument("--download", action="store_true", help="Download Binance USDT-M futures candles via ccxt.")
+    parser.add_argument("--funding", default="", help="Optional funding-rate parquet/csv with datetime, asset, funding_rate.")
+    parser.add_argument("--open-interest", default="", help="Optional open-interest parquet/csv with datetime, asset, open_interest.")
+    parser.add_argument("--btc-dominance", default="", help="Optional BTC dominance parquet/csv with datetime, btc_dominance.")
+    parser.add_argument("--disable-market-structure", action="store_true", help="Disable Prompt 26 market-structure feature enrichment.")
     args = parser.parse_args()
 
-    cfg = DatasetBuildConfig(assets=tuple(a.upper() for a in args.assets), output_dir=args.output_dir, min_years=args.years)
+    cfg = DatasetBuildConfig(
+        assets=tuple(a.upper() for a in args.assets),
+        output_dir=args.output_dir,
+        min_years=args.years,
+        enable_market_structure_features=not args.disable_market_structure,
+        funding_data_path=args.funding,
+        open_interest_data_path=args.open_interest,
+        btc_dominance_data_path=args.btc_dominance,
+    )
     builder = MultiAssetDatasetBuilder(cfg)
 
     cache_paths = _parse_cache_args(args.cache)

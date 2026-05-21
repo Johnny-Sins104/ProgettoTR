@@ -53,6 +53,7 @@ class MultiAssetTrainingDatasetLoader:
     DEFAULT_REPORT = os.path.join("data", "training_dataset_report.json")
     DEFAULT_ASSET_REPORT = os.path.join("data", "asset_training_balance_report.json")
     DEFAULT_SPLIT_REPORT = os.path.join("data", "training_split_report.json")
+    DEFAULT_MACRO_REPORT = os.path.join("data", "macro_feature_training_report.json")
 
     @classmethod
     def expanded_dataset_exists(cls, path: Optional[str] = None) -> bool:
@@ -140,6 +141,7 @@ class MultiAssetTrainingDatasetLoader:
             ),
         )
         cls._write_reports(payload, report)
+        cls._write_macro_feature_report(raw, cls.DEFAULT_MACRO_REPORT)
         return final_df, payload
 
     @staticmethod
@@ -175,24 +177,31 @@ class MultiAssetTrainingDatasetLoader:
         ema_slope = cls._series(df, "ema_slope_48", 0.0).fillna(0.0)
         regime_conf = cls._series(df, "regime_confidence", 0.0).fillna(0.0)
         setup_quality = cls._series(df, "setup_quality", 50.0).fillna(50.0)
+        htf_alignment = cls._series(df, "htf_trend_alignment", 0.0).fillna(0.0)
+        sweep_score = cls._series(df, "liquidity_sweep_score", 0.0).fillna(0.0)
+        vol_compression = cls._series(df, "volatility_compression", 1.0).replace([np.inf, -np.inf], np.nan).fillna(1.0)
+        btc_beta = cls._series(df, "asset_vs_btc_return_1", 0.0).fillna(0.0)
+        funding_z = cls._series(df, "funding_rate_z", 0.0).fillna(0.0)
+        oi_change = cls._series(df, "open_interest_change_1d", 0.0).fillna(0.0)
+        dominance_change = cls._series(df, "btc_dominance_change_1d", 0.0).fillna(0.0)
 
         # Legacy feature approximations from causal multi-asset features.
         # These are deterministic row-wise transforms and do not fit on the full dataset.
         out = pd.DataFrame(index=df.index)
         out["rsi"] = (50.0 + momentum_4h.fillna(0.0) * 500.0).clip(0, 100)
         out["adx"] = (regime_conf * 100.0).clip(0, 100)
-        out["atr_pct"] = atr_proxy_pct.clip(0, 1)
-        out["ema_slope"] = ema_slope.clip(-1, 1)
-        out["close_vs_ema"] = trend_strength.clip(-1, 1)
-        out["dist_to_psy"] = cls._distance_to_psychological_level(close).fillna(0.0)
-        out["volume_ratio"] = volume_ratio.clip(0, 10)
-        out["bb_position"] = (0.5 + momentum_1d.fillna(0.0) * 10.0).clip(0, 1)
+        out["atr_pct"] = (0.70 * atr_proxy_pct + 0.30 * cls._series(df, "realized_vol_1d_ms", 0.0).abs()).clip(0, 1)
+        out["ema_slope"] = (0.70 * ema_slope + 0.30 * cls._series(df, "htf_4h_return", 0.0)).clip(-1, 1)
+        out["close_vs_ema"] = (0.75 * trend_strength + 0.25 * cls._series(df, "htf_1h_return", 0.0)).clip(-1, 1)
+        out["dist_to_psy"] = (cls._distance_to_psychological_level(close).fillna(0.0) + sweep_score.clip(0, 0.02) * 10.0).clip(0, 1)
+        out["volume_ratio"] = (volume_ratio + oi_change.abs().clip(0, 1)).clip(0, 10)
+        out["bb_position"] = (0.5 + momentum_1d.fillna(0.0) * 10.0 + btc_beta * 5.0 - dominance_change * 2.0).clip(0, 1)
         out["engulfing"] = df.get("candidate_side", pd.Series("NONE", index=df.index)).map({"BUY": 1.0, "SELL": -1.0}).fillna(0.0)
         out["regime"] = df.get("market_regime", pd.Series("RANGING", index=df.index)).astype(str).str.upper().map({"TRENDING": 1.0}).fillna(0.0)
-        out["in_fvg"] = 0.0
-        out["near_sr"] = 0.0
+        out["in_fvg"] = (sweep_score > 0).astype(float)
+        out["near_sr"] = htf_alignment.clip(0, 1)
         out["volume_bias_enc"] = np.sign(volume_ratio.fillna(1.0) - 1.0)
-        out["setup_quality"] = setup_quality.clip(0, 100)
+        out["setup_quality"] = (setup_quality + 8.0 * htf_alignment + 4.0 * (vol_compression < 0.75).astype(float) - 3.0 * funding_z.abs().clip(0, 3)).clip(0, 100)
         out["outcome"] = pd.to_numeric(df.get("outcome", 0), errors="coerce").fillna(0).astype(int).clip(0, 1)
 
         # Symmetry transform for sell candidates, matching legacy DataCollector behavior.
@@ -242,3 +251,27 @@ class MultiAssetTrainingDatasetLoader:
                 f,
                 indent=2,
             )
+
+    @staticmethod
+    def _write_macro_feature_report(raw: pd.DataFrame, path: str) -> None:
+        macro_cols = [
+            "realized_vol_1d_ms", "realized_vol_1w_ms", "volatility_compression",
+            "htf_1h_return", "htf_4h_return", "htf_trend_alignment",
+            "session_asia", "session_london", "session_ny", "liquidity_sweep_score",
+            "funding_rate", "funding_available", "open_interest", "open_interest_available",
+            "btc_dominance", "btc_dominance_available", "btc_return_1", "asset_vs_btc_return_1",
+        ]
+        present = [c for c in macro_cols if c in raw.columns]
+        payload = {
+            "present_macro_feature_count": len(present),
+            "present_macro_features": present,
+            "missing_macro_features": [c for c in macro_cols if c not in raw.columns],
+            "availability": {},
+            "note": "Macro and market-structure features are generated causally and mapped into the legacy FEATURE_NAMES adapter without global fitting.",
+        }
+        for col in ("funding_available", "open_interest_available", "btc_dominance_available"):
+            if col in raw.columns:
+                payload["availability"][col] = float(pd.to_numeric(raw[col], errors="coerce").fillna(0).mean())
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
