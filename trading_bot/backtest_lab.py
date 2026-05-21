@@ -785,13 +785,17 @@ def run_backtest(df: pd.DataFrame) -> None:
         from core.walk_forward import WalkForwardPipeline
         features_df = DataCollector.collect_from_backtest_mem(df)
         
-        # Generiamo i fold walk-forward puri ed eseguiamo la timeline diagnostica
-        wf_folds = WalkForwardPipeline.get_wf_splits(
-            len(df), 
-            N=2000, 
-            M=500, 
-            embargo_gap=Config.EMBARGO_GAP, 
-            df=df
+        # Generiamo i fold walk-forward puri ed esportiamo un audit machine-readable.
+        # Se il dataset è troppo corto (es. 1000 candles con N=2000), il report segnala
+        # esplicitamente che non esiste vera validazione OOS walk-forward.
+        wf_folds = WalkForwardPipeline.audit_and_export(
+            total_len=len(df),
+            N=2000,
+            M=500,
+            embargo_gap=Config.EMBARGO_GAP,
+            df=df,
+            label_horizon=100,
+            path="data/walkforward_audit_report.json",
         )
         WalkForwardPipeline.print_timeline(wf_folds, len(df))
         
