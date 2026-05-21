@@ -93,6 +93,16 @@ class Config:
     SIGNAL_DENSITY_DIAGNOSTICS: bool = os.getenv("SIGNAL_DENSITY_DIAGNOSTICS", "1") == "1"
     SIGNAL_DENSITY_REPORT_PATH: str = os.getenv("SIGNAL_DENSITY_REPORT_PATH", os.path.join("data", "signal_density_report.json"))
 
+    # Cost-aware meta-labeling diagnostics.  By default this is diagnostic-only:
+    # it reports net expectancy after estimated execution friction without changing
+    # live/backtest decisions.  Set META_COST_AWARE_GATING=1 only after validating
+    # the recommended thresholds with walk-forward/backtest.
+    META_COST_AWARE_ENABLED: bool = os.getenv("META_COST_AWARE_ENABLED", "1") == "1"
+    META_COST_AWARE_GATING: bool = os.getenv("META_COST_AWARE_GATING", "0") == "1"
+    META_MIN_NET_EDGE_R: float = float(os.getenv("META_MIN_NET_EDGE_R", "0.00"))
+    META_MAX_COST_TO_EDGE_RATIO: float = float(os.getenv("META_MAX_COST_TO_EDGE_RATIO", "1.00"))
+    COST_AWARE_REPORT_PATH: str = os.getenv("COST_AWARE_REPORT_PATH", os.path.join("data", "cost_aware_threshold_report.json"))
+
     # Kelly Criterion Configuration
     USE_KELLY_SIZING:   bool  = True
     KELLY_FRACTION:     float = 0.5         # Half-Kelly baseline (full-Kelly is typically too aggressive)

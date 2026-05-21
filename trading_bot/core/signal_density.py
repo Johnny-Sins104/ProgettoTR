@@ -45,6 +45,11 @@ class SignalDensityMonitor:
     probabilities: List[float] = field(default_factory=list)
     setup_qualities: List[float] = field(default_factory=list)
     expected_values: List[float] = field(default_factory=list)
+    expected_net_edges: List[float] = field(default_factory=list)
+    expected_costs_bps: List[float] = field(default_factory=list)
+    cost_to_edge_ratios: List[float] = field(default_factory=list)
+    cost_aware_pass: int = 0
+    cost_aware_fail: int = 0
     rejection_reasons: Dict[str, int] = field(default_factory=dict)
     accepted_samples: List[Dict[str, Any]] = field(default_factory=list)
     rejected_samples: List[Dict[str, Any]] = field(default_factory=list)
@@ -84,6 +89,10 @@ class SignalDensityMonitor:
         setup_quality: float,
         tech_score: float,
         expected_value: float,
+        expected_net_edge: float | None = None,
+        expected_round_trip_cost_bps: float | None = None,
+        cost_to_edge_ratio: float | None = None,
+        cost_aware_accepted: bool | None = None,
         is_tech_ok: bool,
         ranked: bool,
         accepted: bool,
@@ -94,10 +103,16 @@ class SignalDensityMonitor:
         p = self._as_float(p_cal, 50.0)
         q = self._as_float(setup_quality, 0.0)
         ev = self._as_float(expected_value, -999.0)
+        net_ev = self._as_float(expected_net_edge, ev)
+        cost_bps = self._as_float(expected_round_trip_cost_bps, 0.0)
+        cte = self._as_float(cost_to_edge_ratio, 0.0)
 
         self.probabilities.append(p)
         self.setup_qualities.append(q)
         self.expected_values.append(ev)
+        self.expected_net_edges.append(net_ev)
+        self.expected_costs_bps.append(cost_bps)
+        self.cost_to_edge_ratios.append(cte)
 
         if q >= self.meta_quality_threshold and is_tech_ok:
             self.setup_quality_pass += 1
@@ -117,12 +132,24 @@ class SignalDensityMonitor:
             self.positive_ev_fail += 1
             self._inc_reason("non_positive_expected_value")
 
+        if cost_aware_accepted is None:
+            cost_aware_accepted = net_ev > 0.0
+        if cost_aware_accepted:
+            self.cost_aware_pass += 1
+        else:
+            self.cost_aware_fail += 1
+            self._inc_reason("non_positive_cost_adjusted_ev")
+
         sample = {
             "side": side,
             "p_cal": round(p, 6),
             "setup_quality": round(q, 6),
             "tech_score": round(self._as_float(tech_score), 6),
             "expected_value": round(ev, 6),
+            "expected_net_edge_r": round(net_ev, 6),
+            "expected_round_trip_cost_bps": round(cost_bps, 6),
+            "cost_to_edge_ratio": round(cte, 6),
+            "cost_aware_accepted": bool(cost_aware_accepted),
             "regime": regime,
         }
         if accepted:
@@ -216,10 +243,10 @@ class SignalDensityMonitor:
         rows = []
         prob_grid = [40, 45, 50, 55, 60, 65, 70]
         qual_grid = [40, 45, 50, 55, 60]
-        samples = list(zip(self.probabilities, self.setup_qualities, self.expected_values))
+        samples = list(zip(self.probabilities, self.setup_qualities, self.expected_net_edges))
         for prob_th in prob_grid:
             for quality_th in qual_grid:
-                pass_count = sum(1 for p, q, ev in samples if p >= prob_th and q >= quality_th and ev > 0.0)
+                pass_count = sum(1 for p, q, net_ev in samples if p >= prob_th and q >= quality_th and net_ev > 0.0)
                 rows.append({
                     "prob_threshold": prob_th,
                     "quality_threshold": quality_th,
@@ -227,6 +254,16 @@ class SignalDensityMonitor:
                     "pass_rate_pct": round((pass_count / len(samples) * 100.0) if samples else 0.0, 4),
                 })
         return rows
+
+
+    def cost_aware_threshold_optimization(self) -> List[Dict[str, Any]]:
+        """Ranks threshold combinations by estimated net edge, not raw trade count."""
+        try:
+            from core.cost_aware_meta import CostAwareMetaLabeler
+        except Exception:
+            return []
+        samples = self.accepted_samples + self.rejected_samples
+        return CostAwareMetaLabeler.optimize_thresholds_from_samples(samples, min_trades=3)[:25]
 
     def build_report(self) -> Dict[str, Any]:
         funnel = {
@@ -242,6 +279,8 @@ class SignalDensityMonitor:
             "risk_blocked": self.risk_blocked,
             "opened_trades": self.opened_trades,
             "closed_trades": self.closed_trades,
+            "cost_aware_pass": self.cost_aware_pass,
+            "cost_aware_fail": self.cost_aware_fail,
         }
         return {
             "thresholds": {
@@ -256,7 +295,11 @@ class SignalDensityMonitor:
             "setup_quality_distribution": self._summary(self.setup_qualities),
             "setup_quality_buckets": self._buckets(self.setup_qualities, [40, 45, 50, 55, 60, 70, 80]),
             "expected_value_distribution": self._summary(self.expected_values),
+            "expected_net_edge_distribution": self._summary(self.expected_net_edges),
+            "expected_cost_bps_distribution": self._summary(self.expected_costs_bps),
+            "cost_to_edge_ratio_distribution": self._summary(self.cost_to_edge_ratios),
             "threshold_sweep": self.threshold_sweep(),
+            "cost_aware_threshold_optimization": self.cost_aware_threshold_optimization(),
             "sample_rejected_setups": self.rejected_samples[:25],
             "sample_accepted_setups": self.accepted_samples[:25],
             "diagnostic_interpretation": self._interpret(funnel),
@@ -276,6 +319,8 @@ class SignalDensityMonitor:
             notes.append("All setup quality scores are below threshold. Technical quality gate is the bottleneck.")
         if self.positive_ev_fail > self.positive_ev_pass:
             notes.append("Most candidates are non-positive EV after calibration and RR assumptions. Lowering thresholds alone may increase negative expectancy trades.")
+        if self.cost_aware_fail > self.cost_aware_pass:
+            notes.append("Most candidates do not survive expected execution costs. Optimize thresholds on net expectancy, not trade count.")
         return notes
 
     def export(self, output_path: Optional[str | Path] = None) -> Dict[str, Any]:

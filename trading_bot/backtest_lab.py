@@ -21,6 +21,7 @@ from core.risk import DynamicRiskEngine, RiskManager
 from core.visualizer import save_trade_chart
 from core.ai_engine import TradingAI
 from core.signal_density import SignalDensityMonitor
+from core.cost_aware_meta import CostAwareMetaLabeler
 
 CHARTS_DIR = "data/charts"
 os.makedirs(CHARTS_DIR, exist_ok=True)
@@ -653,20 +654,59 @@ def simulate_backtest(
                     
                     ranked = SetupRanker.rank_candidates([candidate], available_slots=1)
                     expected_value = SetupRanker.calculate_expected_value(p_cal, candidate["rr"])
-                    meta_accepted = bool(ranked and p_cal >= Config.META_PROB_THRESHOLD and is_tech_ok)
+
+                    # Cost-aware meta-labeling diagnostic: gross EV can look positive
+                    # while net EV disappears after expected execution friction.  This
+                    # is diagnostic-only by default; enable META_COST_AWARE_GATING=1
+                    # only after validating threshold recommendations out-of-sample.
+                    close_price = float(last.get("Close", last.get("close", 0.0)) or 0.0)
+                    atr_for_cost = float(last.get("atr", features.get("atr", 0.0)) or 0.0)
+                    atr_pct_for_cost = float(last.get("atr_pct", features.get("atr_pct", 0.0)) or 0.0)
+                    atr_ratio_for_cost = 1.0
+                    try:
+                        if len(window) >= Config.VOL_LOOKBACK and "atr" in window.columns:
+                            atr_med = float(window["atr"].tail(Config.VOL_LOOKBACK).median())
+                            atr_ratio_for_cost = (atr_for_cost / atr_med) if atr_med > 0 else 1.0
+                    except Exception:
+                        atr_ratio_for_cost = 1.0
+                    cost_estimate = CostAwareMetaLabeler.estimate(
+                        probability=p_cal,
+                        rr_ratio=candidate["rr"],
+                        entry_price=close_price,
+                        stop_loss=None,
+                        atr_val=atr_for_cost,
+                        atr_ratio=atr_ratio_for_cost,
+                        atr_pct=atr_pct_for_cost,
+                        vol_regime=None,
+                        order_type="LIMIT",
+                        entry_type=str(entry_type or "BREAKOUT"),
+                    )
+
+                    meta_accepted_gross = bool(ranked and p_cal >= Config.META_PROB_THRESHOLD and is_tech_ok)
+                    meta_accepted = bool(
+                        meta_accepted_gross
+                        and (
+                            not getattr(Config, "META_COST_AWARE_GATING", False)
+                            or cost_estimate.accepted_cost_aware
+                        )
+                    )
                     signal_monitor.observe_meta_decision(
                         side=tech_verdict,
                         p_cal=p_cal,
                         setup_quality=setup_quality,
                         tech_score=tech_score,
                         expected_value=expected_value,
+                        expected_net_edge=cost_estimate.expected_net_edge_r,
+                        expected_round_trip_cost_bps=cost_estimate.expected_round_trip_cost_bps,
+                        cost_to_edge_ratio=cost_estimate.cost_to_edge_ratio,
+                        cost_aware_accepted=cost_estimate.accepted_cost_aware,
                         is_tech_ok=is_tech_ok,
                         ranked=bool(ranked),
                         accepted=meta_accepted,
                         regime=str(last.get("market_regime", "RANGING")),
                     )
                     
-                    # Gating: setup must pass both thresholds and have positive EV
+                    # Gating: setup must pass thresholds, positive gross EV, and optionally cost-aware net EV
                     if meta_accepted:
                         verdict = tech_verdict
                         score = int(tech_score * (1.0 - Config.AI_WEIGHT) + (p_cal - 50.0) * 2.0 * Config.AI_WEIGHT)
@@ -675,13 +715,13 @@ def simulate_backtest(
                             "setup_quality": setup_quality,
                             "tech_score": tech_score
                         }
-                        confluence_comb = f"{conf_comb}+Meta_OK(p:{p_cal:.1f}%,q:{setup_quality:.1f})"
+                        confluence_comb = f"{conf_comb}+Meta_OK(p:{p_cal:.1f}%,q:{setup_quality:.1f},netEV:{cost_estimate.expected_net_edge_r:.3f}R)"
                     else:
                         verdict = "HOLD"
                         entry_type = None
                         score = 0
                         active_conf = {"ai_prob": p_cal, "setup_quality": setup_quality, "tech_score": tech_score}
-                        confluence_comb = f"Meta_Filtered(p:{p_cal:.1f}%,q:{setup_quality:.1f})"
+                        confluence_comb = f"Meta_Filtered(p:{p_cal:.1f}%,q:{setup_quality:.1f},netEV:{cost_estimate.expected_net_edge_r:.3f}R)"
                 else:
                     signal_monitor.observe_no_technical_candidate()
                     verdict = "HOLD"
@@ -990,6 +1030,24 @@ def run_backtest(df: pd.DataFrame) -> None:
                 print(f"  Pending triggers filled  : {funnel.get('pending_triggers_filled', 0)}  ({funnel.get('pending_fill_rate_pct', 0.0):.2f}%)")
                 print(f"  Opened trades            : {funnel.get('opened_trades', 0)}")
                 print(f"  Closed trades            : {funnel.get('closed_trades', 0)}")
+                print(f"  Cost-aware pass          : {funnel.get('cost_aware_pass', 0)}")
+                print(f"  Cost-aware fail          : {funnel.get('cost_aware_fail', 0)}")
+                net_dist = signal_report.get('expected_net_edge_distribution', {})
+                cost_dist = signal_report.get('expected_cost_bps_distribution', {})
+                if net_dist.get('count', 0):
+                    print(f"  Avg expected net edge    : {net_dist.get('mean', 0.0):+.4f} R")
+                    print(f"  Avg expected cost        : {cost_dist.get('mean', 0.0):.2f} bps")
+                top_opt = signal_report.get('cost_aware_threshold_optimization', [])[:3]
+                if top_opt:
+                    print("\n  Cost-aware threshold candidates (diagnostic):")
+                    for row_opt in top_opt:
+                        print(
+                            "    - "
+                            f"p>={row_opt.get('prob_threshold')} q>={row_opt.get('quality_threshold')} | "
+                            f"pass={row_opt.get('would_pass')} | "
+                            f"avg_net={row_opt.get('avg_expected_net_edge_r'):+.4f}R | "
+                            f"avg_cost={row_opt.get('avg_expected_cost_bps'):.2f}bps"
+                        )
                 top_reasons = list(signal_report.get('rejection_reasons', {}).items())[:5]
                 if top_reasons:
                     print("\n  Top rejection reasons:")
