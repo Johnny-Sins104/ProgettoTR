@@ -77,6 +77,10 @@ class Config:
     AI_RETRAIN_EVERY:   int   = 500
     AI_MODEL_PATH:      str   = os.path.join("data", "ai_model.pkl")
     AI_FEATURES_PATH:   str   = os.path.join("data", "market_features.parquet")
+    AI_USE_EXPANDED_DATASET: bool = os.getenv("AI_USE_EXPANDED_DATASET", "1") == "1"
+    AI_EXPANDED_DATASET_PATH: str = os.getenv("AI_EXPANDED_DATASET_PATH", os.path.join("data", "datasets", "meta_label_dataset.parquet"))
+    AI_EXPANDED_MIN_SAMPLES: int = int(os.getenv("AI_EXPANDED_MIN_SAMPLES", "10000"))
+    AI_MIN_REGIME_SAMPLES: int = int(os.getenv("AI_MIN_REGIME_SAMPLES", "1000"))
 
     # Parquet Dataset Metadata & Integrity Rules
     DATASET_VERSION:            str   = "1.0.0"

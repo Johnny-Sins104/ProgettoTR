@@ -799,31 +799,57 @@ def run_backtest(df: pd.DataFrame) -> None:
         )
         WalkForwardPipeline.print_timeline(wf_folds, len(df))
         
-        # Generiamo un dataset di addestramento globale sicuro (con purging e localizzazione)
-        global_train_df = DataCollector.generate_training_dataset(
-            df=df,
-            train_start=0,
-            train_end=len(df) - 1,
-            features_df=features_df,
-            label_horizon=100
-        )
+        # Prefer the Prompt 19 expanded multi-asset meta-label dataset when present.
+        # The legacy BTC-only generator is kept as a fallback for offline smoke tests.
+        global_train_df = None
+        using_expanded_training = False
+
+        if getattr(Config, "AI_USE_EXPANDED_DATASET", True):
+            try:
+                from core.training_dataset_loader import MultiAssetTrainingDatasetLoader
+                if MultiAssetTrainingDatasetLoader.expanded_dataset_exists():
+                    global_train_df, training_report = MultiAssetTrainingDatasetLoader.load_expanded_training_dataset()
+                    using_expanded_training = True
+                    print(
+                        "🧠 [AI DATASET] Using expanded multi-asset training dataset: "
+                        f"{training_report.rows_after_cleaning} samples | "
+                        f"assets={training_report.per_asset_counts}"
+                    )
+                    if training_report.warnings:
+                        print(f"⚠️ [AI DATASET] Warnings: {training_report.warnings[:5]}")
+            except Exception as e:
+                print(f"⚠️ [AI DATASET] Expanded loader unavailable; falling back to legacy BTC-only training. Reason: {e}")
+
+        if global_train_df is None:
+            # Generiamo un dataset di addestramento globale sicuro (con purging e localizzazione)
+            global_train_df = DataCollector.generate_training_dataset(
+                df=df,
+                train_start=0,
+                train_end=len(df) - 1,
+                features_df=features_df,
+                label_horizon=100
+            )
+
         samples_count = len(global_train_df)
         
         if samples_count >= Config.AI_MIN_SAMPLES:
-            # Salviamo il dataset in formato Parquet con validazione e metadati
-            try:
-                import polars as pl
-                from core.data_collector import DatasetIntegrity, DatasetVersioning
-                
-                global_train_df_pl = pl.DataFrame(global_train_df)
-                global_train_df_pl = DatasetIntegrity.validate_schema(global_train_df_pl, is_features=True)
-                global_train_df_pl = DatasetIntegrity.handle_missing_data(global_train_df_pl, max_null_ratio=Config.MAX_NULL_TOLERANCE)
-                global_train_df_pl = DatasetIntegrity.detect_and_remove_duplicates(global_train_df_pl)
-                
-                DatasetVersioning.write_parquet_with_metadata(global_train_df_pl, Config.AI_FEATURES_PATH, is_features=True)
-                print(f"💾 Salvati {samples_count} campioni completi in formato Parquet: {Config.AI_FEATURES_PATH}")
-            except Exception as e:
-                print(f"[WARN] Impossibile salvare features Parquet: {e}")
+            # Salviamo il dataset legacy solo quando non stiamo usando il parquet multi-asset adattato.
+            if not using_expanded_training:
+                try:
+                    import polars as pl
+                    from core.data_collector import DatasetIntegrity, DatasetVersioning
+                    
+                    global_train_df_pl = pl.DataFrame(global_train_df)
+                    global_train_df_pl = DatasetIntegrity.validate_schema(global_train_df_pl, is_features=True)
+                    global_train_df_pl = DatasetIntegrity.handle_missing_data(global_train_df_pl, max_null_ratio=Config.MAX_NULL_TOLERANCE)
+                    global_train_df_pl = DatasetIntegrity.detect_and_remove_duplicates(global_train_df_pl)
+                    
+                    DatasetVersioning.write_parquet_with_metadata(global_train_df_pl, Config.AI_FEATURES_PATH, is_features=True)
+                    print(f"💾 Salvati {samples_count} campioni completi in formato Parquet: {Config.AI_FEATURES_PATH}")
+                except Exception as e:
+                    print(f"[WARN] Impossibile salvare features Parquet: {e}")
+            else:
+                print(f"💾 Dataset training compatibile scritto in: {Config.AI_FEATURES_PATH}")
                 
             print("🧠 [AI INIT] Addestramento modello globale XGBoost sicuro...")
             ai_metrics = ai.train(features_df=global_train_df)
