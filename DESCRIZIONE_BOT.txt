@@ -1,0 +1,402 @@
+================================================================================
+          ECOLOGIA E ARCHITETTURA COMPLETA DEL TRADING BOT EVOLUTO (AI)
+================================================================================
+Questo documento fornisce una descrizione tecnica, matematica, architetturale e 
+operativa estremamente dettagliata del trading bot quantitativo basato su 
+Machine Learning (Agentic AI) e sul Criterio di Kelly sviluppato finora.
+
+Il bot è progettato per operare live su BINANCE FUTURES USDT-M (contratti futures 
+regolati in USDT) con un timeframe di riferimento principale a 15 minuti, 
+evolvendo una classica strategia tecnica a regole rigide in un ecosistema 
+probabilistico adattivo guidato dall'intelligenza artificiale.
+
+--------------------------------------------------------------------------------
+INDICE:
+1. PERCHÉ BINANCE FUTURES (USDT-M) E IL PROBLEMA DELLE COMMISSIONI
+2. STRUTTURA DELLE CARTELLE E DEI FILE DEL PROGETTO
+3. ANALIZZATORE TECNICO E INDICATORI (core/analyzer.py)
+4. MODULO MEMORIA E DATASET DELLE FEATURES (core/data_collector.py)
+5. IL CERVELLO AI PREDITTIVO (core/ai_engine.py)
+6. IL MOTORE DECISIONALE IBRIDO (core/engine.py)
+7. GESTIONE DEL RISCHIO E GESTIONE DEL CAPITALE (core/risk.py)
+8. GESTIONE MULTI-TRADE ASINCRONA E LOGICA DI INGRESSO PENDENTE
+9. LOOP LIVE PRINCIPALE E STOP TARGET DEI PROFITTI (main.py)
+10. PIATTAFORMA DI BACKTESTING E SIMULAZIONE COMPARATIVA (backtest_lab.py)
+11. PARAMETRI DI CONFIGURAZIONE E VARIABILI D'AMBIENTE (.env / config.py)
+--------------------------------------------------------------------------------
+
+1. PERCHÉ BINANCE FUTURES (USDT-M) E IL PROBLEMA DELLE COMMISSIONI
+================================================================================
+Una delle decisioni architetturali ed economiche fondamentali riguarda la scelta 
+dell'exchange e dello strumento finanziario:
+- Binance Futures USDT-M (non Spot): I contratti Futures USDT-M su Binance 
+  offrono commissioni estremamente più basse rispetto al mercato Spot. 
+  Mentre nel mercato Spot le commissioni standard sono dello 0.10% per operazione 
+  (0.20% per trade completo di andata e ritorno), sui Futures la tariffa standard 
+  è dello 0.02% per ordini Maker (limite) e dello 0.05% per ordini Taker 
+  (a mercato).
+- Impatto economico sul Timeframe: Su un timeframe a 15 o 5 minuti, i movimenti 
+  di prezzo percentuali catturati dal Take Profit sono ridotti. L'utilizzo di 
+  commissioni Spot (0.10% entry + 0.10% exit) eroderebbe completamente il 
+  profitto netto, portando il bot alla perdita certa sul lungo periodo, anche con 
+  un elevato win rate tecnico. Sui Futures (0.02% maker + 0.02% maker = 0.04% 
+  round-trip), lo spazio economico del profitto viene preservato.
+- Operatività Short (Vendita allo scoperto): L'operatività sui Futures consente 
+  al bot di aprire posizioni Short senza possedere l'asset sottostante, 
+  sfruttando le fasi di mercato ribassiste in modo del tutto analogo a quelle 
+  rialziste.
+- Leva Finanziaria: Consente di ottimizzare l'efficienza marginale del capitale 
+  (sebbene il bot mantenga una gestione del rischio rigidamente calcolata in base 
+  al saldo effettivo e mai basata sull'illusione della leva).
+
+
+2. STRUTTURA DELLE CARTELLE E DEI FILE DEL PROGETTO
+================================================================================
+Il progetto è strutturato in modo altamente modulare per facilitare manutenzione, 
+test offline e stabilità live:
+
+bot/
+│
+├── avvia_bot_live.bat         # Script batch Windows per avviare il bot in modalità Live
+├── avvia_backtest.bat         # Script batch per avviare rapidamente simulazioni storiche
+│
+└── trading_bot/               # Cartella contenente il codice sorgente principale
+    ├── config.py              # Configurazione centralizzata e gestione variabili d'ambiente
+    ├── main.py                # Loop principale asincrono per l'operatività Live su Binance
+    ├── backtest_lab.py        # Simulatore storico multi-profilo offline integrato con AI
+    ├── multi_trade_manager.py # Gestore asincrono multi-trade e ordini pendenti
+    ├── run_custom_backtest.py # CLI per lanciare simulazioni storiche personalizzate
+    ├── requirements.txt       # Elenco dipendenze esterne (ccxt, pandas, numpy, scikit-learn)
+    │
+    ├── data/                  # Cartella dati (generata automaticamente)
+    │   ├── balance_live.txt   # File di testo con il saldo live aggiornato del bot
+    │   ├── bot_live.log       # Registro log testuale di tutte le operazioni live e dei cicli
+    │   ├── market_features.csv# Il Dataset di Addestramento dell'AI (features + outcome)
+    │   ├── ai_model.pkl       # Il file binario contenente il modello Random Forest salvato
+    │   ├── trades/            # File JSON contenenti i dati dei trade correntemente aperti
+    │   ├── pending/           # File JSON con i trigger pendenti in attesa di breakout
+    │   └── charts/            # Grafici interattivi HTML dei trade generati in backtest
+    │
+    └── core/                  # Il nucleo logico del bot
+        ├── client.py          # Wrapper CCXT asincrono per l'interazione sicura con Binance
+        ├── database.py        # Gestione di persistenza ausiliaria per trade storici
+        ├── analyzer.py        # Calcolatore di oltre 25 indicatori tecnici su dati OHLCV
+        ├── engine.py          # Il Motore Decisionale (Score Ibrido e Filtri Anti-Fakeout)
+        ├── risk.py            # Il Risk Manager (calcolo del sizing tramite Kelly Criterion)
+        ├── data_collector.py  # Modulo Memoria: estrazione features e labeling forward
+        ├── ai_engine.py       # Cervello Predittivo: Random Forest, training e retrain live
+        ├── notifier.py        # Gestore delle notifiche via Telegram (messaggi, grafici, alert)
+        └── visualizer.py      # Generatore di grafici HTML interattivi tramite Plotly
+
+
+3. ANALIZZATORE TECNICO E INDICATORI (core/analyzer.py)
+================================================================================
+La classe TechnicalAnalyzer prende un DataFrame pandas contenente i dati OHLCV 
+(Open, High, Low, Close, Volume) e vi calcola una vasta suite di indicatori:
+
+- Trend di Lungo Termine: Calcola le medie mobili esponenziali EMA 200 ed EMA 400 
+  per identificare il macro-trend di fondo.
+- Momentum: RSI a 14 periodi per rilevare condizioni di ipercomprato/ipervenduto.
+- Forza del Trend e Volatilità: Calcolo di ADX (Average Directional Index) e 
+  ATR (Average True Range) a 14 periodi.
+- Strutture Volumetriche (Volume Bias): Calcolo del delta volumetrico cumulato 
+  sulle ultime 5 candele per definire se la pressione prevalente sia BULLISH, 
+  BEARISH o NEUTRAL.
+- Price Action & Strutture del Prezzo:
+  - Swing di Supporto e Resistenza: Identificazione dei massimi e minimi locali 
+    (swing highs/lows) su una finestra mobile di 20 candele.
+  - Fair Value Gaps (FVG): Rilevamento automatico di inefficienze di prezzo. 
+    Se un FVG rialzista o ribassista si forma, il bot traccia se l'attuale prezzo 
+    si trova all'interno di esso (`in_bull_fvg`, `in_bear_fvg`).
+  - Livelli Psicologici: Livelli tondi di prezzo (multipli strutturati del prezzo 
+    dell'asset, es. 250 USDT per Bitcoin). Viene calcolata la distanza 
+    percentuale dal livello più vicino.
+  - Canale Macro-Prezzo: La posizione percentuale del prezzo di chiusura 
+    all'interno del canale di prezzo minimo/massimo a 400 candele (`range_pos_400`).
+  - Pattern di Candele: Rilevamento di candele Doji e pattern Engulfing 
+    (Bullish/Bearish), convertiti in punteggi numerici.
+- Regime Switching: Il bot valuta autonomamente la forza del trend complessivo. 
+  Se l'ADX supera una determinata soglia ottimale (es. 33.86), il mercato viene 
+  classificato in regime TRENDING (Trend-Following). Se è al di sotto, viene 
+  classificato in regime RANGING (Oscillazione all'interno di canali).
+
+
+4. MODULO MEMORIA E DATASET DELLE FEATURES (core/data_collector.py)
+================================================================================
+Il modulo DataCollector funge da infrastruttura di persistenza delle features che 
+alimenta l'apprendimento continuo dell'AI. Ogni volta che si verifica un segnale 
+di mercato o un'operazione viene conclusa, il modulo estrae 15 features 
+geometriche e le correla a un'etichetta di profitto reale (outcome).
+
+Le 15 Features raccolte in "market_features.csv":
+1.  rsi: RSI 14 diretto.
+2.  adx: ADX 14 diretto.
+3.  atr_pct: Volatilità normalizzata come percentuale del prezzo close (ATR / Close * 100).
+4.  ema_slope: Pendenza percentuale dell'EMA 200 calcolata sugli ultimi 5 periodi.
+5.  close_vs_ema: Distanza percentuale tra il prezzo di chiusura e l'EMA 200.
+6.  dist_to_psy: Distanza percentuale del prezzo dal livello psicologico più vicino.
+7.  volume_ratio: Rapporto tra il volume attuale e la media mobile dei volumi a 20 periodi.
+8.  bb_position: Posizione percentuale nel macro-canale a 400 candele (range_pos_400).
+9.  engulfing: Presenza di engulfing codificato come 1.0 (Rialzista), -1.0 (Ribassista) o 0.0.
+10. regime: Regime di mercato (1 = Trending, 0 = Ranging).
+11. in_fvg: Posizionamento in un Fair Value Gap (1 rialzista, -1 ribassista, 0 nessuno).
+12. near_sr: Vicinanza strutturale a supporti/resistenze (1 vicino a supporto, -1 vicino a resistenza, 0 nessuno).
+13. hour: Ora solare corrente del mercato (0-23) per catturare la stagionalità intraday.
+14. day_of_week: Giorno della settimana (0-6).
+15. volume_bias_enc: Direzione dominante dei volumi (1 rialzista, -1 ribassista, 0 neutro).
+
+IL CONCETTO RIVOLUZIONARIO DI SIMMETRIA DELLO SHORT:
+Per evitare che il bot debba collezionare il doppio dei dati per insegnare all'AI 
+sia a comprare (Long) che a vendere (Short), il sistema implementa la "Symmetry 
+Transformation". Quando viene analizzato un segnale Short (SELL), le features 
+direzionali (engulfing, close_vs_ema, ema_slope, near_sr, volume_bias_enc) 
+vengono invertite di segno prima di essere salvate o date in pasto alla 
+predizione. In questo modo, l'AI riconosce la stessa "forma geometrica" di un 
+pattern di inversione, indipendentemente dalla direzione fisica, raddoppiando 
+l'efficienza di campionamento.
+
+LABELING FORWARD (Etichettatura del Risultato):
+Durante il backtest o la simulazione storica, l'outcome (0 o 1) viene calcolato 
+proiettando l'evoluzione del prezzo nelle 100 candele successive:
+- Ritorna 1 (Vittoria) se il prezzo raggiunge il Take Profit (calcolato come 
+  Entry + ATR * ATR_MULT * RiskReward) prima di toccare lo Stop Loss.
+- Ritorna 0 (Sconfitta) se il prezzo tocca lo Stop Loss per primo, o se scatta il 
+  timeout delle 100 candele (il trade non va da nessuna parte ed erode capitale in 
+  commissioni/funding rate).
+
+
+5. IL CERVELLO AI PREDITTIVO (core/ai_engine.py)
+================================================================================
+La classe TradingAI implementa l'algoritmo di machine learning:
+
+- Algoritmo: Un classificatore Random Forest (Random Forest Classifier) composto 
+  da 200 alberi decisionali (`n_estimators=200`, `max_depth=10`, 
+  `min_samples_leaf=4`) per mitigare l'overfitting.
+- Pipeline di addestramento: Il dataset `market_features.csv` viene ripulito da 
+  eventuali anomalie, normalizzato e suddiviso in 80% training e 20% test con 
+  mescolamento casuale.
+- Fallback di Sicurezza (Zeroloss/Zero-downtime): Se la libreria scikit-learn non 
+  dovesse essere disponibile o se il file `market_features.csv` non contiene il 
+  numero minimo di campioni richiesti per un addestramento statisticamente 
+  significativo (`AI_MIN_SAMPLES = 200`), la classe intercetta l'eccezione e 
+  restituisce automaticamente una probabilità del 50.0% (neutrale). In questo 
+  modo, il bot continua a funzionare perfettamente basandosi interamente sulla 
+  strategia tecnica classica, senza interruzioni di servizio live.
+- Apprendimento Continuo (Auto-Retrain): In modalità live, ogni volta che un trade 
+  viene chiuso e il suo esito reale viene scritto nel CSV delle features, il bot 
+  incrementa un contatore di nuovi campioni. Raggiunta la soglia di 500 nuovi 
+  campioni (`AI_RETRAIN_EVERY`), il modello si riaddestra in background 
+  aggiornando i propri pesi per adattarsi a nuovi cicli e regimi di mercato.
+
+
+6. IL MOTORE DECISIONALE IBRIDO (core/engine.py)
+================================================================================
+La classe DecisionEngine riceve i segnali ed elabora il verdetto finale fondendo 
+la rigidità delle regole tecniche classiche con l'elasticità probabilistica dell'AI:
+
+1. Calcolo del Punteggio Tecnico Pesato: A seconda del regime di mercato 
+   (Trending o Ranging), il bot assegna pesi specifici ai segnali degli 
+   indicatori. Ad esempio:
+   - In Trending, l'allineamento con l'EMA 200 ed il volume bias pesano di più.
+   - In Ranging, l'ipercomprato/ipervenduto sull'RSI e la vicinanza a supporti/resistenze 
+     assumono una rilevanza predominante.
+   Il punteggio tecnico finale varia tra -100 (estrema forza ribassista/Short) 
+   e +100 (estrema forza rialzista/Long).
+2. Estrazione delle Features correnti ed Interrogazione AI: Se il segnale supera 
+   la soglia minima di attivazione tecnica (es. 70 per Buy, -70 per Sell) ed il 
+   modulo AI è abilitato, vengono estratte le features correnti e l'AI predice la 
+   probabilità di successo del trade.
+3. Punteggio Ibrido: La formula fonde i due mondi assegnando un peso del 60% alla 
+   confluenza tecnica e un peso del 40% alla probabilità predetta dall'AI:
+   
+   Hybrid_Score = (Tech_Score * 0.60) + (AI_Score * 0.40)
+   
+   (L'AI_Score, espresso originalmente come probabilità 0-100%, viene mappato 
+   linearmente su una scala da -100 a +100).
+4. Filtro Anti-Fakeout: Anche se il segnale tecnico è estremamente forte, se la 
+   probabilità statistica stimata dall'AI è inferiore al 55% (`AI_MIN_CONFIDENCE`), 
+   il trade viene classificato come potenziale "Falso Segnale" (Fakeout) e il 
+   verdetto finale viene forzato a "HOLD" (nessun ingresso), salvando il capitale 
+   da perdite non necessarie.
+
+
+7. GESTIONE DEL RISCHIO E GESTIONE DEL CAPITALE (core/risk.py)
+================================================================================
+Invece di utilizzare un rischio fisso o arbitrario per trade, il bot implementa 
+una gestione scientifica ed avanzata del capitale attraverso il Criterio di Kelly:
+
+IL CRITERIO DI KELLY DYNAMIC SIZING:
+La formula di Kelly ottimizza la crescita geometrica a lungo termine del capitale, 
+calcolando la percentuale ideale del saldo da rischiare in base alla probabilità 
+di successo ed al rapporto rendimento/rischio attesi:
+
+f* = (p * b - q) / b
+
+Dove:
+- f* è la frazione del capitale da rischiare.
+- p è la probabilità reale di vincita stimata dal modello AI (es. 0.62 per 62%).
+- b è il rapporto di Reward/Risk del trade (es. 2.0 per un Take Profit posizionato 
+  al doppio della distanza dello Stop Loss).
+- q è la probabilità di perdita (1 - p).
+
+IL MOLTIPLICATORE HALF-KELLY:
+Per evitare drawdown eccessivi dovuti a varianza statistica o stime di probabilità 
+leggermente ottimistiche del modello di machine learning, il RiskManager applica 
+una frazione di Kelly pari a 0.50 (Half-Kelly). Questa tecnica dimezza la 
+percentuale teorica di Kelly, riducendo la volatilità del conto del 50% a fronte 
+di una perdita infinitesimale in termini di rendimento sul lungo periodo.
+
+LIMITAZIONI RIGIDE DI SICUREZZA (Safety Floor & Capping):
+La percentuale di rischio calcolata dinamicamente viene protetta da limiti invalicabili:
+- Minimo (Safety Floor): 1.5% del saldo reale (per garantire che il bot operi anche 
+  nei periodi a bassa confidenza, accumulando comunque dati utili).
+- Massimo (Safety Capping): Limitata al valore massimo della classe di rischio 
+  impostata dall'utente nel file `.env` (es. 15.0% per la classe HIGH, 7.0% per 
+  MEDIUM, 3.0% per LOW). Non si rischierà mai più di questa quota, anche se l'AI 
+  dovesse calcolare una probabilità del 99%.
+
+COMMISSION-AWARE POSITION SIZING (Dimensionamento Consapevole delle Commissioni):
+La taglia effettiva del contratto futures da aprire viene calcolata incorporando 
+la commissione round-trip dell'exchange nel costo del rischio per unità:
+
+Size = Rischio_Capitale / (Distanza_SL_in_prezzo + 2 * Prezzo_Ingresso * Commissione)
+
+Questo assicura che il rischio reale monetario stimato includa anche le commissioni 
+di entrata e di uscita, evitando che il conto scenda a causa dei costi di 
+transazione.
+
+LIMITAZIONE DI LEVA (Leverage Capping):
+La size massima tollerabile è limitata dalla leva finanziaria massima associata 
+al profilo di rischio (es. 10x per il profilo HIGH):
+
+Size_Massima = (Saldo * Leva_Massima) / Prezzo_Ingresso
+
+
+8. GESTIONE MULTI-TRADE ASINCRONA E LOGICA DI INGRESSO PENDENTE
+================================================================================
+Il modulo `multi_trade_manager.py` gestisce l'operatività del portafoglio in modo 
+completamente asincrono e non bloccante. Nei vecchi bot di trading a loop singolo, 
+il codice si bloccava in attesa che una singola operazione venisse chiusa, 
+impedendo di monitorare il mercato per altre opportunità. Il multi_trade_manager 
+risolve questo limite:
+
+- Gestione Multi-Posizione: Il bot può gestire fino a `MAX_CONCURRENT_TRADES` 
+  (configurato a 3) posizioni attive simultaneamente, diversificando su più segnali.
+- Gestione degli Ordini Pendenti (Breakout Trigger): Quando il motore decisionale 
+  emette un segnale valido di BUY o SELL, il bot non entra immediatamente a mercato. 
+  Invece, crea un "Trigger Pendente" salvato in JSON in `data/pending/` con un 
+  Tempo di Vita (TTL) pari a 2 candele:
+  - Per un segnale BUY, il livello di trigger viene impostato sul prezzo MASSIMO 
+    della candela che ha generato il segnale.
+  - Per un segnale SELL, viene impostato sul prezzo MINIMO della candela di segnale.
+  Se nelle successive 2 candele il prezzo rompe quel livello (Breakout), il trigger 
+  si attiva ed apre la posizione a mercato. Se il breakout non avviene entro il TTL, 
+  il file pendente viene rimosso in modo sicuro, eliminando il falso segnale (fakeout).
+- Monitoraggio Ciclico delle Posizioni: Ad ogni iterazione della candela, il bot 
+  legge i file dei trade attivi in `data/trades/` ed interroga il prezzo live. Se 
+  il prezzo tocca il livello di TP o di SL, il manager chiude la posizione, 
+  calcola il PnL netto (detratto delle commissioni effettive), aggiorna il file 
+  di saldo `data/balance_live.txt` ed invia un alert dettagliato su Telegram.
+- Loop di Feedback del Machine Learning: All'atto della chiusura del trade, le 
+  features di mercato originarie che erano state salvate nel file del trade al momento 
+  del segnale vengono recuperate e salvate in `market_features.csv` accoppiate 
+  al risultato reale (Outcome: 1 per profitto, 0 per stop loss), chiudendo il 
+  ciclo di auto-apprendimento continuo del bot.
+
+
+9. LOOP LIVE PRINCIPALE E STOP TARGET DEI PROFITTI (main.py)
+================================================================================
+Il file `main.py` è il cuore operativo asincrono del bot live:
+
+- Sincronizzazione Temporale al Secondo: All'avvio, il bot calcola i secondi 
+  rimanenti alla chiusura esatta della candela da 15 minuti ed entra in modalità 
+  "sleep" mirata. In questo modo, l'intero motore si attiva ed elabora i dati solo 
+  quando una candela è ufficialmente chiusa e consolidata su Binance, evitando la 
+  volatilità instabile intra-candela.
+- Meccanismo di Spegnimento Automatico (Profit Target): All'inizio di ogni ciclo, 
+  il bot legge il saldo effettivo in `data/balance_live.txt`. Se il rendimento 
+  ha raggiunto l'obiettivo impostato in `PROFIT_TARGET_PCT` (es. 0.60 per +60% 
+  rispetto al saldo iniziale), il bot:
+  1. Invia una notifica di celebrazione trionfale su Telegram.
+  2. Chiude in sicurezza eventuali posizioni e trigger pendenti rimasti attivi.
+  3. Arresta l'esecuzione per "congelare" ed assicurare i profitti realizzati, 
+     prevenendo l'overtrading.
+- Aggiornamenti Ciclici: Ad ogni ciclo (alla chiusura di ogni candela):
+  1. Controlla e liquida i trade attivi che hanno colpito TP o SL live.
+  2. Valuta i trigger pendenti in breakout e apre i trade che lo richiedono.
+  3. Rileva se è possibile aprire nuove posizioni. In caso positivo, scarica le 
+     ultime candele storiche da Binance, calcola gli indicatori, interroga il motore 
+     ibrido decisionale e, se si verifica un segnale con probabilità AI valida, 
+     salva un trigger pendente.
+
+
+10. PIATTAFORMA DI BACKTESTING E SIMULAZIONE COMPARATIVA (backtest_lab.py)
+================================================================================
+Per convalidare scientificamente il sistema prima dell'operatività reale, 
+`backtest_lab.py` (avviabile tramite `run_custom_backtest.py`) implementa una 
+suite di simulazione storica su dati OHLCV archiviati (es. 5000 o 10000 candele):
+
+- Addestramento Massivo Preliminare: Il simulatore scorre lo storico offline, 
+  costruisce l'intero database di features e outcome futuri per migliaia di 
+  candele, e addestra l'AI prima di avviare il loop di simulazione.
+- Test Multirischio Comparativo Simultaneo: Il backtest simula l'evoluzione del 
+  capitale applicando contemporaneamente 4 profili di rischio distinti a partire 
+  dallo stesso saldo iniziale (es. 1000 EUR):
+  1. LOW RISK PROFILE: Rischio massimo 3% per trade, leva finanziaria massima 4x.
+  2. MEDIUM RISK PROFILE: Rischio massimo 7% per trade, leva finanziaria massima 8x.
+  3. HIGH RISK PROFILE: Rischio massimo 15% per trade, leva finanziaria massima 10x.
+  4. DYNAMIC KELLY PROFILE: Position sizing dinamico regolato dal Criterio di Kelly 
+     (Half-Kelly) basato sulla reale confidenza probabilistica dell'AI ad ogni trade.
+- Generazione dei Risultati e Metriche AI: Il simulatore stampa una tabella 
+  comparativa finale che mostra per ciascun profilo:
+  - Saldo Finale ed Incremento Net PnL %.
+  - Drawdown Massimo % (la massima perdita temporanea dal picco di saldo).
+  - Win Rate Globale (rapporto trade vinti/persi).
+  - Metriche dell'AI: Accuratezza predittiva, F1-Score ed elenco di importanza 
+    delle singole features (Feature Importance) per capire cosa sta influenzando 
+    le decisioni del bot.
+- Esportazione Grafici HTML Plotly: Salva nella cartella `data/charts/` dei grafici 
+  interattivi HTML per ciascun trade, permettendo all'utente di esaminare 
+  visivamente l'esatto posizionamento geometrico di ingressi, TP, SL e trend.
+
+
+11. PARAMETRI DI CONFIGURAZIONE E VARIABILI D'AMBIENTE (.env / config.py)
+================================================================================
+La flessibilità del bot è governata dal file `config.py` che legge le variabili 
+dal file d'ambiente `.env`:
+
+- EXCHANGE_ID: 'binanceusdm' (Binance Futures USDT-M).
+- SYMBOL: Coppia di trading di riferimento, di default 'BTC/USDT'.
+- TIMEFRAME: Intervallo temporale delle candele, di default '15m'.
+- COMMISSION_RATE: Impostato a 0.0002 (0.02%) per riflettere le commissioni reali 
+  Maker dei Futures di Binance. Se si usa Spot, si imposta a 0.001 (0.10%).
+- RISK_CLASS: Il profilo di rischio predefinito per il bot (LOW, MEDIUM, HIGH, DYNAMIC).
+- MAX_CONCURRENT_TRADES: Massimo numero di posizioni aperte simultaneamente (di default 3).
+- STRATEGY_MODE: La logica tecnica di fondo, impostata di default su 'EMA_TREND' 
+  (strategia trend-following robusta) o 'SCORE' (strategia a punteggio pesato).
+- PROFIT_TARGET_PCT: Target di profitto per lo spegnimento automatico (es. 0.60 per +60%).
+- AI_ENABLED: Variabile booleana (True/False) per attivare o disattivare il modulo AI.
+- AI_WEIGHT: Peso dell'AI nello score ibrido (0.40 = 40% AI, 60% Analisi Tecnica).
+- AI_MIN_CONFIDENCE: Confidenza minima dell'AI per autorizzare il trade (55.0%).
+- AI_MIN_SAMPLES: Numero minimo di candele storiche necessarie prima di attivare l'AI (200).
+- USE_KELLY_SIZING: Attiva il dimensionamento geometrico tramite la formula di Kelly (True).
+- KELLY_FRACTION: Frazione di Kelly applicata per cautela (0.5 = Half-Kelly).
+
+================================================================================
+          RIASSUNTO DEI PUNTI DI FORZA E STATO DELL'ARTE DEL PROGETTO
+================================================================================
+Questo trading bot rappresenta un'eccellenza nello sviluppo quantitativo:
+1. Non segue ciecamente regole rigide: Utilizza l'AI per calcolare se un setup tecnico 
+   ha una reale probabilità statistica favorevole nel contesto corrente di mercato.
+2. Protezione Matematica Avanzata: L'integrazione del Criterio di Kelly garantisce 
+   che la dimensione di ogni trade rifletta esattamente la probabilità di vincita, 
+   riducendo drasticamente le perdite nei periodi negativi (drawdown) e amplificando 
+   i profitti nei periodi favorevoli.
+3. Efficienza delle Transazioni: Configurato per sfruttare le commissioni ultrabasse 
+   di Binance Futures, implementando formule di position sizing che includono i costi 
+   di transazione al centesimo.
+4. Operatività Asincrona Non-Bloccante: Gestisce trade multipli paralleli e ordini 
+   pendenti con filtri di breakout per evitare i falsi segnali di inversione.
+5. Sistema di Auto-Apprendimento Continuo: Raccoglie dati in tempo reale e si 
+   riaddestra autonomamente per rimanere sempre aggiornato ai mutamenti del mercato.
+================================================================================
