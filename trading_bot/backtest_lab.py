@@ -147,7 +147,11 @@ def simulate_backtest(
         dd_protected_pct=Config.DD_PROTECTED_PCT,
         daily_loss_limit_pct=Config.DAILY_LOSS_LIMIT_PCT,
         profit_lock_pct=Config.PROFIT_LOCK_PCT,
-        max_leverage=max_leverage if isinstance(max_leverage, float) else Config.MAX_LEVERAGE,
+        max_leverage=(
+            max_leverage
+            if isinstance(max_leverage, (int, float)) and float(max_leverage) > 0
+            else getattr(Config, "DYNAMIC_MAX_LEVERAGE", Config.MAX_LEVERAGE)
+        ),
     )
 
     balance       = INITIAL_BALANCE
@@ -156,6 +160,8 @@ def simulate_backtest(
     pending_trigger = None      # "Pazienza Strategica" Breakout Trigger
     max_drawdown = 0.0
     peak_balance = INITIAL_BALANCE
+    risk_event_warnings = []
+    risk_blocked_attempts = 0
 
     # Genera i fold walk-forward in caso non siano stati passati
     if wf_folds is None and Config.AI_ENABLED and Config.STRATEGY_MODE == "AI_HYBRID" and features_df is not None:
@@ -248,7 +254,7 @@ def simulate_backtest(
 
                         trade_num = len(trades) + 1
                         trades.append({
-                            "side": side, "result": "LOSS", "pnl": net_pnl,
+                            "side": side, "result": "LOSS", "pnl": net_pnl, "realized_pnl": net_pnl,
                             "balance": balance, "entry": entry,
                             "sl": open_trade["initial_sl"], "tp": tp2,
                             "confluence_comb": open_trade.get("confluence_comb", "None"),
@@ -263,6 +269,7 @@ def simulate_backtest(
                             "close_vs_ema": open_trade["close_vs_ema"],
                             "setup_quality": open_trade.get("setup_quality", 0.0)
                         })
+                        risk_mgr.record_trade_event(trades[-1], balance - net_pnl, balance)
 
                         if save_charts:
                             chart_path = f"{CHARTS_DIR}/trade_{trade_num:03d}_LOSS.html"
@@ -297,7 +304,7 @@ def simulate_backtest(
 
                         trade_num = len(trades) + 1
                         trades.append({
-                            "side": side, "result": result, "pnl": net_pnl_total,
+                            "side": side, "result": result, "pnl": net_pnl_total, "realized_pnl": net_pnl_total,
                             "balance": balance, "entry": entry, "sl": sl, "tp": tp2,
                             "confluence_comb": open_trade.get("confluence_comb", "None"),
                             "ai_prob": open_trade.get("ai_prob", 50.0),
@@ -311,6 +318,7 @@ def simulate_backtest(
                             "close_vs_ema": open_trade["close_vs_ema"],
                             "setup_quality": open_trade.get("setup_quality", 0.0)
                         })
+                        risk_mgr.record_trade_event(trades[-1], balance - net_pnl_total, balance)
 
                         if save_charts:
                             chart_path = f"{CHARTS_DIR}/trade_{trade_num:03d}_{result}.html"
@@ -350,7 +358,7 @@ def simulate_backtest(
 
                     trade_num = len(trades) + 1
                     trades.append({
-                        "side": side, "result": result, "pnl": net_pnl,
+                        "side": side, "result": result, "pnl": net_pnl, "realized_pnl": net_pnl,
                         "balance": balance, "entry": entry, "sl": sl, "tp": tp,
                         "confluence_comb": open_trade.get("confluence_comb", "None"),
                         "ai_prob": open_trade.get("ai_prob", 50.0),
@@ -364,6 +372,7 @@ def simulate_backtest(
                         "close_vs_ema": open_trade["close_vs_ema"],
                         "setup_quality": open_trade.get("setup_quality", 0.0)
                     })
+                    risk_mgr.record_trade_event(trades[-1], balance - net_pnl, balance)
 
                     if save_charts:
                         chart_path = f"{CHARTS_DIR}/trade_{trade_num:03d}_{result}.html"
@@ -416,31 +425,60 @@ def simulate_backtest(
                     regime = pending_trigger["regime"]
                     ai_prob = pending_trigger.get("ai_prob", 50.0)
                     
-                    # Sizing dinamico o Kelly Criterion se attivo
+                    # Sizing dinamico o Kelly Criterion se attivo.
+                    # IMPORTANT: route all sizing through DynamicRiskEngine.size_position()
+                    # so risk diagnostics, volatility multipliers, drawdown tiers and effective
+                    # leverage are recorded for every opened trade.  The previous implementation
+                    # mutated balance directly later in the loop while never creating risk snapshots,
+                    # producing the invalid dashboard symptom: "Trades analysed : 0".
+                    is_dynamic_profile = risk_pct == "DYNAMIC"
                     if Config.USE_KELLY_SIZING and ai_prob != 50.0:
-                        risk_pct_base = 0.15 if risk_pct == "DYNAMIC" else risk_pct
+                        # For the DYNAMIC profile, Kelly is an input to risk sizing,
+                        # not permission to bet 15-20% of equity.  The previous
+                        # implementation used 15% as the default Kelly fallback,
+                        # causing a single losing trade to breach the daily loss
+                        # limit and block the rest of the backtest.
+                        risk_pct_base = (
+                            getattr(Config, "DYNAMIC_DEFAULT_RISK_PCT", Config.RISK_PER_TRADE)
+                            if is_dynamic_profile
+                            else risk_pct
+                        )
                         current_risk = risk_mgr.calculate_kelly_risk_pct(ai_prob, current_rr, risk_pct_base)
-                        current_lev = max_leverage if risk_pct != "DYNAMIC" else 10.0
-                    elif risk_pct == "DYNAMIC":
+                    elif is_dynamic_profile:
                         thresh = Config.TRENDING_THRESHOLD if regime == "TRENDING" else Config.RANGING_THRESHOLD
                         margin_above = abs(pending_trigger["score"]) - thresh
-                        if margin_above >= 15:
-                            current_risk = 0.07
-                            current_lev = 8.0
-                        else:
-                            current_risk = 0.03
-                            current_lev = 4.0
+                        current_risk = 0.03 if margin_above >= 15 else getattr(Config, "DYNAMIC_DEFAULT_RISK_PCT", Config.RISK_PER_TRADE)
                     else:
-                        current_risk = risk_pct
-                        current_lev = max_leverage
-                        
-                    risk_capital = balance * current_risk
-                    if Config.USE_COMMISSION_AWARE_SIZING:
-                        size = risk_capital / (risk_per_unit + (2 * entry_price * COMMISSION_RATE))
-                    else:
-                        size = risk_capital / risk_per_unit
-                    max_size = (balance * current_lev) / entry_price
-                    size = min(size, max_size)
+                        current_risk = float(risk_pct)
+
+                    if is_dynamic_profile:
+                        current_risk = min(
+                            float(current_risk),
+                            float(getattr(Config, "DYNAMIC_MAX_RISK_PCT", 0.03)),
+                        )
+
+                    size, risk_snapshot = risk_mgr.size_position(
+                        balance=balance,
+                        entry_price=entry_price,
+                        sl_price=sl,
+                        side=side,
+                        regime=regime,
+                        ai_prob=ai_prob,
+                        rr_ratio=current_rr,
+                        atr_val=atr_val,
+                        base_risk_pct=current_risk,
+                        commission=COMMISSION_RATE,
+                    )
+
+                    # If the risk engine blocks a trade (daily loss limit / circuit breaker)
+                    # or returns zero size, do NOT create a zero-PnL synthetic trade.
+                    # The previous implementation still opened such positions, which made
+                    # the selected-profile report show fake WIN/LOSS trades with PnL 0.0000
+                    # while the dashboard counted only the one risk-bearing trade.
+                    if getattr(risk_snapshot, "daily_loss_blocked", False) or size <= 0:
+                        risk_blocked_attempts += 1
+                        pending_trigger = None
+                        continue
                     
                     # Estrai indicatori della candela di segnale per l'analisi del regime
                     from core.data_collector import DataCollector
@@ -476,6 +514,9 @@ def simulate_backtest(
                         "tp1_hit": False,
                         "pnl_tp1_net": 0.0,
                         "size": size,
+                        "risk_snapshot_trade_num": getattr(risk_snapshot, "trade_num", None),
+                        "risk_snapshot_pct": getattr(risk_snapshot, "final_risk_pct", current_risk),
+                        "effective_leverage": getattr(risk_snapshot, "effective_leverage", 0.0),
                         "window_df": pending_trigger["window_df"],
                         "active_conf": pending_trigger["active_conf"],
                         "confluence_comb": pending_trigger["confluence_comb"],
@@ -605,6 +646,23 @@ def simulate_backtest(
     trade_con_esito = total_wins + losses
     win_rate = (total_wins / trade_con_esito * 100) if trade_con_esito > 0 else 0.0
 
+    risk_events = len(getattr(risk_mgr, "trade_events", []))
+    risk_snapshots = len(risk_mgr.risk_log)
+    risk_bearing_snapshots = sum(
+        1 for snap in risk_mgr.risk_log
+        if not getattr(snap, "daily_loss_blocked", False)
+        and float(getattr(snap, "position_size", 0.0) or 0.0) > 0.0
+        and float(getattr(snap, "risk_capital", 0.0) or 0.0) > 0.0
+    )
+    if len(trades) != risk_events:
+        risk_event_warnings.append(
+            f"Closed trades ({len(trades)}) != risk trade events ({risk_events})."
+        )
+    if len(trades) != risk_bearing_snapshots:
+        risk_event_warnings.append(
+            f"Closed trades ({len(trades)}) != executable risk sizing snapshots ({risk_bearing_snapshots})."
+        )
+
     return {
         "final_balance": balance,
         "max_drawdown": max_drawdown,
@@ -617,6 +675,11 @@ def simulate_backtest(
         "win_rate": win_rate,
         "risk_diagnostics": risk_mgr.compute_diagnostics(),
         "risk_engine": risk_mgr,   # returned for dashboard printing
+        "risk_event_warnings": risk_event_warnings,
+        "risk_blocked_attempts": risk_blocked_attempts,
+        "risk_events": risk_events,
+        "risk_snapshots": risk_snapshots,
+        "risk_bearing_snapshots": risk_bearing_snapshots,
     }
 
 # ------------------------------------------------------------------ #
@@ -755,12 +818,15 @@ def run_backtest(df: pd.DataFrame) -> None:
         print(f"    Pareggiati (BE): {sel_res.get('breakevens', 0)}")
         print(f"    Persi          : {sel_res['losses']}")
         print(f"    Win Rate (Tot) : {sel_res['win_rate']:.1f}%")
+        if sel_res.get("risk_blocked_attempts", 0):
+            print(f"    Trade bloccati dal Risk Engine: {sel_res['risk_blocked_attempts']}")
         if len(sel_res['trades']) > 0:
             print("\n    Ultimi 5 trade:")
             for t in sel_res['trades'][-5:]:
                 icon = f"[{t['result']}]"
                 ai_pct_str = f" | AI Conf: {t['ai_prob']:.1f}%" if "ai_prob" in t else ""
-                print(f"      {icon:<12} {t['side']:<4} | PnL: {t['pnl']:+.4f} | Saldo: {t['balance']:.2f} EUR{ai_pct_str}")
+                pnl_value = float(t.get("realized_pnl", t.get("pnl", 0.0)) or 0.0)
+                print(f"      {icon:<12} {t['side']:<4} | PnL: {pnl_value:+.4f} | Saldo: {t['balance']:.2f} EUR{ai_pct_str}")
 
         # Dynamic Risk Engine dashboard for selected profile
         sel_engine = sel_res.get("risk_engine")
@@ -770,6 +836,10 @@ def run_backtest(df: pd.DataFrame) -> None:
             os.makedirs("data", exist_ok=True)
             sel_engine.export_risk_log("data/risk_log.csv", fmt="csv")
             sel_engine.export_risk_log("data/risk_log.json", fmt="json")
+            if hasattr(sel_engine, "export_trade_events"):
+                sel_engine.export_trade_events("data/risk_event_log.json")
+            for warning_msg in sel_res.get("risk_event_warnings", []):
+                print(f"  [RISK AUDIT WARNING] {warning_msg}")
             
             # Genera il report di performance sui regimi di mercato
             if "trades" in sel_res and sel_res["trades"]:

@@ -30,19 +30,21 @@ echo.
 
 cd /d "%~dp0trading_bot"
 
-where py >nul 2>nul
-if %ERRORLEVEL%==0 (
-    py -3 main.py
-) else (
-    where python >nul 2>nul
-    if %ERRORLEVEL%==0 (
-        python main.py
-    ) else (
-        echo [ERROR] Python not found. Install Python 3 and add it to PATH.
-        pause
-        exit /b 1
-    )
+set "PYTHON_CMD="
+
+python --version >nul 2>nul
+if %ERRORLEVEL%==0 set "PYTHON_CMD=python"
+
+if "%PYTHON_CMD%"=="" (
+    py --version >nul 2>nul
+    if %ERRORLEVEL%==0 set "PYTHON_CMD=py"
 )
+
+if "%PYTHON_CMD%"=="" (
+    set "PYTHON_CMD=C:\Users\Davide\AppData\Local\Microsoft\WindowsApps\python.exe"
+)
+
+%PYTHON_CMD% main.py
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

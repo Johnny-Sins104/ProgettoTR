@@ -64,7 +64,7 @@ import warnings
 from collections import deque
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
-from typing import Deque, List, Optional, Tuple
+from typing import Deque, List, Optional, Tuple, Dict, Any
 
 from config import Config
 
@@ -257,7 +257,12 @@ class DynamicRiskEngine:
         self.initial_balance     = initial_balance
         self.daily_loss_limit_pct = daily_loss_limit_pct
         self.profit_lock_pct     = profit_lock_pct
-        self._max_leverage_cfg   = max_leverage if max_leverage is not None else getattr(Config, "MAX_LEVERAGE", 10.0)
+        # A zero/negative max_leverage can arrive from legacy DYNAMIC profile callers.
+        # Treat it as "use the configured default" rather than silently forcing zero-size trades.
+        if max_leverage is None or float(max_leverage) <= 0:
+            self._max_leverage_cfg = getattr(Config, "MAX_LEVERAGE", 10.0)
+        else:
+            self._max_leverage_cfg = float(max_leverage)
 
         # Drawdown tier thresholds
         DrawdownTier.THRESHOLDS[DrawdownTier.CAUTION]   = dd_caution_pct
@@ -723,12 +728,96 @@ class DynamicRiskEngine:
         adjusted = base * vol_mult * dd_mult
         return float(max(self._HARD_MIN_RISK_PCT, min(adjusted, self._HARD_MAX_RISK_PCT)))
 
+
+    def record_trade_event(
+        self,
+        trade: Dict[str, Any],
+        balance_before: float,
+        balance_after: float,
+    ) -> None:
+        """
+        Record a closed-trade event against the latest sizing snapshot.
+
+        The risk engine's primary quantitative diagnostics are generated at
+        position-sizing time, because that is where risk_pct, leverage, notional,
+        volatility multiplier and drawdown multiplier are known.  This method
+        closes the lifecycle by updating equity and attaching realized PnL metadata
+        to the latest snapshot when available.  It prevents the common failure mode
+        where the backtest changes balance but the risk layer remains unaware.
+        """
+        self.update_equity(balance_after)
+        if not self._risk_log:
+            warnings.warn(
+                "RiskTradeEvent received but no sizing snapshot exists. "
+                "The backtest may be mutating balance without risk sizing.",
+                RuntimeWarning,
+            )
+            return
+
+        # Store realized trade lifecycle data in a side-channel attribute so we do
+        # not break CSV/JSON schema compatibility of RiskSnapshot.
+        if not hasattr(self, "_trade_events"):
+            self._trade_events = []
+        pnl = trade.get("realized_pnl", trade.get("pnl", None))
+        if pnl is None:
+            pnl = float(balance_after) - float(balance_before)
+        pnl = float(pnl or 0.0)
+
+        # If the trade object carries a zero PnL but the balance actually moved,
+        # trust the balance delta.  This prevents report/display divergence when
+        # legacy code mutates equity through a different PnL field name.
+        balance_delta = float(balance_after) - float(balance_before)
+        if abs(pnl) < 1e-12 and abs(balance_delta) > 1e-12:
+            pnl = balance_delta
+
+        snapshot = self._risk_log[-1]
+        event = {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "side": trade.get("side"),
+            "result": trade.get("result"),
+            "entry": trade.get("entry"),
+            "exit": trade.get("exit", trade.get("tp" if trade.get("result") == "WIN" else "sl")),
+            "pnl": pnl,
+            "realized_pnl": pnl,
+            "balance_before": float(balance_before),
+            "balance_after": float(balance_after),
+            "regime": trade.get("regime"),
+            "ai_prob": trade.get("ai_prob"),
+            "risk_trade_num": getattr(snapshot, "trade_num", None),
+            "risk_pct": getattr(snapshot, "final_risk_pct", 0.0),
+            "risk_capital": getattr(snapshot, "risk_capital", 0.0),
+            "position_size": getattr(snapshot, "position_size", 0.0),
+            "notional_value": getattr(snapshot, "notional_value", 0.0),
+            "effective_leverage": getattr(snapshot, "effective_leverage", 0.0),
+            "vol_regime": getattr(snapshot, "vol_regime", None),
+            "dd_tier": getattr(snapshot, "dd_tier", None),
+        }
+        self._trade_events.append(event)
+
+    @property
+    def trade_events(self) -> List[Dict[str, Any]]:
+        """Closed-trade lifecycle events recorded by the backtest."""
+        return list(getattr(self, "_trade_events", []))
+
+    def export_trade_events(self, path: str = "data/risk_event_log.json") -> str:
+        """Export closed-trade lifecycle events for auditability."""
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(self.trade_events, fh, indent=2)
+        print(f"  [RiskEngine] Trade events exported -> {path}  ({len(self.trade_events)} records)")
+        return path
+
     # ── Diagnostics ───────────────────────────────────────────────────────────
 
     def compute_diagnostics(self) -> RiskDiagnostics:
         """Aggregate the risk log into summary statistics."""
         d = RiskDiagnostics()
-        log = [s for s in self._risk_log if not s.daily_loss_blocked]
+        log = [
+            s for s in self._risk_log
+            if not s.daily_loss_blocked
+            and float(getattr(s, "position_size", 0.0) or 0.0) > 0.0
+            and float(getattr(s, "risk_capital", 0.0) or 0.0) > 0.0
+        ]
         d.n_snapshots = len(log)
         if not log:
             return d
@@ -774,7 +863,14 @@ class DynamicRiskEngine:
         print(f"\n{sep}")
         print(f"  DYNAMIC RISK ENGINE DASHBOARD")
         print(sep)
+        closed_events = len(self.trade_events)
+        sizing_events = len(self._risk_log)
+        blocked_sizing = sum(1 for s in self._risk_log if s.daily_loss_blocked or s.position_size <= 0)
         print(f"  Trades analysed     : {d.n_snapshots}")
+        print(f"  Closed trade events : {closed_events}")
+        print(f"  Sizing snapshots    : {sizing_events}  ({blocked_sizing} blocked/no-size)")
+        if closed_events != d.n_snapshots:
+            print(f"  [AUDIT WARNING] Closed events ({closed_events}) != risk-bearing sizing events ({d.n_snapshots}).")
         print(f"  Avg Risk / Trade    : {d.avg_risk_pct*100:.3f}%")
         print(f"  Max Risk / Trade    : {d.max_risk_pct*100:.3f}%")
         print(f"  Min Risk / Trade    : {d.min_risk_pct*100:.3f}%")

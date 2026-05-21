@@ -111,6 +111,14 @@ class Config:
     PROFIT_LOCK_PCT:      float = 30.0      # Lock minimum risk floor once +30% above initial
     MAX_LEVERAGE:         float = 10.0      # Absolute hard cap on leverage (overrides vol regime)
 
+    # Dynamic profile safety caps.
+    # These caps apply only to the DYNAMIC profile in backtests/live sizing.
+    # They prevent high Kelly outputs from risking institutionally unacceptable
+    # fractions of equity on a single trade, especially on small accounts.
+    DYNAMIC_DEFAULT_RISK_PCT: float = float(os.getenv("DYNAMIC_DEFAULT_RISK_PCT", "0.02"))
+    DYNAMIC_MAX_RISK_PCT:     float = float(os.getenv("DYNAMIC_MAX_RISK_PCT",     "0.03"))
+    DYNAMIC_MAX_LEVERAGE:     float = float(os.getenv("DYNAMIC_MAX_LEVERAGE",     "4.0"))
+
     # ── Execution Simulation Model ───────────────────────────────────────────
     # Enable realistic execution friction in backtests (slippage, spread, fills)
     EXECUTION_MODEL_ENABLED:  bool  = True
