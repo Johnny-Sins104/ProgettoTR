@@ -90,6 +90,8 @@ class Config:
     # Meta-Labeling Thresholds
     META_PROB_THRESHOLD: float = 55.0     # Probabilità calibrata minima in % per accettare il trade
     META_QUALITY_THRESHOLD: float = 50.0  # Punteggio minimo di qualità tecnica per accettare il trade
+    SIGNAL_DENSITY_DIAGNOSTICS: bool = os.getenv("SIGNAL_DENSITY_DIAGNOSTICS", "1") == "1"
+    SIGNAL_DENSITY_REPORT_PATH: str = os.getenv("SIGNAL_DENSITY_REPORT_PATH", os.path.join("data", "signal_density_report.json"))
 
     # Kelly Criterion Configuration
     USE_KELLY_SIZING:   bool  = True

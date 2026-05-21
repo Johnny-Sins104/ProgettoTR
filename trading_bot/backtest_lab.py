@@ -20,6 +20,7 @@ from core.engine import DecisionEngine
 from core.risk import DynamicRiskEngine, RiskManager
 from core.visualizer import save_trade_chart
 from core.ai_engine import TradingAI
+from core.signal_density import SignalDensityMonitor
 
 CHARTS_DIR = "data/charts"
 os.makedirs(CHARTS_DIR, exist_ok=True)
@@ -259,6 +260,12 @@ def simulate_backtest(
     peak_balance = INITIAL_BALANCE
     risk_event_warnings = []
     risk_blocked_attempts = 0
+    signal_monitor = SignalDensityMonitor(
+        meta_prob_threshold=Config.META_PROB_THRESHOLD,
+        meta_quality_threshold=Config.META_QUALITY_THRESHOLD,
+        output_path=getattr(Config, "SIGNAL_DENSITY_REPORT_PATH", "data/signal_density_report.json"),
+        enabled=bool(save_charts and getattr(Config, "SIGNAL_DENSITY_DIAGNOSTICS", True)),
+    )
 
     # Genera i fold walk-forward in caso non siano stati passati
     if wf_folds is None and Config.AI_ENABLED and Config.STRATEGY_MODE == "AI_HYBRID" and features_df is not None:
@@ -275,6 +282,7 @@ def simulate_backtest(
 
     for i in range(1, len(rows)):
         row = rows.iloc[i]
+        signal_monitor.observe_bar()
 
         # Walk-Forward AI Update
         if Config.AI_ENABLED and Config.STRATEGY_MODE == "AI_HYBRID" and features_df is not None and wf_folds:
@@ -474,6 +482,7 @@ def simulate_backtest(
                 entry_price = min(float(row["Open"]), sl_level)
                 
             if triggered:
+                signal_monitor.observe_pending_filled()
                 # Eseguiamo il trade!
                 # Calcoliamo i parametri di rischio del trade usando entry_price effettivo
                 atr_val = pending_trigger["atr_val"]
@@ -540,6 +549,7 @@ def simulate_backtest(
                     # while the dashboard counted only the one risk-bearing trade.
                     if getattr(risk_snapshot, "daily_loss_blocked", False) or size <= 0:
                         risk_blocked_attempts += 1
+                        signal_monitor.observe_risk_blocked()
                         pending_trigger = None
                         continue
                     
@@ -596,11 +606,13 @@ def simulate_backtest(
                         "close_vs_ema": close_vs_ema,
                         "setup_quality": setup_quality
                     }
+                    signal_monitor.observe_opened_trade()
                 pending_trigger = None
             else:
                 # Decrementa il TTL del breakout trigger
                 pending_trigger["ttl"] -= 1
                 if pending_trigger["ttl"] <= 0:
+                    signal_monitor.observe_pending_expired()
                     pending_trigger = None  # Scaduto: falso breakout scartato!
 
         # 3. Valuta nuovi segnali
@@ -613,6 +625,7 @@ def simulate_backtest(
                 tech_verdict, tech_score, conf, entry_type, conf_verdict, conf_comb = engine._evaluate_score(window)
                 
                 if tech_verdict in ("BUY", "SELL") and entry_type is not None:
+                    signal_monitor.observe_technical_candidate(side=tech_verdict, tech_score=tech_score, entry_type=entry_type)
                     # Stage 2: Technical Setup Filter & Quality Scoring
                     from core.data_collector import DataCollector
                     from core.setup_filter import SetupFilter
@@ -639,9 +652,22 @@ def simulate_backtest(
                     }
                     
                     ranked = SetupRanker.rank_candidates([candidate], available_slots=1)
+                    expected_value = SetupRanker.calculate_expected_value(p_cal, candidate["rr"])
+                    meta_accepted = bool(ranked and p_cal >= Config.META_PROB_THRESHOLD and is_tech_ok)
+                    signal_monitor.observe_meta_decision(
+                        side=tech_verdict,
+                        p_cal=p_cal,
+                        setup_quality=setup_quality,
+                        tech_score=tech_score,
+                        expected_value=expected_value,
+                        is_tech_ok=is_tech_ok,
+                        ranked=bool(ranked),
+                        accepted=meta_accepted,
+                        regime=str(last.get("market_regime", "RANGING")),
+                    )
                     
                     # Gating: setup must pass both thresholds and have positive EV
-                    if ranked and p_cal >= Config.META_PROB_THRESHOLD and is_tech_ok:
+                    if meta_accepted:
                         verdict = tech_verdict
                         score = int(tech_score * (1.0 - Config.AI_WEIGHT) + (p_cal - 50.0) * 2.0 * Config.AI_WEIGHT)
                         active_conf = {
@@ -657,6 +683,7 @@ def simulate_backtest(
                         active_conf = {"ai_prob": p_cal, "setup_quality": setup_quality, "tech_score": tech_score}
                         confluence_comb = f"Meta_Filtered(p:{p_cal:.1f}%,q:{setup_quality:.1f})"
                 else:
+                    signal_monitor.observe_no_technical_candidate()
                     verdict = "HOLD"
                     entry_type = None
                     score = 0
@@ -683,6 +710,7 @@ def simulate_backtest(
 
             ai_prob = active_conf.get("ai_prob", 50.0)
 
+            signal_monitor.observe_pending_created()
             pending_trigger = {
                 "side": verdict,
                 "signal_high": float(last["High"]),
@@ -726,6 +754,9 @@ def simulate_backtest(
             f"Closed trades ({len(trades)}) != executable risk sizing snapshots ({risk_bearing_snapshots})."
         )
 
+    signal_monitor.closed_trades = len(trades)
+    signal_density_report = signal_monitor.export() if signal_monitor.enabled else None
+
     return {
         "final_balance": balance,
         "max_drawdown": max_drawdown,
@@ -743,6 +774,7 @@ def simulate_backtest(
         "risk_events": risk_events,
         "risk_snapshots": risk_snapshots,
         "risk_bearing_snapshots": risk_bearing_snapshots,
+        "signal_density_report": signal_density_report,
     }
 
 # ------------------------------------------------------------------ #
@@ -944,6 +976,26 @@ def run_backtest(df: pd.DataFrame) -> None:
                 )
             for warning_msg in sel_res.get("risk_event_warnings", []):
                 print(f"  [RISK AUDIT WARNING] {warning_msg}")
+
+            signal_report = sel_res.get("signal_density_report")
+            if signal_report:
+                funnel = signal_report.get("funnel", {})
+                print("\n========================================================================================")
+                print("  SIGNAL DENSITY + THRESHOLD CALIBRATION DIAGNOSTICS")
+                print("========================================================================================")
+                print(f"  Bars evaluated           : {funnel.get('bars_evaluated', 0)}")
+                print(f"  Technical candidates     : {funnel.get('technical_candidates', 0)}  ({funnel.get('technical_candidate_rate_pct', 0.0):.2f}%)")
+                print(f"  Meta accepted            : {funnel.get('meta_accepted', 0)}  ({funnel.get('meta_acceptance_rate_pct', 0.0):.2f}% of technical)")
+                print(f"  Pending triggers created : {funnel.get('pending_triggers_created', 0)}")
+                print(f"  Pending triggers filled  : {funnel.get('pending_triggers_filled', 0)}  ({funnel.get('pending_fill_rate_pct', 0.0):.2f}%)")
+                print(f"  Opened trades            : {funnel.get('opened_trades', 0)}")
+                print(f"  Closed trades            : {funnel.get('closed_trades', 0)}")
+                top_reasons = list(signal_report.get('rejection_reasons', {}).items())[:5]
+                if top_reasons:
+                    print("\n  Top rejection reasons:")
+                    for reason, count in top_reasons:
+                        print(f"    - {reason}: {count}")
+                print("  [SignalDensity] Full report -> data/signal_density_report.json")
             
             # Genera il report di performance sui regimi di mercato
             if "trades" in sel_res and sel_res["trades"]:
