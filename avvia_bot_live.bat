@@ -44,7 +44,7 @@ if "%PYTHON_CMD%"=="" (
     set "PYTHON_CMD=C:\Users\Davide\AppData\Local\Microsoft\WindowsApps\python.exe"
 )
 
-%PYTHON_CMD% main.py
+%PYTHON_CMD% avvia_bot_live.py --mode paper --timeframe 5m --cost-model conservative
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

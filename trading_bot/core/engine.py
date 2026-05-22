@@ -128,7 +128,8 @@ class DecisionEngine:
             
         # Rileva regime di mercato attivo ed esegue il logging dell'instradamento
         regime = ai.detect_regime(features)
-        print(f"DEBUG: [AI_HYBRID] Active market regime: {regime} | Routing to {regime} model")
+        if getattr(Config, "PAPER_AI_DEBUG", False):
+            print(f"DEBUG: [AI_HYBRID] Active market regime: {regime} | Routing to {regime} model")
         
         # Predizione probabilità con Symmetry Transformation interna all'Engine
         p_cal = ai.predict_probability(features, side=tech_verdict)
@@ -138,7 +139,8 @@ class DecisionEngine:
         hybrid_score = int(tech_score * (1.0 - Config.AI_WEIGHT) + ai_score * Config.AI_WEIGHT)
         
         # Log Debug per monitoraggio real-time con info sul regime
-        print(f"DEBUG: [AI_HYBRID] Tech Score: {tech_score} | Calibrated Prob: {p_cal:.1f}% | Quality Score: {setup_quality:.1f} | Regime: {regime}")
+        if getattr(Config, "PAPER_AI_DEBUG", False):
+            print(f"DEBUG: [AI_HYBRID] Tech Score: {tech_score} | Calibrated Prob: {p_cal:.1f}% | Quality Score: {setup_quality:.1f} | Regime: {regime}")
         
         conf["ai_prob"] = p_cal
         conf["setup_quality"] = setup_quality

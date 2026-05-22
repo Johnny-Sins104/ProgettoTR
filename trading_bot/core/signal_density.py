@@ -53,6 +53,19 @@ class SignalDensityMonitor:
     rejection_reasons: Dict[str, int] = field(default_factory=dict)
     accepted_samples: List[Dict[str, Any]] = field(default_factory=list)
     rejected_samples: List[Dict[str, Any]] = field(default_factory=list)
+    setup_archetype_counts: Dict[str, int] = field(default_factory=dict)
+    structure_scores: List[float] = field(default_factory=list)
+    structure_reason_counts: Dict[str, int] = field(default_factory=dict)
+    archetype_score_samples: Dict[str, List[float]] = field(default_factory=dict)
+    market_structure_available_count: int = 0
+    market_structure_missing_count: int = 0
+    archetype_missing_feature_counts: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    archetype_gate_fail_counts: Dict[str, int] = field(default_factory=dict)
+    ai_prediction_source_counts: Dict[str, int] = field(default_factory=dict)
+    ai_neutral_probability_count: int = 0
+    ai_not_ready_count: int = 0
+    ai_feature_missing_counts: Dict[str, int] = field(default_factory=dict)
+
 
     def _inc_reason(self, reason: str) -> None:
         self.rejection_reasons[reason] = self.rejection_reasons.get(reason, 0) + 1
@@ -97,6 +110,13 @@ class SignalDensityMonitor:
         ranked: bool,
         accepted: bool,
         regime: str = "UNKNOWN",
+        setup_archetype: str = "UNKNOWN",
+        structure_score: float | None = None,
+        edge_adjustment_r: float | None = None,
+        structure_components: Dict[str, Any] | None = None,
+        structure_reasons: List[str] | None = None,
+        rejection_reason: str | None = None,
+        ai_diagnostics: Dict[str, Any] | None = None,
     ) -> None:
         if not self.enabled:
             return
@@ -106,6 +126,38 @@ class SignalDensityMonitor:
         net_ev = self._as_float(expected_net_edge, ev)
         cost_bps = self._as_float(expected_round_trip_cost_bps, 0.0)
         cte = self._as_float(cost_to_edge_ratio, 0.0)
+        ss = self._as_float(structure_score, 0.0)
+        archetype = str(setup_archetype or "UNKNOWN")
+        self.setup_archetype_counts[archetype] = self.setup_archetype_counts.get(archetype, 0) + 1
+        ai_diag = dict(ai_diagnostics or {})
+        ai_source = str(ai_diag.get("prediction_source", "unknown"))
+        self.ai_prediction_source_counts[ai_source] = self.ai_prediction_source_counts.get(ai_source, 0) + 1
+        if abs(p - 50.0) < 1e-9:
+            self.ai_neutral_probability_count += 1
+        if ai_diag.get("model_ready") is False:
+            self.ai_not_ready_count += 1
+        for feat in ai_diag.get("missing_features", []) or []:
+            feat_s = str(feat)
+            self.ai_feature_missing_counts[feat_s] = self.ai_feature_missing_counts.get(feat_s, 0) + 1
+        self.structure_scores.append(ss)
+        for reason in structure_reasons or []:
+            reason_key = str(reason or "unknown_structure_reason")
+            self.structure_reason_counts[reason_key] = self.structure_reason_counts.get(reason_key, 0) + 1
+        components = structure_components or {}
+        if self._as_float(components.get("runtime_market_structure_available", 0.0), 0.0) >= 1.0:
+            self.market_structure_available_count += 1
+        else:
+            self.market_structure_missing_count += 1
+        for key, value in components.items():
+            key_s = str(key)
+            if key_s.startswith("score_"):
+                archetype_name = key_s.replace("score_", "", 1)
+                self.archetype_score_samples.setdefault(archetype_name, []).append(self._as_float(value, 0.0))
+            elif key_s.startswith("missing_count_"):
+                archetype_name = key_s.replace("missing_count_", "", 1)
+                n_missing = int(round(self._as_float(value, 0.0)))
+                bucket = self.archetype_missing_feature_counts.setdefault(archetype_name, {})
+                bucket[str(n_missing)] = bucket.get(str(n_missing), 0) + 1
 
         self.probabilities.append(p)
         self.setup_qualities.append(q)
@@ -140,6 +192,12 @@ class SignalDensityMonitor:
             self.cost_aware_fail += 1
             self._inc_reason("non_positive_cost_adjusted_ev")
 
+        if rejection_reason:
+            reason_key = str(rejection_reason)
+            self._inc_reason(reason_key)
+            if reason_key.startswith("archetype_gate_"):
+                self.archetype_gate_fail_counts[archetype] = self.archetype_gate_fail_counts.get(archetype, 0) + 1
+
         sample = {
             "side": side,
             "p_cal": round(p, 6),
@@ -151,6 +209,13 @@ class SignalDensityMonitor:
             "cost_to_edge_ratio": round(cte, 6),
             "cost_aware_accepted": bool(cost_aware_accepted),
             "regime": regime,
+            "setup_archetype": archetype,
+            "structure_score": round(ss, 6),
+            "edge_adjustment_r": round(self._as_float(edge_adjustment_r, 0.0), 6),
+            "structure_reasons": list(structure_reasons or []),
+            "structure_components": dict(structure_components or {}),
+            "rejection_reason": str(rejection_reason or ""),
+            "ai_diagnostics": ai_diag,
         }
         if accepted:
             self.meta_accepted += 1
@@ -238,6 +303,60 @@ class SignalDensityMonitor:
                     break
         return buckets
 
+    def setup_archetype_diagnostics(self) -> Dict[str, Any]:
+        """Explain archetype dominance and inactive setup families."""
+        diagnostics: Dict[str, Any] = {}
+        total = max(1, self.technical_candidates)
+        for archetype, values in sorted(self.archetype_score_samples.items()):
+            vals = [self._as_float(v, 0.0) for v in values]
+            diagnostics[archetype] = {
+                "score_distribution": self._summary(vals),
+                "count_score_gte_20": sum(1 for v in vals if v >= 20.0),
+                "count_score_gte_40": sum(1 for v in vals if v >= 40.0),
+                "count_score_gte_60": sum(1 for v in vals if v >= 60.0),
+                "activation_rate_gte_40_pct": round((sum(1 for v in vals if v >= 40.0) / total) * 100.0, 4),
+            }
+        selected_total = sum(self.setup_archetype_counts.values()) or 1
+        dominance = {
+            k: round(v / selected_total * 100.0, 4)
+            for k, v in sorted(self.setup_archetype_counts.items(), key=lambda kv: kv[1], reverse=True)
+        }
+        return {
+            "selected_archetype_counts": dict(sorted(self.setup_archetype_counts.items(), key=lambda kv: kv[1], reverse=True)),
+            "selected_archetype_share_pct": dominance,
+            "candidate_score_diagnostics": diagnostics,
+            "structure_reason_counts": dict(sorted(self.structure_reason_counts.items(), key=lambda kv: kv[1], reverse=True)),
+            "runtime_market_structure_feature_audit": {
+                "available_count": self.market_structure_available_count,
+                "missing_count": self.market_structure_missing_count,
+                "available_rate_pct": round(
+                    self.market_structure_available_count / max(1, self.market_structure_available_count + self.market_structure_missing_count) * 100.0,
+                    4,
+                ),
+                "missing_count_distribution_by_archetype": dict(sorted(self.archetype_missing_feature_counts.items())),
+            },
+            "archetype_gate_fail_counts": dict(sorted(self.archetype_gate_fail_counts.items(), key=lambda kv: kv[1], reverse=True)),
+            "interpretation": self._interpret_archetypes(dominance, diagnostics),
+        }
+
+    def _interpret_archetypes(self, dominance: Dict[str, float], diagnostics: Dict[str, Any]) -> List[str]:
+        notes: List[str] = []
+        if dominance:
+            top_name, top_share = next(iter(dominance.items()))
+            if top_share >= 80.0:
+                notes.append(
+                    f"Archetype concentration is high: {top_name} accounts for {top_share:.2f}% of selected technical candidates."
+                )
+        total_ms = self.market_structure_available_count + self.market_structure_missing_count
+        if total_ms and self.market_structure_available_count == 0:
+            notes.append("Runtime market-structure features are missing on every technical candidate; enrich the backtest dataframe before setup evaluation.")
+        elif total_ms and self.market_structure_available_count / max(1, total_ms) < 0.8:
+            notes.append("Runtime market-structure feature coverage is partial; inspect DataCollector/backtest feature propagation.")
+        for name, row in diagnostics.items():
+            if row.get("count_score_gte_40", 0) == 0:
+                notes.append(f"{name} never reached structure score >= 40; inspect missing source features or thresholds.")
+        return notes
+
     def threshold_sweep(self) -> List[Dict[str, Any]]:
         """Counts how many observed technical candidates would pass alternative gates."""
         rows = []
@@ -310,6 +429,9 @@ class SignalDensityMonitor:
             "probability_buckets": self._buckets(self.probabilities, [40, 45, 50, 55, 60, 65, 70]),
             "setup_quality_distribution": self._summary(self.setup_qualities),
             "setup_quality_buckets": self._buckets(self.setup_qualities, [40, 45, 50, 55, 60, 70, 80]),
+            "structure_score_distribution": self._summary(self.structure_scores),
+            "setup_archetype_counts": dict(sorted(self.setup_archetype_counts.items(), key=lambda kv: kv[1], reverse=True)),
+            "setup_archetype_diagnostics": self.setup_archetype_diagnostics(),
             "expected_value_distribution": self._summary(self.expected_values),
             "expected_net_edge_distribution": self._summary(self.expected_net_edges),
             "expected_cost_bps_distribution": self._summary(self.expected_costs_bps),
@@ -317,6 +439,13 @@ class SignalDensityMonitor:
             "threshold_sweep": self.threshold_sweep(),
             "cost_aware_threshold_optimization": self.cost_aware_threshold_optimization(),
             "adaptive_regime_threshold_optimization": self.adaptive_regime_threshold_report(),
+            "ai_prediction_audit": {
+                "prediction_source_counts": dict(sorted(self.ai_prediction_source_counts.items(), key=lambda kv: kv[1], reverse=True)),
+                "neutral_probability_count": self.ai_neutral_probability_count,
+                "neutral_probability_rate_pct": round((self.ai_neutral_probability_count / len(self.probabilities) * 100.0) if self.probabilities else 0.0, 4),
+                "model_not_ready_count": self.ai_not_ready_count,
+                "top_missing_features": dict(sorted(self.ai_feature_missing_counts.items(), key=lambda kv: kv[1], reverse=True)[:20]),
+            },
             "sample_rejected_setups": self.rejected_samples[:25],
             "sample_accepted_setups": self.accepted_samples[:25],
             "diagnostic_interpretation": self._interpret(funnel),
@@ -338,6 +467,8 @@ class SignalDensityMonitor:
             notes.append("Most candidates are non-positive EV after calibration and RR assumptions. Lowering thresholds alone may increase negative expectancy trades.")
         if self.cost_aware_fail > self.cost_aware_pass:
             notes.append("Most candidates do not survive expected execution costs. Optimize thresholds on net expectancy, not trade count.")
+        if funnel["technical_candidates"] and funnel["meta_acceptance_rate_pct"] >= 80.0:
+            notes.append("Meta acceptance rate is very high. Apply archetype-conditioned thresholds or the meta layer is not selective enough.")
         return notes
 
     def export(self, output_path: Optional[str | Path] = None) -> Dict[str, Any]:

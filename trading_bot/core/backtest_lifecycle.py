@@ -33,6 +33,7 @@ def build_lifecycle_report(
     risk_events: int,
     risk_bearing_snapshots: int,
     visualized_trades: int = 0,
+    charting_enabled: bool = True,
 ) -> Dict[str, Any]:
     trades = list(trades)
     closed_trades = len(trades)
@@ -46,7 +47,15 @@ def build_lifecycle_report(
 
     closed_equals_risk_events = closed_trades == int(risk_events or 0)
     closed_equals_risk_bearing = closed_trades == int(risk_bearing_snapshots or 0)
-    closed_equals_visualized = visualized_trades == 0 or visualized_trades == closed_trades
+    charting_enabled = bool(charting_enabled)
+    closed_equals_visualized_raw = visualized_trades == closed_trades
+    # In fast / no-charts research mode chart generation is intentionally disabled.
+    # Missing HTML files must not downgrade lifecycle consistency: trade/risk/balance
+    # invariants are the authoritative checks in that mode.
+    closed_equals_visualized = (not charting_enabled) or visualized_trades == 0 or closed_equals_visualized_raw
+    visualization_mismatch_ignored_due_to_no_charts = (
+        not charting_enabled and int(visualized_trades or 0) != int(closed_trades or 0)
+    )
     status = "PASS" if (
         closed_equals_risk_events
         and closed_equals_risk_bearing
@@ -62,18 +71,28 @@ def build_lifecycle_report(
         "balance_mutation_mismatches": balance_mutation_mismatches,
         "closed_equals_risk_events": closed_equals_risk_events,
         "closed_equals_risk_bearing_snapshots": closed_equals_risk_bearing,
+        "charting_enabled": charting_enabled,
+        "closed_equals_visualized_raw": closed_equals_visualized_raw,
         "closed_equals_visualized_when_enabled": closed_equals_visualized,
+        "visualization_mismatch_ignored_due_to_no_charts": visualization_mismatch_ignored_due_to_no_charts,
         "status": status,
     }
 
 
-def write_lifecycle_report(result: Dict[str, Any], charts_dir: str, output_path: str) -> Dict[str, Any]:
+def write_lifecycle_report(
+    result: Dict[str, Any],
+    charts_dir: str,
+    output_path: str,
+    *,
+    charting_enabled: bool = True,
+) -> Dict[str, Any]:
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     report = build_lifecycle_report(
         trades=result.get("trades", []),
         risk_events=int(result.get("risk_events", 0) or 0),
         risk_bearing_snapshots=int(result.get("risk_bearing_snapshots", 0) or 0),
         visualized_trades=count_visualized_trades(charts_dir),
+        charting_enabled=charting_enabled,
     )
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)

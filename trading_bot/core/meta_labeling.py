@@ -385,11 +385,16 @@ class MetaLabelingEngine:
 
     def ensure_wf_model(self, df: pd.DataFrame, features_df: pd.DataFrame, train_limit, embargo_gap: int = None):
         """
-        Caches walk-forward models chronologically ensuring strict train/embargo/test boundaries.
-        Optimized for Meta-Labeling candidates using setup success targets.
+        Caches walk-forward fold states chronologically.
+
+        Prompt 28.1 changes the default behavior: short adaptive folds are used
+        for out-of-sample evaluation/routing only.  They no longer retrain a new
+        XGBoost stack on 80-100 local samples, which produced 99% in-sample
+        accuracy and 0% OOS F1.  Local retraining is allowed only when explicitly
+        enabled and the fold has enough clean meta-label samples.
         """
         from core.walk_forward import WalkForwardFold
-        
+
         if isinstance(train_limit, WalkForwardFold):
             fold = train_limit
             fold_key = fold.test_start
@@ -400,6 +405,7 @@ class MetaLabelingEngine:
             test_start = fold.test_start
             test_end = fold.test_end
             e_gap = embargo_end - embargo_start + 1
+            label_horizon = int(getattr(fold, "label_horizon", getattr(Config, "WF_LABEL_HORIZON", 100)))
         else:
             fold_key = train_limit
             test_start = train_limit
@@ -408,15 +414,16 @@ class MetaLabelingEngine:
             train_start = 0
             embargo_start = train_end + 1
             embargo_end = test_start - 1
-            test_end = min(test_start + 500 - 1, len(df) - 1)
-            
+            test_end = min(test_start + getattr(Config, "WF_TEST_SIZE", 500) - 1, len(df) - 1)
+            label_horizon = int(getattr(Config, "WF_LABEL_HORIZON", 100))
+
         if fold_key in self._wf_models:
             return
-            
+
         from core.data_collector import DataCollector
-        label_horizon = 100
-        
-        # Calculate purged samples
+
+        # Calculate raw technical candidates to keep the audit comparable with
+        # previous versions.  This does not influence labels or model training.
         from core.engine import DecisionEngine
         engine = DecisionEngine()
         raw_train_samples = 0
@@ -426,83 +433,190 @@ class MetaLabelingEngine:
             tech_verdict, _, _, _, _, _ = engine._evaluate_score(df.iloc[:i+1])
             if tech_verdict in ("BUY", "SELL"):
                 raw_train_samples += 1
-        
-        # Generate clean meta-labeled training dataset
+
         df_subset = DataCollector.generate_training_dataset(
             df=df,
             train_start=train_start,
             train_end=train_end,
             features_df=features_df,
-            label_horizon=label_horizon
+            label_horizon=label_horizon,
         )
-        
+
         effective_train_size = len(df_subset)
         num_purged_samples = max(0, raw_train_samples - effective_train_size)
         effective_test_size = test_end - test_start + 1
-        
-        print(f"📊 [META-LABELING FOLD {fold_key}] Purged: {num_purged_samples} | Train: {effective_train_size} | Test: {effective_test_size}")
-        
+
         if isinstance(train_limit, WalkForwardFold):
             train_limit.num_purged_samples = num_purged_samples
             train_limit.effective_train_size = effective_train_size
             train_limit.effective_test_size = effective_test_size
-            
-        if df_subset.empty or len(df_subset) < Config.AI_MIN_SAMPLES:
-            self._wf_models[fold_key] = self._create_empty_fold_state(
-                train_start, train_end, embargo_start, embargo_end, test_start, test_end, num_purged_samples, effective_train_size, effective_test_size
+
+        min_local = int(getattr(Config, "WF_MIN_LOCAL_TRAIN_SAMPLES", 1000))
+        eval_only_cfg = bool(getattr(Config, "WF_EVALUATION_ONLY", True))
+        allow_local_retrain = bool(getattr(Config, "WF_ALLOW_LOCAL_RETRAIN", False))
+        should_local_retrain = (
+            allow_local_retrain
+            and not eval_only_cfg
+            and effective_train_size >= max(min_local, int(getattr(Config, "AI_MIN_SAMPLES", 80)))
+        )
+
+        if not should_local_retrain:
+            reason = "evaluation_only" if eval_only_cfg or not allow_local_retrain else f"insufficient_local_samples<{min_local}"
+            if bool(getattr(Config, "BACKTEST_PRINT_WF_MODEL_LINES", True)):
+                print(
+                    f"📊 [META-LABELING FOLD {fold_key}] Purged: {num_purged_samples} | "
+                    f"Train: {effective_train_size} | Test: {effective_test_size} | "
+                    f"Mode: EVAL_ONLY_GLOBAL ({reason})"
+                )
+            self._wf_models[fold_key] = self._snapshot_current_manager_state(
+                train_start=train_start,
+                train_end=train_end,
+                embargo_start=embargo_start,
+                embargo_end=embargo_end,
+                test_start=test_start,
+                test_end=test_end,
+                num_purged_samples=num_purged_samples,
+                effective_train_size=effective_train_size,
+                effective_test_size=effective_test_size,
+                evaluation_only=True,
+                evaluation_reason=reason,
             )
             return
-            
-        # Train fold models asynchronously in cache using manager
+
+        if bool(getattr(Config, "BACKTEST_PRINT_WF_MODEL_LINES", True)):
+            print(
+                f"📊 [META-LABELING FOLD {fold_key}] Purged: {num_purged_samples} | "
+                f"Train: {effective_train_size} | Test: {effective_test_size} | Mode: LOCAL_RETRAIN"
+            )
+
+        if df_subset.empty or len(df_subset) < Config.AI_MIN_SAMPLES:
+            self._wf_models[fold_key] = self._create_empty_fold_state(
+                train_start, train_end, embargo_start, embargo_end, test_start, test_end,
+                num_purged_samples, effective_train_size, effective_test_size
+            )
+            self._wf_models[fold_key]["evaluation_only"] = False
+            self._wf_models[fold_key]["evaluation_reason"] = "empty_or_below_ai_min_samples"
+            return
+
+        # Preserve the global model registry while the local fold is trained.
+        # Without this snapshot, training a fold mutates the live manager used by
+        # subsequent folds/profiles.
+        global_state = self._snapshot_current_manager_state(
+            train_start=train_start,
+            train_end=train_end,
+            embargo_start=embargo_start,
+            embargo_end=embargo_end,
+            test_start=test_start,
+            test_end=test_end,
+            num_purged_samples=num_purged_samples,
+            effective_train_size=effective_train_size,
+            effective_test_size=effective_test_size,
+            evaluation_only=True,
+            evaluation_reason="pre_local_retrain_global_backup",
+        )
+
         metrics = self.manager.train_all(df_subset, save_to_disk=False, fit_calibrator=True)
-        
+
         if metrics["status"] == "success":
-            self._wf_models[fold_key] = {
-                "models":                     dict(self.manager.models),
-                "calibrators":                dict(self.manager.calibrators),
-                "calibration_reports":        dict(self.manager.calibration_reports),
-                "vol_low_thresh":             self.manager.vol_low_thresh,
-                "vol_high_thresh":            self.manager.vol_high_thresh,
-                "accuracies":                 dict(self.manager.accuracies),
-                "train_accuracies":           dict(self.manager.train_accuracies),
-                "f1s":                        dict(self.manager.f1s),
-                "feature_importances":        dict(self.manager.feature_importances),
-                
-                # retrocompatibilità
-                "trending_model":             self.manager.models["TRENDING"],
-                "ranging_model":              self.manager.models["RANGING"],
-                "trending_calibrator":        self.manager.calibrators["TRENDING"],
-                "ranging_calibrator":         self.manager.calibrators["RANGING"],
-                "trending_accuracy":          self.manager.accuracies["TRENDING"],
-                "ranging_accuracy":           self.manager.accuracies["RANGING"],
-                "trending_train_accuracy":    self.manager.train_accuracies["TRENDING"],
-                "ranging_train_accuracy":     self.manager.train_accuracies["RANGING"],
-                "trending_f1":                self.manager.f1s["TRENDING"],
-                "ranging_f1":                 self.manager.f1s["RANGING"],
-                
-                "model":             self.manager.models["UNIFIED"],
-                "calibrator":        self.manager.calibrators["UNIFIED"],
-                "accuracy":          self.manager.accuracies["UNIFIED"],
-                "train_accuracy":    self.manager.train_accuracies["UNIFIED"],
-                "f1":                self.manager.f1s["UNIFIED"],
-                "is_trained":        self.is_trained,
-                "importances":       dict(self.manager.feature_importances["UNIFIED"]),
-                "calibration_fitted": (self.manager.calibrators["UNIFIED"].is_fitted if self.manager.calibrators["UNIFIED"] else False),
-                
-                "train_start":       train_start,
-                "train_end":         train_end,
-                "embargo_start":     embargo_start,
-                "embargo_end":       embargo_end,
-                "test_start":        test_start,
-                "test_end":          test_end,
-                "num_purged_samples":  num_purged_samples,
-                "effective_train_size": effective_train_size,
-                "effective_test_size":  effective_test_size,
-            }
+            state = self._snapshot_current_manager_state(
+                train_start=train_start,
+                train_end=train_end,
+                embargo_start=embargo_start,
+                embargo_end=embargo_end,
+                test_start=test_start,
+                test_end=test_end,
+                num_purged_samples=num_purged_samples,
+                effective_train_size=effective_train_size,
+                effective_test_size=effective_test_size,
+                evaluation_only=False,
+                evaluation_reason="local_retrain",
+            )
+            self._wf_models[fold_key] = state
+            # Restore global registry after caching the fold-local model.
+            self._restore_manager_from_state(global_state)
         else:
             self._wf_models[fold_key] = self._create_empty_fold_state(
-                train_start, train_end, embargo_start, embargo_end, test_start, test_end, num_purged_samples, effective_train_size, effective_test_size
+                train_start, train_end, embargo_start, embargo_end, test_start, test_end,
+                num_purged_samples, effective_train_size, effective_test_size
             )
+            self._wf_models[fold_key]["evaluation_only"] = False
+            self._wf_models[fold_key]["evaluation_reason"] = "local_retrain_failed"
+            self._restore_manager_from_state(global_state)
+
+    def _snapshot_current_manager_state(
+        self,
+        *,
+        train_start,
+        train_end,
+        embargo_start,
+        embargo_end,
+        test_start,
+        test_end,
+        num_purged_samples,
+        effective_train_size,
+        effective_test_size,
+        evaluation_only: bool,
+        evaluation_reason: str,
+    ):
+        """Return a serializable fold state backed by the current model registry."""
+        state = {
+            "models":                     dict(self.manager.models),
+            "calibrators":                dict(self.manager.calibrators),
+            "calibration_reports":        dict(self.manager.calibration_reports),
+            "vol_low_thresh":             self.manager.vol_low_thresh,
+            "vol_high_thresh":            self.manager.vol_high_thresh,
+            "accuracies":                 dict(self.manager.accuracies),
+            "train_accuracies":           dict(self.manager.train_accuracies),
+            "f1s":                        dict(self.manager.f1s),
+            "feature_importances":        dict(self.manager.feature_importances),
+
+            "trending_model":             self.manager.models.get("TRENDING"),
+            "ranging_model":              self.manager.models.get("RANGING"),
+            "trending_calibrator":        self.manager.calibrators.get("TRENDING"),
+            "ranging_calibrator":         self.manager.calibrators.get("RANGING"),
+            "trending_accuracy":          self.manager.accuracies.get("TRENDING", 0.5),
+            "ranging_accuracy":           self.manager.accuracies.get("RANGING", 0.5),
+            "trending_train_accuracy":    self.manager.train_accuracies.get("TRENDING", 0.5),
+            "ranging_train_accuracy":     self.manager.train_accuracies.get("RANGING", 0.5),
+            "trending_f1":                self.manager.f1s.get("TRENDING", 0.0),
+            "ranging_f1":                 self.manager.f1s.get("RANGING", 0.0),
+
+            "model":             self.manager.models.get("UNIFIED"),
+            "calibrator":        self.manager.calibrators.get("UNIFIED"),
+            "accuracy":          self.manager.accuracies.get("UNIFIED", self.accuracy),
+            "train_accuracy":    self.manager.train_accuracies.get("UNIFIED", self.train_accuracy),
+            "f1":                self.manager.f1s.get("UNIFIED", self.f1),
+            "is_trained":        bool(self.is_trained),
+            "importances":       dict(self.manager.feature_importances.get("UNIFIED", {})),
+            "calibration_fitted": (
+                self.manager.calibrators.get("UNIFIED").is_fitted
+                if self.manager.calibrators.get("UNIFIED") else False
+            ),
+
+            "train_start": train_start,
+            "train_end": train_end,
+            "embargo_start": embargo_start,
+            "embargo_end": embargo_end,
+            "test_start": test_start,
+            "test_end": test_end,
+            "num_purged_samples": num_purged_samples,
+            "effective_train_size": effective_train_size,
+            "effective_test_size": effective_test_size,
+            "evaluation_only": bool(evaluation_only),
+            "evaluation_reason": str(evaluation_reason),
+        }
+        return state
+
+    def _restore_manager_from_state(self, state):
+        self.manager.models = dict(state.get("models", self.manager.models))
+        self.manager.calibrators = dict(state.get("calibrators", self.manager.calibrators))
+        self.manager.calibration_reports = dict(state.get("calibration_reports", self.manager.calibration_reports))
+        self.manager.vol_low_thresh = state.get("vol_low_thresh", self.manager.vol_low_thresh)
+        self.manager.vol_high_thresh = state.get("vol_high_thresh", self.manager.vol_high_thresh)
+        self.manager.accuracies = dict(state.get("accuracies", self.manager.accuracies))
+        self.manager.train_accuracies = dict(state.get("train_accuracies", self.manager.train_accuracies))
+        self.manager.f1s = dict(state.get("f1s", self.manager.f1s))
+        self.manager.feature_importances = dict(state.get("feature_importances", self.manager.feature_importances))
 
     def _create_empty_fold_state(self, t_start, t_end, e_start, e_end, test_s, test_e, purged, eff_train, eff_test):
         return {
@@ -545,28 +659,45 @@ class MetaLabelingEngine:
             "test_end": test_e,
             "num_purged_samples": purged,
             "effective_train_size": eff_train,
-            "effective_test_size": eff_test
+            "effective_test_size": eff_test,
+            "evaluation_only": False,
+            "evaluation_reason": "empty_fold",
         }
 
     def set_active_model(self, train_limit):
         """
         Sets the active model state based on active fold boundaries.
         Called dynamically by backtester/live executor loops.
+
+        Prompt 28.6: in WF evaluation-only mode, ``None`` means "no active
+        OOS fold yet", not "delete the global model registry".  The old
+        behavior reset the registry before the first fold, making all later
+        predictions fall back to the neutral 50.0 probability.
         """
-        if train_limit is None or train_limit not in self._wf_models:
+        if train_limit is None:
+            if bool(getattr(Config, "WF_EVALUATION_ONLY", True)) and bool(getattr(Config, "WF_KEEP_GLOBAL_MODEL_WHEN_NO_ACTIVE_FOLD", True)):
+                self._active_model_key = None
+                self._active_model_source = "GLOBAL_EVAL_ONLY_NO_ACTIVE_FOLD"
+                return
             self.manager._reset_registry()
+            self._active_model_key = None
+            self._active_model_source = "RESET_NO_ACTIVE_FOLD"
+            return
+
+        if train_limit not in self._wf_models:
+            if bool(getattr(Config, "WF_EVALUATION_ONLY", True)) and bool(getattr(Config, "WF_KEEP_GLOBAL_MODEL_WHEN_NO_ACTIVE_FOLD", True)):
+                self._active_model_key = None
+                self._active_model_source = "GLOBAL_EVAL_ONLY_MISSING_FOLD"
+                return
+            self.manager._reset_registry()
+            self._active_model_key = None
+            self._active_model_source = "RESET_MISSING_FOLD"
             return
             
         state = self._wf_models[train_limit]
-        self.manager.models = dict(state.get("models", self.manager.models))
-        self.manager.calibrators = dict(state.get("calibrators", self.manager.calibrators))
-        self.manager.calibration_reports = dict(state.get("calibration_reports", self.manager.calibration_reports))
-        self.manager.vol_low_thresh = state.get("vol_low_thresh", 0.33)
-        self.manager.vol_high_thresh = state.get("vol_high_thresh", 0.66)
-        self.manager.accuracies = dict(state.get("accuracies", self.manager.accuracies))
-        self.manager.train_accuracies = dict(state.get("train_accuracies", self.manager.train_accuracies))
-        self.manager.f1s = dict(state.get("f1s", self.manager.f1s))
-        self.manager.feature_importances = dict(state.get("feature_importances", self.manager.feature_importances))
+        self._restore_manager_from_state(state)
+        self._active_model_key = train_limit
+        self._active_model_source = "EVAL_ONLY_GLOBAL" if state.get("evaluation_only") else "LOCAL_RETRAIN"
 
     def save_model(self, path: str = None):
         """Delegates serialization to RegimeModelManager."""

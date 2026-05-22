@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import ccxt
 import ccxt.async_support as ccxt_async
 import pandas as pd
@@ -41,7 +42,11 @@ class ExchangeClient:
                 self.symbol, self.timeframe, limit=self.limit
             )
         finally:
-            await exchange.close()
+            # Prompt 29.1: always attempt to close ccxt/aiohttp resources, even
+            # when the surrounding task is being cancelled by CTRL+C.
+            close_task = asyncio.create_task(exchange.close())
+            with contextlib.suppress(Exception, asyncio.CancelledError):
+                await asyncio.shield(close_task)
         return self._to_dataframe(raw)
 
     def _to_dataframe(self, raw: list) -> pd.DataFrame:

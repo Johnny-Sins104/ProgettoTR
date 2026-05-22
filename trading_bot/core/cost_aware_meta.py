@@ -141,12 +141,37 @@ class CostAwareMetaLabeler:
         stop_distance_bps = max(1.0, stop_distance_bps)
 
         regime = (vol_regime or cls.classify_vol_regime(atr_ratio)).upper()
-        cost_bps = cls.estimate_round_trip_cost_bps(
-            vol_regime=regime,
-            atr_pct=atr_pct,
-            order_type=order_type,
-            entry_type=entry_type,
-        )
+        if str(getattr(Config, "EXECUTION_COST_MODEL", "base")).lower() in {"base", "conservative", "severe"}:
+            try:
+                from core.execution_cost_model import ExecutionCostModel
+
+                exec_est = ExecutionCostModel.estimate_round_trip_bps(
+                    price=entry,
+                    atr_val=atr_val,
+                    atr_pct=atr_pct,
+                    atr_ratio=atr_ratio,
+                    vol_regime=regime,
+                    order_type=order_type,
+                    entry_type=entry_type,
+                    symbol=getattr(Config, "SYMBOL", "BTC/USDT"),
+                    timeframe=getattr(Config, "TIMEFRAME", "15m"),
+                    cost_model=getattr(Config, "EXECUTION_COST_MODEL", "base"),
+                )
+                cost_bps = float(exec_est.total_round_trip_cost_bps)
+            except Exception:
+                cost_bps = cls.estimate_round_trip_cost_bps(
+                    vol_regime=regime,
+                    atr_pct=atr_pct,
+                    order_type=order_type,
+                    entry_type=entry_type,
+                )
+        else:
+            cost_bps = cls.estimate_round_trip_cost_bps(
+                vol_regime=regime,
+                atr_pct=atr_pct,
+                order_type=order_type,
+                entry_type=entry_type,
+            )
         cost_r = cost_bps / stop_distance_bps
         min_edge = float(min_required_edge_r if min_required_edge_r is not None else getattr(Config, "META_MIN_NET_EDGE_R", 0.0))
         net = gross - cost_r - min_edge

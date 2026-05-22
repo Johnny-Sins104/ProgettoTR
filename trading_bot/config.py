@@ -1,14 +1,69 @@
 import os
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 
 class Config:
     # Exchange — Binance Futures USDT-M (commissioni 5x più basse di Spot)
     EXCHANGE_ID: str = os.getenv("EXCHANGE_ID", "binanceusdm")
     SYMBOL:      str = os.getenv("SYMBOL",      "BTC/USDT")
     TIMEFRAME:   str = os.getenv("TIMEFRAME",   "15m")
+    SUPPORTED_BACKTEST_TIMEFRAMES: tuple[str, ...] = ("15m", "5m", "3m")
+    SUPPORTED_BACKTEST_SYMBOLS: tuple[str, ...] = tuple(x.strip() for x in os.getenv("SUPPORTED_BACKTEST_SYMBOLS", "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT").split(",") if x.strip())
+    MULTI_ASSET_ROBUSTNESS_REPORT_PATH: str = os.getenv("MULTI_ASSET_ROBUSTNESS_REPORT_PATH", os.path.join("data", "multi_asset_robustness_report.json"))
+    ACTIVE_TIMEFRAME_PROFILE: dict = {}
 
     # Embargo gap configurabile (in candele) per neutralizzare la correlazione seriale
     EMBARGO_GAP: int = int(os.getenv("EMBARGO_GAP", "100"))
+
+
+
+    # Prompt 28.10 — execution realism / slippage stress controls.
+    EXECUTION_COST_MODEL: str = os.getenv("EXECUTION_COST_MODEL", "base")
+    EXECUTION_COST_STRESS_REPORT_PATH: str = os.getenv("EXECUTION_COST_STRESS_REPORT_PATH", os.path.join("data", "execution_cost_stress_report.json"))
+    EXECUTION_MAKER_FEE_BPS_SIDE: float = float(os.getenv("EXECUTION_MAKER_FEE_BPS_SIDE", "2.0"))
+    EXECUTION_TAKER_FEE_BPS_SIDE: float = float(os.getenv("EXECUTION_TAKER_FEE_BPS_SIDE", "4.0"))
+    EXECUTION_COST_BASE_MULTIPLIER: float = float(os.getenv("EXECUTION_COST_BASE_MULTIPLIER", "1.0"))
+    EXECUTION_COST_CONSERVATIVE_MULTIPLIER: float = float(os.getenv("EXECUTION_COST_CONSERVATIVE_MULTIPLIER", "1.75"))
+    EXECUTION_COST_SEVERE_MULTIPLIER: float = float(os.getenv("EXECUTION_COST_SEVERE_MULTIPLIER", "2.75"))
+    EXECUTION_COST_TIMEFRAME_MULTIPLIER_15M: float = float(os.getenv("EXECUTION_COST_TIMEFRAME_MULTIPLIER_15M", "1.0"))
+    EXECUTION_COST_TIMEFRAME_MULTIPLIER_5M: float = float(os.getenv("EXECUTION_COST_TIMEFRAME_MULTIPLIER_5M", "1.20"))
+    EXECUTION_COST_TIMEFRAME_MULTIPLIER_3M: float = float(os.getenv("EXECUTION_COST_TIMEFRAME_MULTIPLIER_3M", "1.55"))
+    EXECUTION_MAX_ATR_SLIPPAGE_BPS: float = float(os.getenv("EXECUTION_MAX_ATR_SLIPPAGE_BPS", "35.0"))
+    EXECUTION_LATENCY_BPS_CONSERVATIVE: float = float(os.getenv("EXECUTION_LATENCY_BPS_CONSERVATIVE", "1.0"))
+    EXECUTION_PARTIAL_FILL_PENALTY_BPS_SEVERE: float = float(os.getenv("EXECUTION_PARTIAL_FILL_PENALTY_BPS_SEVERE", "2.0"))
+
+    # Prompt 28.8 — multi-timeframe research controls.
+    # 5m/3m runs keep the same real-time WF span as 15m by scaling train/test/embargo
+    # unless explicit WF_* environment variables are supplied.
+    TIMEFRAME_COST_STRESS_ENABLED: bool = os.getenv("TIMEFRAME_COST_STRESS_ENABLED", "1") == "1"
+    TIMEFRAME_COST_STRESS_5M: float = float(os.getenv("TIMEFRAME_COST_STRESS_5M", "1.25"))
+    TIMEFRAME_COST_STRESS_3M: float = float(os.getenv("TIMEFRAME_COST_STRESS_3M", "1.60"))
+    TIMEFRAME_COMPARISON_REPORT_PATH: str = os.getenv("TIMEFRAME_COMPARISON_REPORT_PATH", os.path.join("data", "timeframe_comparison_report.json"))
+
+    # Prompt 28 — true rolling walk-forward controls.
+    # WF_AUTO_ADAPTIVE keeps purge+embargo intact but shrinks train/test windows
+    # when local backtests have fewer candles than the research default.
+    WF_TRAIN_SIZE: int = int(os.getenv("WF_TRAIN_SIZE", "2000"))
+    WF_TEST_SIZE: int = int(os.getenv("WF_TEST_SIZE", "500"))
+    WF_LABEL_HORIZON: int = int(os.getenv("WF_LABEL_HORIZON", "100"))
+    WF_MIN_TRAIN_SIZE: int = int(os.getenv("WF_MIN_TRAIN_SIZE", "250"))
+    WF_TRAIN_MODE: str = os.getenv("WF_TRAIN_MODE", "rolling")
+    WF_AUTO_ADAPTIVE: bool = os.getenv("WF_AUTO_ADAPTIVE", "1") == "1"
+    WF_MIN_TEST_SIZE: int = int(os.getenv("WF_MIN_TEST_SIZE", "100"))
+
+    # Prompt 28.1 — walk-forward evaluation-only controls.
+    # Adaptive 1k-candle folds are useful for temporal diagnostics, but they are
+    # too small to safely retrain XGBoost.  By default, WF folds evaluate the
+    # already-trained global/multi-asset model unless explicitly allowed and the
+    # fold contains enough local meta-label samples.
+    WF_EVALUATION_ONLY: bool = os.getenv("WF_EVALUATION_ONLY", "1") == "1"
+    WF_ALLOW_LOCAL_RETRAIN: bool = os.getenv("WF_ALLOW_LOCAL_RETRAIN", "0") == "1"
+    WF_MIN_LOCAL_TRAIN_SAMPLES: int = int(os.getenv("WF_MIN_LOCAL_TRAIN_SAMPLES", "1000"))
 
     # Commissioni: Binance Futures Maker = 0.02% per side (0.04% round-trip)
     COMMISSION_RATE: float = float(os.getenv("COMMISSION_RATE", "0.0002"))
@@ -20,6 +75,42 @@ class Config:
     # Telegram
     TELEGRAM_TOKEN:   str = os.getenv("TELEGRAM_TOKEN",   "")
     TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
+    # Prompt 29 — paper trading / operations layer.
+    PAPER_TRADING_ENABLED: bool = os.getenv("PAPER_TRADING_ENABLED", "1") == "1"
+    PAPER_MODE_ONLY: bool = os.getenv("PAPER_MODE_ONLY", "1") == "1"
+    PAPER_DEFAULT_TIMEFRAME: str = os.getenv("PAPER_DEFAULT_TIMEFRAME", "5m")
+    PAPER_DEFAULT_COST_MODEL: str = os.getenv("PAPER_DEFAULT_COST_MODEL", "conservative")
+    PAPER_INITIAL_BALANCE: float = float(os.getenv("PAPER_INITIAL_BALANCE", "1000"))
+    PAPER_MAX_POSITIONS: int = int(os.getenv("PAPER_MAX_POSITIONS", "3"))
+    PAPER_RISK_PER_TRADE_PCT: float = float(os.getenv("PAPER_RISK_PER_TRADE_PCT", "0.005"))
+    PAPER_STATE_PATH: str = os.getenv("PAPER_STATE_PATH", os.path.join("data", "paper_state.json"))
+    PAPER_EVENTS_PATH: str = os.getenv("PAPER_EVENTS_PATH", os.path.join("data", "paper_events.jsonl"))
+    PAPER_STATUS_PATH: str = os.getenv("PAPER_STATUS_PATH", os.path.join("data", "paper_status.json"))
+    TELEGRAM_ALLOWED_USER_IDS: str = os.getenv("TELEGRAM_ALLOWED_USER_IDS", "")
+
+    # Prompt 29.4.1/29.4.1a — clean console and proactive Telegram monitoring.
+    PAPER_CONSOLE_VERBOSE: bool = os.getenv("PAPER_CONSOLE_VERBOSE", "0") == "1"
+    PAPER_AI_DEBUG: bool = os.getenv("PAPER_AI_DEBUG", "0") == "1"
+    PAPER_CONSOLE_HEADER_EVERY_N_CYCLES: int = int(os.getenv("PAPER_CONSOLE_HEADER_EVERY_N_CYCLES", "12"))
+    PAPER_CONSOLE_SHOW_FLAT_MONITOR: bool = os.getenv("PAPER_CONSOLE_SHOW_FLAT_MONITOR", "0") == "1"
+
+    TELEGRAM_PROACTIVE_ENABLED: bool = os.getenv("TELEGRAM_PROACTIVE_ENABLED", "1") == "1"
+    TELEGRAM_NOTIFY_ON_START: bool = os.getenv("TELEGRAM_NOTIFY_ON_START", "1") == "1"
+    TELEGRAM_NOTIFY_ON_SHUTDOWN: bool = os.getenv("TELEGRAM_NOTIFY_ON_SHUTDOWN", "1") == "1"
+    TELEGRAM_NOTIFY_ON_SIGNAL: bool = os.getenv("TELEGRAM_NOTIFY_ON_SIGNAL", "1") == "1"
+    TELEGRAM_NOTIFY_ON_ORDER: bool = os.getenv("TELEGRAM_NOTIFY_ON_ORDER", "1") == "1"
+    TELEGRAM_NOTIFY_ON_POSITION_OPEN: bool = os.getenv("TELEGRAM_NOTIFY_ON_POSITION_OPEN", "1") == "1"
+    TELEGRAM_NOTIFY_ON_POSITION_CLOSE: bool = os.getenv("TELEGRAM_NOTIFY_ON_POSITION_CLOSE", "1") == "1"
+    TELEGRAM_NOTIFY_ON_TP_SL: bool = os.getenv("TELEGRAM_NOTIFY_ON_TP_SL", "1") == "1"
+    TELEGRAM_NOTIFY_ON_DRIFT_WARN: bool = os.getenv("TELEGRAM_NOTIFY_ON_DRIFT_WARN", "1") == "1"
+    TELEGRAM_NOTIFY_POSITION_EVERY_N_CYCLES: int = int(os.getenv("TELEGRAM_NOTIFY_POSITION_EVERY_N_CYCLES", "1"))
+    TELEGRAM_NOTIFY_POSITION_EVERY_SECONDS: float = float(os.getenv("TELEGRAM_NOTIFY_POSITION_EVERY_SECONDS", "300"))
+    TELEGRAM_NOTIFY_POSITION_PNL_DELTA_PCT: float = float(os.getenv("TELEGRAM_NOTIFY_POSITION_PNL_DELTA_PCT", "0.25"))
+    TELEGRAM_NOTIFY_NO_SIGNAL_EVERY_N_CYCLES: int = int(os.getenv("TELEGRAM_NOTIFY_NO_SIGNAL_EVERY_N_CYCLES", "12"))
+    TELEGRAM_NOTIFY_EVERY_CYCLE: bool = os.getenv("TELEGRAM_NOTIFY_EVERY_CYCLE", "0") == "1"
+    TELEGRAM_PROACTIVE_DEDUP_SECONDS: float = float(os.getenv("TELEGRAM_PROACTIVE_DEDUP_SECONDS", "30"))
+    TELEGRAM_PROACTIVE_MAX_MESSAGES_PER_MINUTE: int = int(os.getenv("TELEGRAM_PROACTIVE_MAX_MESSAGES_PER_MINUTE", "10"))
+
 
     # Evolved Parameters (Deep Sweep su 76,800 combinazioni — 10k candele 5m)
     ATR_MULT:       float = float(os.getenv("ATR_MULT",     "2.0"))
@@ -94,13 +185,50 @@ class Config:
     # Parquet Dataset Metadata & Integrity Rules
     DATASET_VERSION:            str   = "1.0.0"
     MAX_NULL_TOLERANCE:         float = 0.05
-    EXPECTED_TIMEFRAME_MINUTES: int   = 15
+    EXPECTED_TIMEFRAME_MINUTES: int   = int(os.getenv("EXPECTED_TIMEFRAME_MINUTES", "15"))
 
     # Meta-Labeling Thresholds
     META_PROB_THRESHOLD: float = 55.0     # Probabilità calibrata minima in % per accettare il trade
     META_QUALITY_THRESHOLD: float = 50.0  # Punteggio minimo di qualità tecnica per accettare il trade
     SIGNAL_DENSITY_DIAGNOSTICS: bool = os.getenv("SIGNAL_DENSITY_DIAGNOSTICS", "1") == "1"
     SIGNAL_DENSITY_REPORT_PATH: str = os.getenv("SIGNAL_DENSITY_REPORT_PATH", os.path.join("data", "signal_density_report.json"))
+    # Prompt 29.4.2 — paper signal diagnostics. Diagnostic-only by default:
+    # these settings never change trading decisions unless future prompts wire
+    # a separate, explicitly validated paper-only unlock mode.
+    PAPER_SIGNAL_DIAGNOSTICS_ENABLED: bool = os.getenv("PAPER_SIGNAL_DIAGNOSTICS_ENABLED", "1") == "1"
+    PAPER_SIGNAL_DIAGNOSTICS_REPORT_PATH: str = os.getenv("PAPER_SIGNAL_DIAGNOSTICS_REPORT_PATH", os.path.join("data", "paper_signal_diagnostics_report.json"))
+    PAPER_SIGNAL_DIAGNOSTICS_BACKFILL_ENABLED: bool = os.getenv("PAPER_SIGNAL_DIAGNOSTICS_BACKFILL_ENABLED", "1") == "1"
+    PAPER_SIGNAL_DIAGNOSTICS_BACKFILL_REPORT_PATH: str = os.getenv("PAPER_SIGNAL_DIAGNOSTICS_BACKFILL_REPORT_PATH", os.path.join("data", "paper_signal_diagnostics_backfill_report.json"))
+    PAPER_EXPLORATORY_SIGNAL_ANALYSIS: bool = os.getenv("PAPER_EXPLORATORY_SIGNAL_ANALYSIS", "1") == "1"
+    PAPER_EXPLORATORY_META_PROB_THRESHOLD: float = float(os.getenv("PAPER_EXPLORATORY_META_PROB_THRESHOLD", "48.0"))
+    PAPER_EXPLORATORY_RANGING_META_PROB_THRESHOLD: float = float(os.getenv("PAPER_EXPLORATORY_RANGING_META_PROB_THRESHOLD", "45.0"))
+    PAPER_EXPLORATORY_MIN_SETUP_QUALITY: float = float(os.getenv("PAPER_EXPLORATORY_MIN_SETUP_QUALITY", "60.0"))
+    PAPER_ENTRY_UNLOCK_ENABLED: bool = os.getenv("PAPER_ENTRY_UNLOCK_ENABLED", "0") == "1"
+
+    # Prompt 29.4.3 — conservative threshold simulation / shadow unlock analysis.
+    # Shadow-only by default: this never changes strategy gates, order flow, broker
+    # state, paper positions, testnet, or live execution.
+    PAPER_SHADOW_SIMULATION_ENABLED: bool = os.getenv("PAPER_SHADOW_SIMULATION_ENABLED", "1") == "1"
+    PAPER_SHADOW_REPORT_PATH: str = os.getenv("PAPER_SHADOW_REPORT_PATH", os.path.join("data", "paper_shadow_unlock_report.json"))
+    PAPER_SHADOW_INCLUDE_INFERRED: bool = os.getenv("PAPER_SHADOW_INCLUDE_INFERRED", "1") == "1"
+    PAPER_SHADOW_MAX_HOLD_CYCLES: int = int(os.getenv("PAPER_SHADOW_MAX_HOLD_CYCLES", "12"))
+    PAPER_SHADOW_STOP_LOSS_PCT: float = float(os.getenv("PAPER_SHADOW_STOP_LOSS_PCT", "0.0035"))
+    PAPER_SHADOW_TP1_PCT: float = float(os.getenv("PAPER_SHADOW_TP1_PCT", "0.0035"))
+    PAPER_SHADOW_TP2_PCT: float = float(os.getenv("PAPER_SHADOW_TP2_PCT", "0.0070"))
+
+    # Prompt 29.4.4 — conservative paper-only shadow-to-paper unlock gate.
+    # Default OFF. When enabled, this may convert only validated shadow-profile
+    # candidates into paper orders. It is blocked for live/testnet by design.
+    PAPER_UNLOCK_PROFILE: str = os.getenv("PAPER_UNLOCK_PROFILE", "BTC_ONLY_40_Q60")
+    PAPER_UNLOCK_ALLOWED_SYMBOLS: str = os.getenv("PAPER_UNLOCK_ALLOWED_SYMBOLS", "BTC/USDT")
+    PAPER_UNLOCK_ALLOWED_FILTERS: str = os.getenv("PAPER_UNLOCK_ALLOWED_FILTERS", "META_PROB_LOW")
+    PAPER_UNLOCK_MIN_AI_PROB: float = float(os.getenv("PAPER_UNLOCK_MIN_AI_PROB", "40.0"))
+    PAPER_UNLOCK_MIN_SETUP_QUALITY: float = float(os.getenv("PAPER_UNLOCK_MIN_SETUP_QUALITY", "60.0"))
+    PAPER_UNLOCK_REQUIRE_TECH_GATE: bool = os.getenv("PAPER_UNLOCK_REQUIRE_TECH_GATE", "1") == "1"
+    PAPER_UNLOCK_MAX_POSITIONS: int = int(os.getenv("PAPER_UNLOCK_MAX_POSITIONS", "1"))
+    PAPER_UNLOCK_LIVE_BLOCK: bool = os.getenv("PAPER_UNLOCK_LIVE_BLOCK", "1") == "1"
+    PAPER_UNLOCK_TAG: str = os.getenv("PAPER_UNLOCK_TAG", "PAPER_UNLOCK_29_4_4")
+
 
     # Cost-aware meta-labeling diagnostics.  By default this is diagnostic-only:
     # it reports net expectancy after estimated execution friction without changing
@@ -119,6 +247,138 @@ class Config:
     ADAPTIVE_REGIME_THRESHOLDS_GATING: bool = os.getenv("ADAPTIVE_REGIME_THRESHOLDS_GATING", "0") == "1"
     ADAPTIVE_REGIME_MIN_TRADES: int = int(os.getenv("ADAPTIVE_REGIME_MIN_TRADES", "3"))
     ADAPTIVE_REGIME_THRESHOLD_REPORT_PATH: str = os.getenv("ADAPTIVE_REGIME_THRESHOLD_REPORT_PATH", os.path.join("data", "adaptive_regime_threshold_report.json"))
+
+    # Prompt 27 — market-structure setup engine
+    SETUP_STRUCTURE_FEATURES_ENABLED: bool = os.getenv("SETUP_STRUCTURE_FEATURES_ENABLED", "1") == "1"
+    SETUP_STRUCTURE_GATING: bool = os.getenv("SETUP_STRUCTURE_GATING", "0") == "1"
+    SETUP_STRUCTURE_MIN_SCORE: float = float(os.getenv("SETUP_STRUCTURE_MIN_SCORE", "20.0"))
+    SETUP_STRUCTURE_REPORT_PATH: str = os.getenv("SETUP_STRUCTURE_REPORT_PATH", os.path.join("data", "setup_engine_report.json"))
+
+    # Prompt 28.1 — archetype activation controls.
+    # These do not create signals; they only classify existing technical
+    # candidates with less mean-reversion bias when a more specific structural
+    # setup is close enough to the winning score.
+    SETUP_ARCHETYPE_MIN_SCORE: float = float(os.getenv("SETUP_ARCHETYPE_MIN_SCORE", "32.0"))
+    SETUP_ARCHETYPE_SPECIFICITY_MARGIN: float = float(os.getenv("SETUP_ARCHETYPE_SPECIFICITY_MARGIN", "12.0"))
+    SETUP_HTF_RETURN_EPS: float = float(os.getenv("SETUP_HTF_RETURN_EPS", "0.0005"))
+    SETUP_VOL_COMPRESSION_THRESHOLD: float = float(os.getenv("SETUP_VOL_COMPRESSION_THRESHOLD", "0.95"))
+    SETUP_SWEEP_SCORE_MIN: float = float(os.getenv("SETUP_SWEEP_SCORE_MIN", "0.0001"))
+
+    # Prompt 28.2 — runtime market-structure propagation + fallback controls.
+    BACKTEST_MARKET_STRUCTURE_ENRICHMENT: bool = os.getenv("BACKTEST_MARKET_STRUCTURE_ENRICHMENT", "1") == "1"
+    BACKTEST_MARKET_STRUCTURE_STRICT_AUDIT: bool = os.getenv("BACKTEST_MARKET_STRUCTURE_STRICT_AUDIT", "0") == "1"
+    SETUP_MARKET_STRUCTURE_AUDIT: bool = os.getenv("SETUP_MARKET_STRUCTURE_AUDIT", "1") == "1"
+    SETUP_MR_REQUIRE_CONFIRMATION: bool = os.getenv("SETUP_MR_REQUIRE_CONFIRMATION", "1") == "1"
+    SETUP_MR_MIN_STRUCTURE_SCORE: float = float(os.getenv("SETUP_MR_MIN_STRUCTURE_SCORE", "52.0"))
+    SETUP_MR_FALLBACK_EDGE_PENALTY_R: float = float(os.getenv("SETUP_MR_FALLBACK_EDGE_PENALTY_R", "0.08"))
+    SETUP_MR_MISSING_FEATURE_PENALTY: float = float(os.getenv("SETUP_MR_MISSING_FEATURE_PENALTY", "10.0"))
+
+
+    # Prompt 28.4: archetype-conditioned gating.  A single global meta
+    # threshold made the framework accept 100% of technical candidates once
+    # runtime market-structure features were propagated.  These conservative
+    # per-archetype gates keep the setup engine from treating all structure
+    # families as equally reliable before realized validation exists.
+    SETUP_ARCHETYPE_GATING_ENABLED: bool = os.getenv("SETUP_ARCHETYPE_GATING_ENABLED", "1") == "1"
+    SETUP_ACCEPTANCE_RATE_GUARDRAIL: float = float(os.getenv("SETUP_ACCEPTANCE_RATE_GUARDRAIL", "0.80"))
+    SETUP_UNVALIDATED_ARCHETYPE_EDGE_PENALTY_R: float = float(os.getenv("SETUP_UNVALIDATED_ARCHETYPE_EDGE_PENALTY_R", "0.05"))
+
+    SETUP_HTF_MIN_PROB: float = float(os.getenv("SETUP_HTF_MIN_PROB", "50.0"))
+    SETUP_HTF_MIN_QUALITY: float = float(os.getenv("SETUP_HTF_MIN_QUALITY", "58.0"))
+    SETUP_HTF_MIN_STRUCTURE: float = float(os.getenv("SETUP_HTF_MIN_STRUCTURE", "62.0"))
+    SETUP_HTF_MIN_NET_EDGE_R: float = float(os.getenv("SETUP_HTF_MIN_NET_EDGE_R", "0.10"))
+
+    SETUP_VOL_BREAKOUT_MIN_PROB: float = float(os.getenv("SETUP_VOL_BREAKOUT_MIN_PROB", "52.0"))
+    SETUP_VOL_BREAKOUT_MIN_QUALITY: float = float(os.getenv("SETUP_VOL_BREAKOUT_MIN_QUALITY", "62.0"))
+    SETUP_VOL_BREAKOUT_MIN_STRUCTURE: float = float(os.getenv("SETUP_VOL_BREAKOUT_MIN_STRUCTURE", "65.0"))
+    SETUP_VOL_BREAKOUT_MIN_NET_EDGE_R: float = float(os.getenv("SETUP_VOL_BREAKOUT_MIN_NET_EDGE_R", "0.15"))
+
+    SETUP_SWEEP_MIN_PROB: float = float(os.getenv("SETUP_SWEEP_MIN_PROB", "52.0"))
+    SETUP_SWEEP_MIN_QUALITY: float = float(os.getenv("SETUP_SWEEP_MIN_QUALITY", "60.0"))
+    SETUP_SWEEP_MIN_STRUCTURE: float = float(os.getenv("SETUP_SWEEP_MIN_STRUCTURE", "62.0"))
+    SETUP_SWEEP_MIN_NET_EDGE_R: float = float(os.getenv("SETUP_SWEEP_MIN_NET_EDGE_R", "0.12"))
+
+    SETUP_SESSION_MIN_PROB: float = float(os.getenv("SETUP_SESSION_MIN_PROB", "54.0"))
+    SETUP_SESSION_MIN_QUALITY: float = float(os.getenv("SETUP_SESSION_MIN_QUALITY", "62.0"))
+    SETUP_SESSION_MIN_STRUCTURE: float = float(os.getenv("SETUP_SESSION_MIN_STRUCTURE", "65.0"))
+    SETUP_SESSION_MIN_NET_EDGE_R: float = float(os.getenv("SETUP_SESSION_MIN_NET_EDGE_R", "0.15"))
+
+    SETUP_MR_MIN_PROB: float = float(os.getenv("SETUP_MR_MIN_PROB", "55.0"))
+    SETUP_MR_MIN_QUALITY: float = float(os.getenv("SETUP_MR_MIN_QUALITY", "60.0"))
+    SETUP_MR_MIN_NET_EDGE_R: float = float(os.getenv("SETUP_MR_MIN_NET_EDGE_R", "0.18"))
+
+    # Prompt 28.6: realized-feedback safety controls.  The 50k-candle run
+    # identified HTF_ALIGNED_PULLBACK as the only realized traded archetype and
+    # it was materially negative.  It is disabled by default until revalidated;
+    # set SETUP_DISABLED_ARCHETYPES="" to re-enable it for research runs.
+    SETUP_DISABLED_ARCHETYPES: str = os.getenv("SETUP_DISABLED_ARCHETYPES", "HTF_ALIGNED_PULLBACK")
+    SETUP_AUTO_DISABLE_NEGATIVE_ARCHETYPES: bool = os.getenv("SETUP_AUTO_DISABLE_NEGATIVE_ARCHETYPES", "1") == "1"
+    SETUP_NEGATIVE_ARCHETYPE_MIN_TRADES: int = int(os.getenv("SETUP_NEGATIVE_ARCHETYPE_MIN_TRADES", "5"))
+    SETUP_NEGATIVE_ARCHETYPE_AVG_R_MAX: float = float(os.getenv("SETUP_NEGATIVE_ARCHETYPE_AVG_R_MAX", "-0.05"))
+    SETUP_NEGATIVE_ARCHETYPE_REPORT_PATH: str = os.getenv("SETUP_NEGATIVE_ARCHETYPE_REPORT_PATH", os.path.join("data", "archetype_performance_report.json"))
+
+    # Stop generating new pending triggers while the risk engine is already in
+    # daily-loss block.  This keeps the risk engine from becoming a strategic
+    # filter and avoids hundreds of blocked sizing snapshots.
+    PRE_RISK_THROTTLE_ON_DAILY_BLOCK: bool = os.getenv("PRE_RISK_THROTTLE_ON_DAILY_BLOCK", "1") == "1"
+
+    # Keep the global trained registry active when the current bar is outside a
+    # WF test fold in evaluation-only mode.
+    WF_KEEP_GLOBAL_MODEL_WHEN_NO_ACTIVE_FOLD: bool = os.getenv("WF_KEEP_GLOBAL_MODEL_WHEN_NO_ACTIVE_FOLD", "1") == "1"
+    AI_PREDICTION_AUDIT: bool = os.getenv("AI_PREDICTION_AUDIT", "1") == "1"
+
+
+    # Prompt 28.7: edge stability validation and paper-trading readiness guardrails.
+    EDGE_STABILITY_MIN_TRADES_PER_ARCHETYPE: int = int(os.getenv("EDGE_STABILITY_MIN_TRADES_PER_ARCHETYPE", "20"))
+    EDGE_STABILITY_MIN_AVG_R: float = float(os.getenv("EDGE_STABILITY_MIN_AVG_R", "0.05"))
+    EDGE_STABILITY_LOW_ATR_PCT: float = float(os.getenv("EDGE_STABILITY_LOW_ATR_PCT", "0.30"))
+    EDGE_STABILITY_HIGH_ATR_PCT: float = float(os.getenv("EDGE_STABILITY_HIGH_ATR_PCT", "0.75"))
+    PAPER_READY_MIN_TRADES: int = int(os.getenv("PAPER_READY_MIN_TRADES", "30"))
+    PAPER_READY_MIN_ARCHETYPE_TRADES: int = int(os.getenv("PAPER_READY_MIN_ARCHETYPE_TRADES", "10"))
+    PAPER_READY_MIN_POSITIVE_ARCHETYPES: int = int(os.getenv("PAPER_READY_MIN_POSITIVE_ARCHETYPES", "2"))
+    PAPER_READY_MAX_DD_PCT: float = float(os.getenv("PAPER_READY_MAX_DD_PCT", "12.0"))
+    PAPER_READY_MIN_NET_PCT: float = float(os.getenv("PAPER_READY_MIN_NET_PCT", "0.0"))
+    PAPER_READY_MAX_META_ACCEPTANCE_RATE_PCT: float = float(os.getenv("PAPER_READY_MAX_META_ACCEPTANCE_RATE_PCT", "5.0"))
+    PAPER_READY_MIN_WF_FOLDS: int = int(os.getenv("PAPER_READY_MIN_WF_FOLDS", "20"))
+
+
+    # Prompt 28.8.1: runtime profiling + fast research mode.
+    RUNTIME_PROFILE_ENABLED: bool = os.getenv("RUNTIME_PROFILE_ENABLED", "1") == "1"
+    RUNTIME_PROFILE_REPORT_PATH: str = os.getenv("RUNTIME_PROFILE_REPORT_PATH", os.path.join("data", "runtime_profile_report.json"))
+    RUNTIME_PROFILER = None
+    BACKTEST_FAST_MODE: bool = os.getenv("BACKTEST_FAST_MODE", "0") == "1"
+    BACKTEST_SAVE_CHARTS: bool = os.getenv("BACKTEST_SAVE_CHARTS", "1") == "1"
+    BACKTEST_RISK_PROFILE: str = os.getenv("BACKTEST_RISK_PROFILE", "ALL").upper()
+    BACKTEST_PRINT_WF_TIMELINE: bool = os.getenv("BACKTEST_PRINT_WF_TIMELINE", "1") == "1"
+    BACKTEST_PRINT_WF_FOLD_TABLE: bool = os.getenv("BACKTEST_PRINT_WF_FOLD_TABLE", "1") == "1"
+    BACKTEST_PRINT_WF_MODEL_LINES: bool = os.getenv("BACKTEST_PRINT_WF_MODEL_LINES", "1") == "1"
+
+    # Prompt 28.8.3: avoid expensive per-fold local dataset reconstruction
+    # during evaluation-only backtests. In WF_EVALUATION_ONLY mode the fold
+    # state is only used to route the already-trained global model, so we can
+    # snapshot the global registry once per fold from split metadata.
+    WF_FAST_EVAL_ONLY_ROUTING_CACHE: bool = os.getenv("WF_FAST_EVAL_ONLY_ROUTING_CACHE", "1") == "1"
+
+    # Prompt 28.11: asset/archetype-specific cost robustness gates.
+    # Defaults reflect the 28.10 cost-stress matrix: BTC/BNB are the most robust;
+    # ETH/SOL retain mean reversion but liquidity sweeps are blocked under stressed
+    # cost models; XRP remains research-only until revalidated.
+    ASSET_ARCHETYPE_GATING_ENABLED: bool = os.getenv("ASSET_ARCHETYPE_GATING_ENABLED", "1") == "1"
+    PAPER_ASSET_UNIVERSE: str = os.getenv("PAPER_ASSET_UNIVERSE", "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT")
+    PAPER_EXCLUDED_ASSETS: str = os.getenv("PAPER_EXCLUDED_ASSETS", "XRP/USDT")
+    PAPER_ASSET_UNIVERSE_ENFORCED: bool = os.getenv("PAPER_ASSET_UNIVERSE_ENFORCED", "0") == "1"
+    COST_ROBUSTNESS_GATE_COST_MODELS: str = os.getenv("COST_ROBUSTNESS_GATE_COST_MODELS", "conservative,severe")
+    COST_ROBUSTNESS_DISABLED_ASSET_ARCHETYPES: str = os.getenv(
+        "COST_ROBUSTNESS_DISABLED_ASSET_ARCHETYPES",
+        "ETH/USDT:LIQUIDITY_SWEEP_REVERSAL|SOL/USDT:LIQUIDITY_SWEEP_REVERSAL|XRP/USDT:LIQUIDITY_SWEEP_REVERSAL",
+    )
+
+    # Prompt 28.8.1: timeframe/archetype research controls.  The 5m run showed
+    # VOL_COMPRESSION_BREAKOUT slightly negative on realized R with very low sample.
+    SETUP_DISABLED_ARCHETYPES_5M: str = os.getenv("SETUP_DISABLED_ARCHETYPES_5M", "VOL_COMPRESSION_BREAKOUT")
+    SETUP_DISABLED_ARCHETYPES_3M: str = os.getenv("SETUP_DISABLED_ARCHETYPES_3M", "VOL_COMPRESSION_BREAKOUT")
+    SETUP_5M_MR_MIN_PROB: float = float(os.getenv("SETUP_5M_MR_MIN_PROB", "52.0"))
+    SETUP_5M_MR_MIN_NET_EDGE_R: float = float(os.getenv("SETUP_5M_MR_MIN_NET_EDGE_R", "0.15"))
 
     # Kelly Criterion Configuration
     USE_KELLY_SIZING:   bool  = True
