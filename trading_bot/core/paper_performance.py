@@ -78,6 +78,30 @@ class PaperPerformancePaths:
         return self.data_dir / "paper_shadow_unlock_report.json"
 
     @property
+    def unlock_rejection_path(self) -> Path:
+        return self.data_dir / "paper_unlock_rejection_report.json"
+
+    @property
+    def crypto_scenario_path(self) -> Path:
+        return self.data_dir / "crypto_intraday_scenario_report.json"
+
+    @property
+    def candlestick_pattern_path(self) -> Path:
+        return self.data_dir / "candlestick_pattern_report.json"
+
+    @property
+    def pattern_conditioned_shadow_path(self) -> Path:
+        return self.data_dir / "pattern_conditioned_shadow_report.json"
+
+    @property
+    def scenario_pattern_calibration_path(self) -> Path:
+        return self.data_dir / "scenario_pattern_calibration_report.json"
+
+    @property
+    def market_structure_map_path(self) -> Path:
+        return self.data_dir / "market_structure_map_report.json"
+
+    @property
     def cost_stress_path(self) -> Path:
         return self.data_dir / "execution_cost_stress_report.json"
 
@@ -337,6 +361,12 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
     signal_diagnostics = _read_json(paths.signal_diagnostics_path)
     signal_diagnostics_backfill = _read_json(paths.signal_diagnostics_backfill_path)
     shadow_unlock = _read_json(paths.shadow_unlock_path)
+    unlock_rejection = _read_json(paths.unlock_rejection_path)
+    crypto_scenario = _read_json(paths.crypto_scenario_path)
+    candlestick_patterns = _read_json(paths.candlestick_pattern_path)
+    pattern_conditioned_shadow = _read_json(paths.pattern_conditioned_shadow_path)
+    scenario_pattern_calibration = _read_json(paths.scenario_pattern_calibration_path)
+    market_structure_map = _read_json(paths.market_structure_map_path)
     events = read_events(paths.events_path)
     event_counts = Counter(_event_type(e) for e in events)
     curve = _equity_curve(events, status)
@@ -383,6 +413,12 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
             "signal_diagnostics": str(paths.signal_diagnostics_path),
             "signal_diagnostics_backfill": str(paths.signal_diagnostics_backfill_path),
             "shadow_unlock": str(paths.shadow_unlock_path),
+            "unlock_rejection": str(paths.unlock_rejection_path),
+            "crypto_scenario": str(paths.crypto_scenario_path),
+            "candlestick_patterns": str(paths.candlestick_pattern_path),
+            "pattern_conditioned_shadow": str(paths.pattern_conditioned_shadow_path),
+            "scenario_pattern_calibration": str(paths.scenario_pattern_calibration_path),
+            "market_structure_map": str(paths.market_structure_map_path),
         },
         "engine": {
             "mode": status.get("mode", "paper"),
@@ -401,6 +437,11 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
             "paper_unlock": status.get("paper_unlock", {}),
             "exploratory_signal_analysis": bool(status.get("exploratory_signal_analysis", False)),
             "shadow_simulation_enabled": bool(status.get("shadow_simulation_enabled", False)),
+            "crypto_scenario_enabled": bool(status.get("crypto_scenario_enabled", True)),
+            "candlestick_patterns_enabled": bool(status.get("candlestick_patterns_enabled", True)),
+            "pattern_conditioned_shadow_enabled": bool(status.get("pattern_conditioned_shadow_enabled", True)),
+            "scenario_pattern_calibration_enabled": bool(status.get("scenario_pattern_calibration_enabled", True)),
+            "market_structure_map_enabled": bool(status.get("market_structure_map_enabled", True)),
             "kill_switch": bool(status.get("kill_switch", state.get("kill_switch", False))),
             "is_paused": bool(status.get("is_paused", state.get("is_paused", False))),
         },
@@ -438,6 +479,29 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
             "exploratory_candidates": ((signal_diagnostics_backfill.get("counts") or {}).get("exploratory_candidates", 0) if isinstance(signal_diagnostics_backfill, dict) and signal_diagnostics_backfill else (signal_diagnostics.get("counts") or {}).get("exploratory_candidates", 0) if isinstance(signal_diagnostics, dict) else 0),
             "dominant_filters": ((signal_diagnostics_backfill.get("dominant_filters") or {}).get("combined", {}) if isinstance(signal_diagnostics_backfill, dict) and signal_diagnostics_backfill else signal_diagnostics.get("dominant_filters", {}) if isinstance(signal_diagnostics, dict) else {}),
             "shadow_rows_total": (shadow_unlock.get("counts") or {}).get("shadow_rows_total", 0) if isinstance(shadow_unlock, dict) else 0,
+            "unlock_rejection_status": unlock_rejection.get("status", "NA") if isinstance(unlock_rejection, dict) else "NA",
+            "unlock_rejection_decision": ((unlock_rejection.get("decision") or {}).get("status") if isinstance(unlock_rejection.get("decision"), dict) else "NA") if isinstance(unlock_rejection, dict) else "NA",
+            "unlock_rejection_dominant_btc_reason": ((unlock_rejection.get("decision") or {}).get("dominant_btc_reason") if isinstance(unlock_rejection.get("decision"), dict) else "") if isinstance(unlock_rejection, dict) else "",
+            "unlock_rejection_btc_evaluated": (unlock_rejection.get("counts") or {}).get("btc_evaluated", 0) if isinstance(unlock_rejection, dict) else 0,
+            "unlock_rejection_btc_near_candidates": (unlock_rejection.get("counts") or {}).get("btc_near_threshold_candidates", 0) if isinstance(unlock_rejection, dict) else 0,
+            "crypto_scenario_status": crypto_scenario.get("status", "NA") if isinstance(crypto_scenario, dict) else "NA",
+            "crypto_scenario_decision": ((crypto_scenario.get("decision") or {}).get("status") if isinstance(crypto_scenario.get("decision"), dict) else "NA") if isinstance(crypto_scenario, dict) else "NA",
+            "crypto_scenario_btc_rows": (crypto_scenario.get("counts") or {}).get("btc_scenario_events", 0) if isinstance(crypto_scenario, dict) else 0,
+            "candlestick_pattern_status": candlestick_patterns.get("status", "NA") if isinstance(candlestick_patterns, dict) else "NA",
+            "candlestick_pattern_decision": ((candlestick_patterns.get("decision") or {}).get("status") if isinstance(candlestick_patterns.get("decision"), dict) else "NA") if isinstance(candlestick_patterns, dict) else "NA",
+            "candlestick_pattern_btc_rows": (candlestick_patterns.get("counts") or {}).get("btc_pattern_events", 0) if isinstance(candlestick_patterns, dict) else 0,
+            "pattern_conditioned_shadow_status": pattern_conditioned_shadow.get("status", "NA") if isinstance(pattern_conditioned_shadow, dict) else "NA",
+            "pattern_conditioned_shadow_decision": ((pattern_conditioned_shadow.get("decision") or {}).get("status") if isinstance(pattern_conditioned_shadow.get("decision"), dict) else "NA") if isinstance(pattern_conditioned_shadow, dict) else "NA",
+            "pattern_conditioned_historical_candidates": (pattern_conditioned_shadow.get("counts") or {}).get("historical_candidates", 0) if isinstance(pattern_conditioned_shadow, dict) else 0,
+            "scenario_pattern_calibration_status": scenario_pattern_calibration.get("status", "NA") if isinstance(scenario_pattern_calibration, dict) else "NA",
+            "scenario_pattern_calibration_decision": ((scenario_pattern_calibration.get("decision") or {}).get("status") if isinstance(scenario_pattern_calibration.get("decision"), dict) else "NA") if isinstance(scenario_pattern_calibration, dict) else "NA",
+            "scenario_pattern_historical_candidates": (scenario_pattern_calibration.get("counts") or {}).get("historical_candidates", 0) if isinstance(scenario_pattern_calibration, dict) else 0,
+            "scenario_pattern_focus_profile": (((scenario_pattern_calibration.get("decision") or {}).get("candidate_profile") or {}).get("name") if isinstance(((scenario_pattern_calibration.get("decision") or {}).get("candidate_profile") if isinstance(scenario_pattern_calibration.get("decision"), dict) else {}), dict) else "") if isinstance(scenario_pattern_calibration, dict) else "",
+            "market_structure_map_status": market_structure_map.get("status", "NA") if isinstance(market_structure_map, dict) else "NA",
+            "market_structure_map_decision": ((market_structure_map.get("decision") or {}).get("status") if isinstance(market_structure_map.get("decision"), dict) else "NA") if isinstance(market_structure_map, dict) else "NA",
+            "market_structure_snapshots": (market_structure_map.get("counts") or {}).get("historical_snapshots_evaluated", 0) if isinstance(market_structure_map, dict) else 0,
+            "market_structure_focus_bias": (((market_structure_map.get("decision") or {}).get("focus_latest") or {}).get("structure_bias") if isinstance(((market_structure_map.get("decision") or {}).get("focus_latest") if isinstance(market_structure_map.get("decision"), dict) else {}), dict) else "") if isinstance(market_structure_map, dict) else "",
+            "market_structure_focus_confirmation": (((market_structure_map.get("decision") or {}).get("focus_latest") or {}).get("confirmation_summary") if isinstance(((market_structure_map.get("decision") or {}).get("focus_latest") if isinstance(market_structure_map.get("decision"), dict) else {}), dict) else "") if isinstance(market_structure_map, dict) else "",
         },
         "orders": {
             "submitted": orders_submitted,
@@ -449,6 +513,12 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
         "signal_diagnostics": signal_diagnostics if isinstance(signal_diagnostics, dict) else {},
         "signal_diagnostics_backfill": signal_diagnostics_backfill if isinstance(signal_diagnostics_backfill, dict) else {},
         "shadow_unlock": shadow_unlock if isinstance(shadow_unlock, dict) else {},
+        "unlock_rejection_analysis": unlock_rejection if isinstance(unlock_rejection, dict) else {},
+        "crypto_scenario": crypto_scenario if isinstance(crypto_scenario, dict) else {},
+        "candlestick_patterns": candlestick_patterns if isinstance(candlestick_patterns, dict) else {},
+        "pattern_conditioned_shadow": pattern_conditioned_shadow if isinstance(pattern_conditioned_shadow, dict) else {},
+        "scenario_pattern_calibration": scenario_pattern_calibration if isinstance(scenario_pattern_calibration, dict) else {},
+        "market_structure_map": market_structure_map if isinstance(market_structure_map, dict) else {},
         "positions": {
             "open": int(status.get("open_positions") or 0),
             "closed": len(closed_positions),
@@ -581,6 +651,8 @@ def build_dashboard_html(performance: dict[str, Any], drift: dict[str, Any], lif
     signal_diagnostics = performance.get("signal_diagnostics", {}) if isinstance(performance.get("signal_diagnostics"), dict) else {}
     signal_diagnostics_backfill = performance.get("signal_diagnostics_backfill", {}) if isinstance(performance.get("signal_diagnostics_backfill"), dict) else {}
     shadow_unlock = performance.get("shadow_unlock", {}) if isinstance(performance.get("shadow_unlock"), dict) else {}
+    unlock_rejection = performance.get("unlock_rejection_analysis", {}) if isinstance(performance.get("unlock_rejection_analysis"), dict) else {}
+    crypto_scenario = performance.get("crypto_scenario", {}) if isinstance(performance.get("crypto_scenario"), dict) else {}
     orders = performance.get("orders", {}) if isinstance(performance.get("orders"), dict) else {}
     positions = performance.get("positions", {}) if isinstance(performance.get("positions"), dict) else {}
     position_monitor = performance.get("position_monitor", {}) if isinstance(performance.get("position_monitor"), dict) else {}
@@ -669,6 +741,41 @@ def build_dashboard_html(performance: dict[str, Any], drift: dict[str, Any], lif
                     f"{_safe_float(row.get('total_r'), 0.0):.3f}R",
                     json.dumps(row.get("outcomes", {}), ensure_ascii=False),
                 ])
+
+    unlock_rejection_rows = []
+    if isinstance(unlock_rejection, dict):
+        decision = unlock_rejection.get("decision", {}) if isinstance(unlock_rejection.get("decision"), dict) else {}
+        counts = unlock_rejection.get("counts", {}) if isinstance(unlock_rejection.get("counts"), dict) else {}
+        unlock_rejection_rows.append([
+            unlock_rejection.get("status", "NA"),
+            decision.get("status", "NA"),
+            counts.get("paper_unlock_evaluated", 0),
+            counts.get("btc_evaluated", 0),
+            counts.get("paper_unlock_accepted_evaluations", 0),
+            decision.get("dominant_btc_reason", "-"),
+            decision.get("next_patch", "-"),
+        ])
+
+    crypto_scenario_rows = []
+    crypto_btc_rows = []
+    if isinstance(crypto_scenario, dict):
+        decision = crypto_scenario.get("decision", {}) if isinstance(crypto_scenario.get("decision"), dict) else {}
+        counts = crypto_scenario.get("counts", {}) if isinstance(crypto_scenario.get("counts"), dict) else {}
+        crypto_scenario_rows.append([
+            crypto_scenario.get("status", "NA"),
+            decision.get("status", "NA"),
+            counts.get("scenario_events", 0),
+            counts.get("btc_scenario_events", 0),
+            decision.get("action", "-"),
+            decision.get("next_patch", "-"),
+        ])
+        btc = crypto_scenario.get("btc_focus", {}) if isinstance(crypto_scenario.get("btc_focus"), dict) else {}
+        crypto_btc_rows.append([
+            json.dumps(btc.get("scenarios", {}), ensure_ascii=False),
+            json.dumps(btc.get("directional_bias", {}), ensure_ascii=False),
+            json.dumps(btc.get("scenario_alignment", {}), ensure_ascii=False),
+            json.dumps(btc.get("dominant_filters", {}), ensure_ascii=False),
+        ])
 
     css = """
     :root { color-scheme: dark; }
@@ -781,6 +888,18 @@ def build_dashboard_html(performance: dict[str, Any], drift: dict[str, Any], lif
   </div>
 
   <div class="card section">
+    <h2>Unlock Rejection Analysis</h2>
+    {_render_table(['Report','Decision','Eval','BTC Eval','Accepted','BTC Dominant Reason','Next'], unlock_rejection_rows or [['NA','NA',0,0,0,'-','No unlock rejection report yet.']])}
+  </div>
+
+  <div class="card section">
+    <h2>Crypto Intraday Scenario</h2>
+    {_render_table(['Report','Decision','Events','BTC Events','Action','Next'], crypto_scenario_rows or [['NA','NA',0,0,'-','No crypto scenario report yet.']])}
+    <h2 style="margin-top:16px">BTC Scenario Focus</h2>
+    {_render_table(['Scenarios','Directional bias','Alignment','Dominant filters'], crypto_btc_rows or [['{}','{}','{}','{}']])}
+  </div>
+
+  <div class="card section">
     <h2>Drift Alerts</h2>
     {_render_table(['Severity','Code','Details'], alert_rows or [['PASS','NONE','No active warning alerts.']])}
   </div>
@@ -798,9 +917,87 @@ def write_performance_artifacts(data_dir: str | Path) -> dict[str, Any]:
     paths = PaperPerformancePaths(Path(data_dir))
     paths.data_dir.mkdir(parents=True, exist_ok=True)
     lifecycle = _read_json(paths.lifecycle_path) or build_lifecycle_report(paths.data_dir)
+    try:
+        from config import Config
+        rejection_enabled = bool(getattr(Config, "PAPER_UNLOCK_REJECTION_ANALYSIS_ENABLED", True))
+    except Exception:
+        rejection_enabled = True
+    if rejection_enabled:
+        try:
+            from core.paper_unlock_rejection_analysis import write_unlock_rejection_report
+            unlock_rejection = write_unlock_rejection_report(paths.data_dir)
+        except Exception as exc:
+            unlock_rejection = {"status": "FAIL", "error": str(exc)}
+    else:
+        unlock_rejection = {"status": "DISABLED"}
+    try:
+        from config import Config
+        scenario_enabled = bool(getattr(Config, "PAPER_CRYPTO_SCENARIO_ENABLED", True))
+    except Exception:
+        scenario_enabled = True
+    if scenario_enabled:
+        try:
+            from core.crypto_intraday_scenario import write_crypto_scenario_report
+            crypto_scenario = write_crypto_scenario_report(paths.data_dir)
+        except Exception as exc:
+            crypto_scenario = {"status": "FAIL", "error": str(exc)}
+    else:
+        crypto_scenario = {"status": "DISABLED"}
+    try:
+        from config import Config
+        pattern_enabled = bool(getattr(Config, "PAPER_CANDLESTICK_PATTERNS_ENABLED", True))
+    except Exception:
+        pattern_enabled = True
+    if pattern_enabled:
+        try:
+            from core.candlestick_patterns import write_candlestick_pattern_report
+            candlestick_patterns = write_candlestick_pattern_report(paths.data_dir)
+        except Exception as exc:
+            candlestick_patterns = {"status": "FAIL", "error": str(exc)}
+    else:
+        candlestick_patterns = {"status": "DISABLED"}
+    try:
+        from config import Config
+        pcs_enabled = bool(getattr(Config, "PATTERN_CONDITIONED_SHADOW_ENABLED", True))
+    except Exception:
+        pcs_enabled = True
+    if pcs_enabled:
+        try:
+            from core.pattern_conditioned_shadow import write_pattern_conditioned_shadow_report
+            pattern_conditioned_shadow = write_pattern_conditioned_shadow_report(paths.data_dir)
+        except Exception as exc:
+            pattern_conditioned_shadow = {"status": "FAIL", "error": str(exc)}
+    else:
+        pattern_conditioned_shadow = {"status": "DISABLED"}
+    try:
+        from config import Config
+        spc_enabled = bool(getattr(Config, "SCENARIO_PATTERN_CALIBRATION_ENABLED", True))
+    except Exception:
+        spc_enabled = True
+    if spc_enabled:
+        try:
+            from core.scenario_pattern_calibration import write_scenario_pattern_calibration_report
+            scenario_pattern_calibration = write_scenario_pattern_calibration_report(paths.data_dir)
+        except Exception as exc:
+            scenario_pattern_calibration = {"status": "FAIL", "error": str(exc)}
+    else:
+        scenario_pattern_calibration = {"status": "DISABLED"}
+    try:
+        from config import Config
+        msm_enabled = bool(getattr(Config, "MARKET_STRUCTURE_MAP_ENABLED", True))
+    except Exception:
+        msm_enabled = True
+    if msm_enabled:
+        try:
+            from core.market_structure_map import write_market_structure_map_report
+            market_structure_map = write_market_structure_map_report(paths.data_dir)
+        except Exception as exc:
+            market_structure_map = {"status": "FAIL", "error": str(exc)}
+    else:
+        market_structure_map = {"status": "DISABLED"}
     performance = build_performance_report(paths.data_dir)
     drift = build_drift_report(paths.data_dir, performance)
     paths.performance_path.write_text(json.dumps(performance, indent=2, sort_keys=True), encoding="utf-8")
     paths.drift_path.write_text(json.dumps(drift, indent=2, sort_keys=True), encoding="utf-8")
     paths.dashboard_path.write_text(build_dashboard_html(performance, drift, lifecycle), encoding="utf-8")
-    return {"performance": performance, "drift": drift, "dashboard_path": str(paths.dashboard_path)}
+    return {"performance": performance, "drift": drift, "dashboard_path": str(paths.dashboard_path), "unlock_rejection": unlock_rejection, "crypto_scenario": crypto_scenario, "candlestick_patterns": candlestick_patterns, "pattern_conditioned_shadow": pattern_conditioned_shadow, "scenario_pattern_calibration": scenario_pattern_calibration, "market_structure_map": market_structure_map}

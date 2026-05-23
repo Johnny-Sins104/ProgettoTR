@@ -229,6 +229,115 @@ class Config:
     PAPER_UNLOCK_LIVE_BLOCK: bool = os.getenv("PAPER_UNLOCK_LIVE_BLOCK", "1") == "1"
     PAPER_UNLOCK_TAG: str = os.getenv("PAPER_UNLOCK_TAG", "PAPER_UNLOCK_29_4_4")
 
+    # Prompt 29.4.4a — unlock rejection analysis. Diagnostic-only: reads
+    # paper_events.jsonl and writes a report explaining why unlock candidates
+    # were rejected. It never changes order flow, thresholds, testnet or live.
+    PAPER_UNLOCK_REJECTION_ANALYSIS_ENABLED: bool = os.getenv("PAPER_UNLOCK_REJECTION_ANALYSIS_ENABLED", "1") == "1"
+    PAPER_UNLOCK_REJECTION_REPORT_PATH: str = os.getenv("PAPER_UNLOCK_REJECTION_REPORT_PATH", os.path.join("data", "paper_unlock_rejection_report.json"))
+
+    # Prompt 29.5.0a — crypto intraday scenario engine. Diagnostic-only: builds
+    # an explicit support/resistance/range/breakout/rejection scenario map from
+    # real exchange OHLCV/indicator data. It never changes strategy decisions,
+    # thresholds, order flow, testnet or live execution.
+    PAPER_CRYPTO_SCENARIO_ENABLED: bool = os.getenv("PAPER_CRYPTO_SCENARIO_ENABLED", "1") == "1"
+    PAPER_CRYPTO_SCENARIO_REPORT_PATH: str = os.getenv("PAPER_CRYPTO_SCENARIO_REPORT_PATH", os.path.join("data", "crypto_intraday_scenario_report.json"))
+    CRYPTO_SCENARIO_SR_PROXIMITY_PCT: float = float(os.getenv("CRYPTO_SCENARIO_SR_PROXIMITY_PCT", "0.0035"))
+    CRYPTO_SCENARIO_BREAKOUT_BUFFER_PCT: float = float(os.getenv("CRYPTO_SCENARIO_BREAKOUT_BUFFER_PCT", "0.0005"))
+    CRYPTO_SCENARIO_MIN_BODY_RATIO: float = float(os.getenv("CRYPTO_SCENARIO_MIN_BODY_RATIO", "0.35"))
+    CRYPTO_SCENARIO_REJECTION_WICK_RATIO: float = float(os.getenv("CRYPTO_SCENARIO_REJECTION_WICK_RATIO", "0.45"))
+    CRYPTO_SCENARIO_VOLUME_RATIO_THRESHOLD: float = float(os.getenv("CRYPTO_SCENARIO_VOLUME_RATIO_THRESHOLD", "1.10"))
+    CRYPTO_SCENARIO_NO_TRADE_LOW: float = float(os.getenv("CRYPTO_SCENARIO_NO_TRADE_LOW", "0.40"))
+    CRYPTO_SCENARIO_NO_TRADE_HIGH: float = float(os.getenv("CRYPTO_SCENARIO_NO_TRADE_HIGH", "0.60"))
+    CRYPTO_SCENARIO_RANGE_EXTREME_LOW: float = float(os.getenv("CRYPTO_SCENARIO_RANGE_EXTREME_LOW", "0.25"))
+    CRYPTO_SCENARIO_RANGE_EXTREME_HIGH: float = float(os.getenv("CRYPTO_SCENARIO_RANGE_EXTREME_HIGH", "0.75"))
+
+    # Prompt 29.5.0b — candlestick pattern feature engine + scenario integration.
+    # Diagnostic-only: detects explicit candle patterns and integrates them with
+    # the crypto scenario context. It never changes strategy decisions,
+    # thresholds, order flow, testnet or live execution.
+    PAPER_CANDLESTICK_PATTERNS_ENABLED: bool = os.getenv("PAPER_CANDLESTICK_PATTERNS_ENABLED", "1") == "1"
+    PAPER_CANDLESTICK_PATTERN_REPORT_PATH: str = os.getenv("PAPER_CANDLESTICK_PATTERN_REPORT_PATH", os.path.join("data", "candlestick_pattern_report.json"))
+    CANDLE_PATTERN_MIN_BODY_RATIO: float = float(os.getenv("CANDLE_PATTERN_MIN_BODY_RATIO", "0.25"))
+    CANDLE_PATTERN_STRONG_BODY_RATIO: float = float(os.getenv("CANDLE_PATTERN_STRONG_BODY_RATIO", "0.55"))
+    CANDLE_PATTERN_DOJI_BODY_RATIO: float = float(os.getenv("CANDLE_PATTERN_DOJI_BODY_RATIO", "0.12"))
+    CANDLE_PATTERN_WICK_RATIO: float = float(os.getenv("CANDLE_PATTERN_WICK_RATIO", "0.45"))
+    CANDLE_PATTERN_PIN_WICK_TO_BODY: float = float(os.getenv("CANDLE_PATTERN_PIN_WICK_TO_BODY", "2.0"))
+    CANDLE_PATTERN_INSIDE_TOLERANCE_PCT: float = float(os.getenv("CANDLE_PATTERN_INSIDE_TOLERANCE_PCT", "0.0002"))
+    CANDLE_PATTERN_OUTSIDE_TOLERANCE_PCT: float = float(os.getenv("CANDLE_PATTERN_OUTSIDE_TOLERANCE_PCT", "0.0002"))
+    CANDLE_PATTERN_RECLAIM_BUFFER_PCT: float = float(os.getenv("CANDLE_PATTERN_RECLAIM_BUFFER_PCT", "0.0003"))
+    CANDLE_PATTERN_RETEST_TOLERANCE_PCT: float = float(os.getenv("CANDLE_PATTERN_RETEST_TOLERANCE_PCT", "0.0015"))
+    CANDLE_PATTERN_VOLUME_RATIO_THRESHOLD: float = float(os.getenv("CANDLE_PATTERN_VOLUME_RATIO_THRESHOLD", "1.10"))
+
+    # Prompt 29.5.0c — pattern-conditioned shadow/backtest review.
+    # Diagnostic-only: tests scenario + candlestick pattern candidates against
+    # runtime events and optional historical OHLCV caches. It never changes
+    # strategy decisions, thresholds, order flow, testnet or live execution.
+    PATTERN_CONDITIONED_SHADOW_ENABLED: bool = os.getenv("PATTERN_CONDITIONED_SHADOW_ENABLED", "1") == "1"
+    PATTERN_CONDITIONED_HISTORICAL_ENABLED: bool = os.getenv("PATTERN_CONDITIONED_HISTORICAL_ENABLED", "1") == "1"
+    PATTERN_CONDITIONED_REPORT_PATH: str = os.getenv("PATTERN_CONDITIONED_REPORT_PATH", os.path.join("data", "pattern_conditioned_shadow_report.json"))
+    PATTERN_CONDITIONED_SYMBOLS: str = os.getenv("PATTERN_CONDITIONED_SYMBOLS", os.getenv("PAPER_ASSET_UNIVERSE", "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT"))
+    PATTERN_CONDITIONED_MAX_ROWS_PER_ASSET: int = int(os.getenv("PATTERN_CONDITIONED_MAX_ROWS_PER_ASSET", "5000"))
+    PATTERN_CONDITIONED_MIN_WARMUP_ROWS: int = int(os.getenv("PATTERN_CONDITIONED_MIN_WARMUP_ROWS", "450"))
+    PATTERN_CONDITIONED_EVAL_STRIDE: int = int(os.getenv("PATTERN_CONDITIONED_EVAL_STRIDE", "1"))
+    PATTERN_CONDITIONED_HORIZONS: str = os.getenv("PATTERN_CONDITIONED_HORIZONS", "3,6,12")
+    PATTERN_CONDITIONED_STOP_LOSS_PCT: float = float(os.getenv("PATTERN_CONDITIONED_STOP_LOSS_PCT", os.getenv("PAPER_SHADOW_STOP_LOSS_PCT", "0.0035")))
+    PATTERN_CONDITIONED_TP1_PCT: float = float(os.getenv("PATTERN_CONDITIONED_TP1_PCT", os.getenv("PAPER_SHADOW_TP1_PCT", "0.0035")))
+    PATTERN_CONDITIONED_TP2_PCT: float = float(os.getenv("PATTERN_CONDITIONED_TP2_PCT", os.getenv("PAPER_SHADOW_TP2_PCT", "0.0070")))
+    PATTERN_CONDITIONED_MIN_OPERATIONAL_CANDIDATES: int = int(os.getenv("PATTERN_CONDITIONED_MIN_OPERATIONAL_CANDIDATES", "20"))
+    PATTERN_CONDITIONED_MIN_EXPECTANCY_R: float = float(os.getenv("PATTERN_CONDITIONED_MIN_EXPECTANCY_R", "0.05"))
+
+    # Prompt 29.5.0d — scenario-pattern calibration. Diagnostic-only: ranks
+    # scenario + pattern buckets, calibrates pattern_score/conflict/range filters
+    # and proposes a non-operational profile candidate. It never changes paper
+    # unlock settings, thresholds, order flow, testnet or live execution.
+    SCENARIO_PATTERN_CALIBRATION_ENABLED: bool = os.getenv("SCENARIO_PATTERN_CALIBRATION_ENABLED", "1") == "1"
+    SCENARIO_PATTERN_CALIBRATION_HISTORICAL_ENABLED: bool = os.getenv("SCENARIO_PATTERN_CALIBRATION_HISTORICAL_ENABLED", os.getenv("PATTERN_CONDITIONED_HISTORICAL_ENABLED", "1")) == "1"
+    SCENARIO_PATTERN_CALIBRATION_REPORT_PATH: str = os.getenv("SCENARIO_PATTERN_CALIBRATION_REPORT_PATH", os.path.join("data", "scenario_pattern_calibration_report.json"))
+    SCENARIO_PATTERN_CALIBRATION_SYMBOLS: str = os.getenv("SCENARIO_PATTERN_CALIBRATION_SYMBOLS", PATTERN_CONDITIONED_SYMBOLS)
+    SCENARIO_PATTERN_CALIBRATION_MAX_ROWS_PER_ASSET: int = int(os.getenv("SCENARIO_PATTERN_CALIBRATION_MAX_ROWS_PER_ASSET", str(PATTERN_CONDITIONED_MAX_ROWS_PER_ASSET)))
+    SCENARIO_PATTERN_CALIBRATION_MIN_WARMUP_ROWS: int = int(os.getenv("SCENARIO_PATTERN_CALIBRATION_MIN_WARMUP_ROWS", str(PATTERN_CONDITIONED_MIN_WARMUP_ROWS)))
+    SCENARIO_PATTERN_CALIBRATION_EVAL_STRIDE: int = int(os.getenv("SCENARIO_PATTERN_CALIBRATION_EVAL_STRIDE", str(PATTERN_CONDITIONED_EVAL_STRIDE)))
+    SCENARIO_PATTERN_CALIBRATION_HORIZONS: str = os.getenv("SCENARIO_PATTERN_CALIBRATION_HORIZONS", PATTERN_CONDITIONED_HORIZONS)
+    SCENARIO_PATTERN_CALIBRATION_STOP_LOSS_PCT: float = float(os.getenv("SCENARIO_PATTERN_CALIBRATION_STOP_LOSS_PCT", str(PATTERN_CONDITIONED_STOP_LOSS_PCT)))
+    SCENARIO_PATTERN_CALIBRATION_TP1_PCT: float = float(os.getenv("SCENARIO_PATTERN_CALIBRATION_TP1_PCT", str(PATTERN_CONDITIONED_TP1_PCT)))
+    SCENARIO_PATTERN_CALIBRATION_TP2_PCT: float = float(os.getenv("SCENARIO_PATTERN_CALIBRATION_TP2_PCT", str(PATTERN_CONDITIONED_TP2_PCT)))
+    SCENARIO_PATTERN_CALIBRATION_SCORE_THRESHOLDS: str = os.getenv("SCENARIO_PATTERN_CALIBRATION_SCORE_THRESHOLDS", "50,55,60,65,70")
+    SCENARIO_PATTERN_MIN_BUCKET_CANDIDATES: int = int(os.getenv("SCENARIO_PATTERN_MIN_BUCKET_CANDIDATES", "100"))
+    SCENARIO_PATTERN_MIN_PROFILE_CANDIDATES: int = int(os.getenv("SCENARIO_PATTERN_MIN_PROFILE_CANDIDATES", "50"))
+    SCENARIO_PATTERN_MIN_BUCKET_EXPECTANCY_R: float = float(os.getenv("SCENARIO_PATTERN_MIN_BUCKET_EXPECTANCY_R", "0.05"))
+    SCENARIO_PATTERN_MIN_PROFILE_EXPECTANCY_R: float = float(os.getenv("SCENARIO_PATTERN_MIN_PROFILE_EXPECTANCY_R", "0.10"))
+    SCENARIO_PATTERN_MIN_PROFILE_WIN_RATE_PCT: float = float(os.getenv("SCENARIO_PATTERN_MIN_PROFILE_WIN_RATE_PCT", "50.0"))
+    SCENARIO_PATTERN_MAX_PROFILE_LOSS_RATE_PCT: float = float(os.getenv("SCENARIO_PATTERN_MAX_PROFILE_LOSS_RATE_PCT", "35.0"))
+    SCENARIO_PATTERN_SUPPORT_RANGE_POS_MAX: float = float(os.getenv("SCENARIO_PATTERN_SUPPORT_RANGE_POS_MAX", "0.40"))
+    SCENARIO_PATTERN_RESISTANCE_RANGE_POS_MIN: float = float(os.getenv("SCENARIO_PATTERN_RESISTANCE_RANGE_POS_MIN", "0.60"))
+    SCENARIO_PATTERN_FOCUS_SYMBOL: str = os.getenv("SCENARIO_PATTERN_FOCUS_SYMBOL", "BTC/USDT")
+    SCENARIO_PATTERN_FOCUS_BUCKET: str = os.getenv("SCENARIO_PATTERN_FOCUS_BUCKET", "BUY_BUY_REJECTION_CANDIDATE")
+    SCENARIO_PATTERN_CANDIDATE_PROFILE: str = os.getenv("SCENARIO_PATTERN_CANDIDATE_PROFILE", "BTC_BUY_REJECTION_PATTERN_CONFIRMED")
+
+    # Prompt 29.5.0e — liquidity + supply/demand + structure break engine.
+    # Diagnostic-only: maps liquidity pools, supply/demand, BOS/CHOCH/MSS and
+    # confirmation state. It never changes paper unlock settings, thresholds,
+    # order flow, testnet or live execution.
+    MARKET_STRUCTURE_MAP_ENABLED: bool = os.getenv("MARKET_STRUCTURE_MAP_ENABLED", "1") == "1"
+    MARKET_STRUCTURE_MAP_HISTORICAL_ENABLED: bool = os.getenv("MARKET_STRUCTURE_MAP_HISTORICAL_ENABLED", "1") == "1"
+    MARKET_STRUCTURE_MAP_REPORT_PATH: str = os.getenv("MARKET_STRUCTURE_MAP_REPORT_PATH", os.path.join("data", "market_structure_map_report.json"))
+    MARKET_STRUCTURE_MAP_SYMBOLS: str = os.getenv("MARKET_STRUCTURE_MAP_SYMBOLS", SCENARIO_PATTERN_CALIBRATION_SYMBOLS)
+    MARKET_STRUCTURE_MAP_MAX_ROWS_PER_ASSET: int = int(os.getenv("MARKET_STRUCTURE_MAP_MAX_ROWS_PER_ASSET", str(SCENARIO_PATTERN_CALIBRATION_MAX_ROWS_PER_ASSET)))
+    MARKET_STRUCTURE_MAP_MIN_WARMUP_ROWS: int = int(os.getenv("MARKET_STRUCTURE_MAP_MIN_WARMUP_ROWS", str(SCENARIO_PATTERN_CALIBRATION_MIN_WARMUP_ROWS)))
+    MARKET_STRUCTURE_MAP_EVAL_STRIDE: int = int(os.getenv("MARKET_STRUCTURE_MAP_EVAL_STRIDE", "25"))
+    MARKET_STRUCTURE_MAP_MAX_SNAPSHOTS_PER_ASSET: int = int(os.getenv("MARKET_STRUCTURE_MAP_MAX_SNAPSHOTS_PER_ASSET", "160"))
+    MARKET_STRUCTURE_MAP_EVALUATION_WINDOW_ROWS: int = int(os.getenv("MARKET_STRUCTURE_MAP_EVALUATION_WINDOW_ROWS", "900"))
+    MARKET_STRUCTURE_MAP_SWING_LEFT: int = int(os.getenv("MARKET_STRUCTURE_MAP_SWING_LEFT", "3"))
+    MARKET_STRUCTURE_MAP_SWING_RIGHT: int = int(os.getenv("MARKET_STRUCTURE_MAP_SWING_RIGHT", "2"))
+    MARKET_STRUCTURE_MAP_RECENT_SWING_LOOKBACK: int = int(os.getenv("MARKET_STRUCTURE_MAP_RECENT_SWING_LOOKBACK", "12"))
+    MARKET_STRUCTURE_MAP_EQUAL_LEVEL_TOLERANCE_PCT: float = float(os.getenv("MARKET_STRUCTURE_MAP_EQUAL_LEVEL_TOLERANCE_PCT", "0.0015"))
+    MARKET_STRUCTURE_MAP_LIQUIDITY_NEAR_PCT: float = float(os.getenv("MARKET_STRUCTURE_MAP_LIQUIDITY_NEAR_PCT", "0.0040"))
+    MARKET_STRUCTURE_MAP_ZONE_ATR_MULT: float = float(os.getenv("MARKET_STRUCTURE_MAP_ZONE_ATR_MULT", "0.45"))
+    MARKET_STRUCTURE_MAP_RETEST_TOLERANCE_PCT: float = float(os.getenv("MARKET_STRUCTURE_MAP_RETEST_TOLERANCE_PCT", "0.0020"))
+    MARKET_STRUCTURE_MAP_CONFIRMATION_BODY_RATIO: float = float(os.getenv("MARKET_STRUCTURE_MAP_CONFIRMATION_BODY_RATIO", "0.35"))
+    MARKET_STRUCTURE_MAP_CONFIRMATION_CLOSE_BUFFER_PCT: float = float(os.getenv("MARKET_STRUCTURE_MAP_CONFIRMATION_CLOSE_BUFFER_PCT", "0.0005"))
+    MARKET_STRUCTURE_MAP_FOCUS_SYMBOL: str = os.getenv("MARKET_STRUCTURE_MAP_FOCUS_SYMBOL", "BTC/USDT")
+
 
     # Cost-aware meta-labeling diagnostics.  By default this is diagnostic-only:
     # it reports net expectancy after estimated execution friction without changing
