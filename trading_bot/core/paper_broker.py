@@ -136,8 +136,24 @@ class PaperBroker:
     def emit(self, event_type: str, **payload: Any) -> None:
         self.ensure_event_log()
         event = {"ts": utc_now_iso(), "event_type": event_type, **payload}
-        with self.events_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(event, sort_keys=True) + "\n")
+        
+        # Implement dynamic log rotation for jsonl events
+        max_bytes = 10 * 1024 * 1024
+        try:
+            if self.events_path.exists() and self.events_path.stat().st_size > max_bytes:
+                rotated = self.events_path.with_name(self.events_path.name + ".1")
+                if rotated.exists():
+                    rotated.unlink()
+                self.events_path.rename(rotated)
+                self.ensure_event_log()  # Recreate empty file
+        except Exception:
+            pass
+
+        try:
+            with self.events_path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(event, sort_keys=True) + "\n")
+        except Exception:
+            pass
 
     @property
     def open_positions(self) -> list[PaperPosition]:

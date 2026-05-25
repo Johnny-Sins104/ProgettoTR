@@ -22,7 +22,7 @@ from core.execution_analytics import ExecutionAnalytics, ExecutionRecord
 from config import Config
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Test infrastructure
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -48,11 +48,11 @@ PRICE = 65_000.0
 ATR   = 650.0   # 1% ATR on BTC
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # §A — SLIPPAGE MODEL TESTS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
-print("\n  ── A: SlippageModel Tests ──")
+print("\n  -- A: SlippageModel Tests --")
 
 slip_model = SlippageModel(randomize=False, random_seed=42)   # deterministic
 
@@ -175,11 +175,11 @@ desc = slip_model.describe_estimate(est)
 check(len(desc) > 50, "A18: describe_estimate() returns valid breakdown string")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # §B — LIQUIDITY MODEL TESTS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
-print("\n  ── B: LiquidityModel Tests ──")
+print("\n  -- B: LiquidityModel Tests --")
 
 liq_model_det = LiquidityModel(randomize=False, random_seed=42)  # deterministic
 
@@ -259,11 +259,11 @@ empty_stats = liq_model_det.get_fill_statistics([])
 check(empty_stats == {}, "B16: Empty fill list returns empty statistics dict")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # §C — EXECUTION ANALYTICS TESTS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
-print("\n  ── C: ExecutionAnalytics Tests ──")
+print("\n  -- C: ExecutionAnalytics Tests --")
 
 analytics = ExecutionAnalytics(
     rolling_window=20,
@@ -388,11 +388,11 @@ except Exception as e:
     check(False, "C22: print_dashboard() runs without exception", str(e))
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # §D — INTEGRATION TESTS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
-print("\n  ── D: Integration Tests ──")
+print("\n  -- D: Integration Tests --")
 
 # D01: HIGH_VOL total friction > NORMAL total friction across full round trip
 slip_full = SlippageModel(randomize=False)
@@ -444,9 +444,9 @@ check(Config.FILL_PROB_FACTOR == 1.0, "D07: FILL_PROB_FACTOR defaults to 1.0")
 check(Config.EXECUTION_RANDOMIZE == True, "D08: EXECUTION_RANDOMIZE defaults to True")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Final summary
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 print()
 print("=" * 70)

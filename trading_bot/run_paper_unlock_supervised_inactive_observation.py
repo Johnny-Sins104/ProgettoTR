@@ -10,11 +10,10 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.paper_unlock_observation import (
-    PaperUnlockObservationSettings,
-    build_paper_unlock_observation_report,
-    run_paper_unlock_observation_loop,
-    write_paper_unlock_observation_report,
+from core.paper_unlock_supervised_inactive_observation import (
+    PaperUnlockSupervisedInactiveObservationSettings,
+    run_paper_unlock_supervised_inactive_observation_loop,
+    write_paper_unlock_supervised_inactive_observation_report,
 )
 
 
@@ -28,7 +27,7 @@ def _parse_dt(value: str | None):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Prompt 29.4.4q-OBS 4h paper-only audit observation run")
+    parser = argparse.ArgumentParser(description="Prompt 29.4.4s-OBS supervised inactive observation / candidate exposure monitor")
     parser.add_argument("--duration-hours", type=float, default=4.0, help="Observation duration. Default: 4h.")
     parser.add_argument("--interval-seconds", type=float, default=300.0, help="Delay between once-cycles. Default: 300s.")
     parser.add_argument("--max-cycles", type=int, default=0, help="Optional hard cap. 0 means duration-based only.")
@@ -44,13 +43,12 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
-    args = build_parser().parse_args()
-    settings = PaperUnlockObservationSettings.from_config()
-    settings = PaperUnlockObservationSettings(
-        report_name=settings.report_name,
-        events_name=settings.events_name,
-        max_event_lines=settings.max_event_lines,
+def _settings_from_args(args: argparse.Namespace) -> PaperUnlockSupervisedInactiveObservationSettings:
+    base = PaperUnlockSupervisedInactiveObservationSettings.from_config()
+    return PaperUnlockSupervisedInactiveObservationSettings(
+        report_name=base.report_name,
+        events_name=base.events_name,
+        max_event_lines=base.max_event_lines,
         duration_hours=args.duration_hours,
         interval_seconds=args.interval_seconds,
         max_cycles=max(0, int(args.max_cycles)),
@@ -59,19 +57,51 @@ def main() -> None:
         balance=args.balance,
         poll_seconds=args.poll_seconds,
         paper_unlock=not args.no_paper_unlock,
-        log_dir_name=settings.log_dir_name,
-        run_command_timeout_seconds=settings.run_command_timeout_seconds,
+        log_dir_name=base.log_dir_name,
+        run_command_timeout_seconds=base.run_command_timeout_seconds,
     )
 
+
+def _summary_payload(report: dict) -> dict:
+    decision = report.get("decision", {}) if isinstance(report.get("decision"), dict) else {}
+    return {
+        "status": report.get("status"),
+        "decision": decision.get("status"),
+        "latest_cycle_id": decision.get("latest_cycle_id"),
+        "completed_cycle_count": decision.get("completed_cycle_count"),
+        "candidate_ready_count": decision.get("candidate_ready_count"),
+        "would_create_order_count": decision.get("would_create_order_count"),
+        "candidate_exposure_count": decision.get("candidate_exposure_count"),
+        "supervised_execution_events": decision.get("supervised_execution_events"),
+        "supervised_submit_allowed_count": decision.get("supervised_submit_allowed_count"),
+        "supervised_broker_submit_called_count": decision.get("supervised_broker_submit_called_count"),
+        "broker_submit_called_count": decision.get("broker_submit_called_count"),
+        "orders_submitted_by_supervised": decision.get("orders_submitted_by_supervised"),
+        "positions_opened_by_supervised": decision.get("positions_opened_by_supervised"),
+        "orders_submitted": decision.get("orders_submitted"),
+        "positions_opened": decision.get("positions_opened"),
+        "operator_enable": decision.get("operator_enable"),
+        "operator_confirmation_ok": decision.get("operator_confirmation_ok"),
+        "legacy_order_leakage_detected": decision.get("legacy_order_leakage_detected"),
+        "unauthorized_orders_count": decision.get("unauthorized_orders_count"),
+        "unauthorized_positions_opened_count": decision.get("unauthorized_positions_opened_count"),
+        "blocked_legacy_order_attempts": decision.get("blocked_legacy_order_attempts"),
+        "report": "data\\paper_unlock_supervised_inactive_observation_report.json",
+    }
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    settings = _settings_from_args(args)
     if args.report_only:
-        report = write_paper_unlock_observation_report(
+        report = write_paper_unlock_supervised_inactive_observation_report(
             "data",
             started_at=_parse_dt(args.started_at),
             ended_at=_parse_dt(args.ended_at),
             settings=settings,
         )
     else:
-        report = run_paper_unlock_observation_loop(
+        report = run_paper_unlock_supervised_inactive_observation_loop(
             Path("."),
             settings=settings,
             duration_hours=args.duration_hours,
@@ -79,40 +109,7 @@ def main() -> None:
             max_cycles=max(0, int(args.max_cycles)),
             symbols=args.symbols,
         )
-    decision = report.get("decision", {}) if isinstance(report.get("decision"), dict) else {}
-    print(json.dumps({
-        "status": report.get("status"),
-        "decision": decision.get("status"),
-        "latest_cycle_id": decision.get("latest_cycle_id"),
-        "completed_cycle_count": decision.get("completed_cycle_count"),
-        "runtime_audit_events": decision.get("runtime_audit_events"),
-        "runtime_accepts_diagnostic": decision.get("runtime_accepts_diagnostic"),
-        "runtime_rejects": decision.get("runtime_rejects"),
-        "routing_bridge_events": decision.get("routing_bridge_events"),
-        "would_submit_count": decision.get("would_submit_count"),
-        "candidate_order_audit_events": decision.get("candidate_order_audit_events"),
-        "candidate_ready_count": decision.get("candidate_ready_count"),
-        "handoff_dry_run_events": decision.get("handoff_dry_run_events"),
-        "would_create_order_count": decision.get("would_create_order_count"),
-        "broker_submit_called_count": decision.get("broker_submit_called_count"),
-        "supervised_execution_events": decision.get("supervised_execution_events"),
-        "supervised_submit_allowed_count": decision.get("supervised_submit_allowed_count"),
-        "orders_submitted_by_supervised": decision.get("orders_submitted_by_supervised"),
-        "positions_opened_by_supervised": decision.get("positions_opened_by_supervised"),
-        "legacy_order_leakage_detected": decision.get("legacy_order_leakage_detected"),
-        "unauthorized_orders_count": decision.get("unauthorized_orders_count"),
-        "unauthorized_positions_opened_count": decision.get("unauthorized_positions_opened_count"),
-        "blocked_legacy_order_attempts": decision.get("blocked_legacy_order_attempts"),
-        "handoff_coverage_ok": decision.get("handoff_coverage_ok"),
-        "orders_submitted": decision.get("orders_submitted"),
-        "positions_opened": decision.get("positions_opened"),
-        "orders_submitted_by_bridge": decision.get("orders_submitted_by_bridge"),
-        "orders_submitted_by_candidate_audit": decision.get("orders_submitted_by_candidate_audit"),
-        "orders_submitted_by_handoff": decision.get("orders_submitted_by_handoff"),
-        "positions_opened_by_handoff": decision.get("positions_opened_by_handoff"),
-        "operational_unlock_allowed": decision.get("operational_unlock_allowed"),
-        "report": "data\\paper_unlock_4h_observation_report.json",
-    }, indent=2, sort_keys=True))
+    print(json.dumps(_summary_payload(report), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

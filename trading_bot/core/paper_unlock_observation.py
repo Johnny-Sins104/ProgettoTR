@@ -30,6 +30,7 @@ RUNTIME_AUDIT_EVENT_TYPE = "GUARDED_PAPER_RUNTIME_AUDIT"
 ROUTING_BRIDGE_EVENT_TYPE = "GUARDED_PAPER_ROUTING_BRIDGE_AUDIT"
 CANDIDATE_AUDIT_EVENT_TYPE = "GUARDED_PAPER_ORDER_CANDIDATE_AUDIT"
 HANDOFF_DRY_RUN_EVENT_TYPE = "PAPER_ORDER_HANDOFF_DRY_RUN"
+SUPERVISED_EXECUTION_EVENT_TYPE = "PAPER_SUPERVISED_ORDER_EXECUTION"
 READY_DECISION = "PAPER_UNLOCK_DRY_RUN_OBSERVATION_READY_DIAGNOSTIC"
 KEEP_DECISION = "KEEP_DIAGNOSTIC"
 
@@ -224,6 +225,7 @@ def build_paper_unlock_observation_report(
     bridge_events = [e for e in events if e.get("event_type") == ROUTING_BRIDGE_EVENT_TYPE]
     candidate_events = [e for e in events if e.get("event_type") == CANDIDATE_AUDIT_EVENT_TYPE]
     handoff_events = [e for e in events if e.get("event_type") == HANDOFF_DRY_RUN_EVENT_TYPE]
+    supervised_events = [e for e in events if e.get("event_type") == SUPERVISED_EXECUTION_EVENT_TYPE]
     leakage_guard_summary = summarize_order_leakage_events(
         events,
         settings=PaperOrderLeakageGuardSettings.from_config(),
@@ -246,12 +248,16 @@ def build_paper_unlock_observation_report(
     candidate_rejected_count = sum(1 for e in candidate_events if not _safe_bool(e.get("candidate_ready")))
     handoff_dry_run_count = len(handoff_events)
     would_create_order_count = sum(1 for e in handoff_events if _safe_bool(e.get("would_create_order")))
-    broker_submit_called_count = sum(1 for e in handoff_events if _safe_bool(e.get("broker_submit_called")))
+    handoff_broker_submit_called_count = sum(1 for e in handoff_events if _safe_bool(e.get("broker_submit_called")))
+    supervised_execution_count = len(supervised_events)
+    supervised_submit_allowed_count = sum(1 for e in supervised_events if _safe_bool(e.get("supervised_submit_allowed")))
+    supervised_broker_submit_called_count = sum(1 for e in supervised_events if _safe_bool(e.get("broker_submit_called")))
 
     runtime_reasons: list[str] = []
     bridge_reasons: list[str] = []
     candidate_reasons: list[str] = []
     handoff_reasons: list[str] = []
+    supervised_reasons: list[str] = []
     for e in runtime_events:
         _extend_reasons(runtime_reasons, e.get("reject_reasons") if "reject_reasons" in e else e.get("reject_reason"))
         _extend_reasons(runtime_reasons, e.get("blocked_reasons") if "blocked_reasons" in e else None)
@@ -264,6 +270,9 @@ def build_paper_unlock_observation_report(
     for e in handoff_events:
         _extend_reasons(handoff_reasons, e.get("blocked_reasons"))
         _extend_reasons(handoff_reasons, e.get("blocked_reason"))
+    for e in supervised_events:
+        _extend_reasons(supervised_reasons, e.get("blocked_reasons"))
+        _extend_reasons(supervised_reasons, e.get("blocked_reason"))
 
     orders_submitted = sum(_safe_int(e.get("orders"), 0) for e in cycles)
     max_open_positions = max([_safe_int(e.get("open_positions"), 0) for e in cycles] or [0])
@@ -274,21 +283,27 @@ def build_paper_unlock_observation_report(
     positions_by_candidate = sum(_safe_int(e.get("positions_opened_by_candidate_audit"), 0) for e in candidate_events)
     orders_by_handoff = sum(_safe_int(e.get("orders_submitted_by_handoff"), 0) for e in handoff_events)
     positions_by_handoff = sum(_safe_int(e.get("positions_opened_by_handoff"), 0) for e in handoff_events)
+    orders_by_supervised = sum(_safe_int(e.get("orders_submitted_by_supervised"), 0) for e in supervised_events)
+    positions_by_supervised = sum(_safe_int(e.get("positions_opened_by_supervised"), 0) for e in supervised_events)
+    broker_submit_called_count = handoff_broker_submit_called_count + supervised_broker_submit_called_count
 
     safety_checks = {
-        "operational_unlock_blocked": all(not _safe_bool(e.get("operational_unlock_allowed")) for e in bridge_events + candidate_events + handoff_events) if (bridge_events or candidate_events or handoff_events) else True,
-        "live_blocked": all(not _safe_bool(e.get("live_allowed")) for e in bridge_events + candidate_events + handoff_events) if (bridge_events or candidate_events or handoff_events) else True,
-        "testnet_blocked": all(not _safe_bool(e.get("testnet_allowed")) for e in bridge_events + candidate_events + handoff_events) if (bridge_events or candidate_events or handoff_events) else True,
-        "exchange_broker_blocked": all(not _safe_bool(e.get("exchange_broker_allowed")) for e in bridge_events + candidate_events + handoff_events) if (bridge_events or candidate_events or handoff_events) else True,
+        "operational_unlock_blocked": all(not _safe_bool(e.get("operational_unlock_allowed")) for e in bridge_events + candidate_events + handoff_events + supervised_events) if (bridge_events or candidate_events or handoff_events or supervised_events) else True,
+        "live_blocked": all(not _safe_bool(e.get("live_allowed")) for e in bridge_events + candidate_events + handoff_events + supervised_events) if (bridge_events or candidate_events or handoff_events or supervised_events) else True,
+        "testnet_blocked": all(not _safe_bool(e.get("testnet_allowed")) for e in bridge_events + candidate_events + handoff_events + supervised_events) if (bridge_events or candidate_events or handoff_events or supervised_events) else True,
+        "exchange_broker_blocked": all(not _safe_bool(e.get("exchange_broker_allowed")) for e in bridge_events + candidate_events + handoff_events + supervised_events) if (bridge_events or candidate_events or handoff_events or supervised_events) else True,
         "bridge_did_not_submit_orders": orders_by_bridge == 0,
         "bridge_did_not_open_positions": positions_by_bridge == 0,
         "candidate_audit_did_not_submit_orders": orders_by_candidate == 0,
         "candidate_audit_did_not_open_positions": positions_by_candidate == 0,
         "handoff_dry_run_did_not_submit_orders": orders_by_handoff == 0,
         "handoff_dry_run_did_not_open_positions": positions_by_handoff == 0,
-        "handoff_broker_submit_not_called": broker_submit_called_count == 0,
-        "cycle_orders_zero": orders_submitted == 0,
-        "cycle_open_positions_zero": max_open_positions == 0,
+        "handoff_broker_submit_not_called": handoff_broker_submit_called_count == 0,
+        "handoff_dry_run_broker_submit_not_called": handoff_broker_submit_called_count == 0,
+        "supervised_orders_match_cycle_orders": orders_by_supervised == orders_submitted,
+        "supervised_positions_match_cycle_positions": positions_by_supervised == max_open_positions,
+        "cycle_orders_zero_or_supervised": orders_submitted == 0 or orders_submitted == orders_by_supervised,
+        "cycle_open_positions_zero_or_supervised": max_open_positions == 0 or max_open_positions == positions_by_supervised,
         "legacy_order_leakage_not_detected": not legacy_order_leakage_detected,
         "unauthorized_paper_orders_zero": unauthorized_orders_count == 0,
         "unauthorized_positions_opened_zero": unauthorized_positions_count == 0,
@@ -322,7 +337,11 @@ def build_paper_unlock_observation_report(
         "candidate_rejected_count": candidate_rejected_count,
         "handoff_dry_run_events": handoff_dry_run_count,
         "would_create_order_count": would_create_order_count,
+        "supervised_execution_events": supervised_execution_count,
+        "supervised_submit_allowed_count": supervised_submit_allowed_count,
         "broker_submit_called_count": broker_submit_called_count,
+        "handoff_broker_submit_called_count": handoff_broker_submit_called_count,
+        "supervised_broker_submit_called_count": supervised_broker_submit_called_count,
         "legacy_order_leakage_detected": legacy_order_leakage_detected,
         "unauthorized_orders_count": unauthorized_orders_count,
         "unauthorized_positions_opened_count": unauthorized_positions_count,
@@ -336,6 +355,8 @@ def build_paper_unlock_observation_report(
         "positions_opened_by_candidate_audit": positions_by_candidate,
         "orders_submitted_by_handoff": orders_by_handoff,
         "positions_opened_by_handoff": positions_by_handoff,
+        "orders_submitted_by_supervised": orders_by_supervised,
+        "positions_opened_by_supervised": positions_by_supervised,
         "operational_unlock_allowed": False,
         "live_allowed": False,
         "testnet_allowed": False,
@@ -394,12 +415,23 @@ def build_paper_unlock_observation_report(
         "handoff_dry_run": {
             "handoff_dry_run_events": handoff_dry_run_count,
             "would_create_order_count": would_create_order_count,
-            "broker_submit_called_count": broker_submit_called_count,
+            "broker_submit_called_count": handoff_broker_submit_called_count,
             "handoff_coverage_ok": handoff_coverage_ok,
             "blocked_reason_counts": _counts(handoff_reasons),
             "side_counts": _counts(e.get("side") for e in handoff_events),
             "submission_mode_counts": _counts(e.get("submission_mode") for e in handoff_events),
             "paper_broker_adapter_counts": _counts(e.get("paper_broker_adapter") for e in handoff_events),
+        },
+        "supervised_execution": {
+            "supervised_execution_events": supervised_execution_count,
+            "supervised_submit_allowed_count": supervised_submit_allowed_count,
+            "broker_submit_called_count": supervised_broker_submit_called_count,
+            "orders_submitted_by_supervised": orders_by_supervised,
+            "positions_opened_by_supervised": positions_by_supervised,
+            "blocked_reason_counts": _counts(supervised_reasons),
+            "side_counts": _counts(e.get("side") for e in supervised_events),
+            "submission_mode_counts": _counts(e.get("submission_mode") for e in supervised_events),
+            "paper_broker_adapter_counts": _counts(e.get("paper_broker_adapter") for e in supervised_events),
         },
         "paper_order_leakage_guard": leakage_guard_summary,
         "safety_checks": safety_checks,
@@ -407,6 +439,7 @@ def build_paper_unlock_observation_report(
         "sample_bridge_events_tail": bridge_events[-10:],
         "sample_candidate_events_tail": candidate_events[-10:],
         "sample_handoff_events_tail": handoff_events[-10:],
+        "sample_supervised_events_tail": supervised_events[-10:],
         "orders_submitted": orders_submitted,
         "positions_opened": max_open_positions,
         "orders_submitted_by_bridge": orders_by_bridge,
@@ -415,12 +448,14 @@ def build_paper_unlock_observation_report(
         "positions_opened_by_candidate_audit": positions_by_candidate,
         "orders_submitted_by_handoff": orders_by_handoff,
         "positions_opened_by_handoff": positions_by_handoff,
+        "orders_submitted_by_supervised": orders_by_supervised,
+        "positions_opened_by_supervised": positions_by_supervised,
         "operational_unlock_allowed": False,
         "automatic_activation_allowed": False,
         "live_allowed": False,
         "testnet_allowed": False,
         "exchange_broker_allowed": False,
-        "next_patch": "29.4.4s first real paper-only order execution, supervised, only after sufficient dry-run observation review.",
+        "next_patch": "29.4.4t position lifecycle monitoring / supervised paper lifecycle audit after controlled 29.4.4s validation.",
     }
 
 

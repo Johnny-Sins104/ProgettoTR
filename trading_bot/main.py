@@ -25,6 +25,26 @@ MAGENTA = "\033[95m"
 WHITE   = "\033[97m"
 
 
+def append_to_log_with_rotation(log_path_str: str, text: str, max_bytes: int = 10 * 1024 * 1024) -> None:
+    import os
+    try:
+        if os.path.exists(log_path_str) and os.path.getsize(log_path_str) > max_bytes:
+            rotated = log_path_str + ".1"
+            if os.path.exists(rotated):
+                os.remove(rotated)
+            os.rename(log_path_str, rotated)
+    except Exception:
+        pass
+    try:
+        log_dir = os.path.dirname(log_path_str)
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+        with open(log_path_str, "a", encoding="utf-8") as f:
+            f.write(text)
+    except Exception:
+        pass
+
+
 import urllib.request
 import signal
 import atexit
@@ -137,15 +157,11 @@ def force_close_active_trade(reason="SHUTDOWN"):
         
     log_file = "data/bot_live.log"
     close_ts = datetime.now(timezone.utc).isoformat()
-    try:
-        with open(log_file, "a", encoding="utf-8") as lf:
-            log_line = (
-                f"[{close_ts}] CLOSE_{reason} | PnL: {pnl_total:.2f} EUR | ROE%: {roe:.2f}% | "
-                f"NewBalance: {new_balance:.2f} EUR | ExitPrice: {current_price:.2f}\n"
-            )
-            lf.write(log_line)
-    except Exception:
-        pass
+    log_line = (
+        f"[{close_ts}] CLOSE_{reason} | PnL: {pnl_total:.2f} EUR | ROE%: {roe:.2f}% | "
+        f"NewBalance: {new_balance:.2f} EUR | ExitPrice: {current_price:.2f}\n"
+    )
+    append_to_log_with_rotation(log_file, log_line)
 
     try:
         if Config.TELEGRAM_TOKEN and Config.TELEGRAM_CHAT_ID:
@@ -338,15 +354,11 @@ async def monitor_active_trade(active_trade: dict) -> None:
                     # Log
                     log_file = "data/bot_live.log"
                     close_ts = datetime.now(timezone.utc).isoformat()
-                    try:
-                        with open(log_file, "a", encoding="utf-8") as lf:
-                            log_line = (
-                                f"[{close_ts}] TP1_HIT | PnL_Part: {net_pnl_1:.2f} EUR | "
-                                f"Balance: {new_balance:.2f} EUR | SL: {sl:.2f}\n"
-                            )
-                            lf.write(log_line)
-                    except Exception:
-                        pass
+                    log_line = (
+                        f"[{close_ts}] TP1_HIT | PnL_Part: {net_pnl_1:.2f} EUR | "
+                        f"Balance: {new_balance:.2f} EUR | SL: {sl:.2f}\n"
+                    )
+                    append_to_log_with_rotation(log_file, log_line)
                         
                 elif hit_sl:
                     # SL colpito prima di TP1: perdita totale intera size
@@ -379,15 +391,11 @@ async def monitor_active_trade(active_trade: dict) -> None:
                             
                     log_file = "data/bot_live.log"
                     close_ts = datetime.now(timezone.utc).isoformat()
-                    try:
-                        with open(log_file, "a", encoding="utf-8") as lf:
-                            log_line = (
-                                f"[{close_ts}] CLOSE_SL | PnL: {net_pnl:.2f} EUR | ROE%: -100.00% | "
-                                f"NewBalance: {new_balance:.2f} EUR | ExitPrice: {current_price:.2f}\n"
-                            )
-                            lf.write(log_line)
-                    except Exception:
-                        pass
+                    log_line = (
+                        f"[{close_ts}] CLOSE_SL | PnL: {net_pnl:.2f} EUR | ROE%: -100.00% | "
+                        f"NewBalance: {new_balance:.2f} EUR | ExitPrice: {current_price:.2f}\n"
+                    )
+                    append_to_log_with_rotation(log_file, log_line)
                         
                     os.system('cls' if os.name == 'nt' else 'clear')
                     print(f"\n{RED}===================================================={RESET}")
@@ -449,15 +457,11 @@ async def monitor_active_trade(active_trade: dict) -> None:
                             
                     log_file = "data/bot_live.log"
                     close_ts = datetime.now(timezone.utc).isoformat()
-                    try:
-                        with open(log_file, "a", encoding="utf-8") as lf:
-                            log_line = (
-                                f"[{close_ts}] CLOSE_{close_verdict} | PnL_Total: {net_pnl_total:.2f} EUR | "
-                                f"NewBalance: {new_balance:.2f} EUR | ExitPrice: {exit_price_2:.2f}\n"
-                            )
-                            lf.write(log_line)
-                    except Exception:
-                        pass
+                    log_line = (
+                        f"[{close_ts}] CLOSE_{close_verdict} | PnL_Total: {net_pnl_total:.2f} EUR | "
+                        f"NewBalance: {new_balance:.2f} EUR | ExitPrice: {exit_price_2:.2f}\n"
+                    )
+                    append_to_log_with_rotation(log_file, log_line)
                         
                     os.system('cls' if os.name == 'nt' else 'clear')
                     print(f"\n{CYAN}===================================================={RESET}")
@@ -628,15 +632,11 @@ async def monitor_active_trade(active_trade: dict) -> None:
                 
                 log_file = "data/bot_live.log"
                 close_ts = datetime.now(timezone.utc).isoformat()
-                try:
-                    with open(log_file, "a", encoding="utf-8") as lf:
-                        log_line = (
-                            f"[{close_ts}] CLOSE_{close_verdict} | PnL_Total: {net_pnl_total:.2f} EUR | "
-                            f"NewBalance: {new_balance:.2f} EUR | ExitPrice: {current_price:.2f}\n"
-                        )
-                        lf.write(log_line)
-                except Exception:
-                    pass
+                log_line = (
+                    f"[{close_ts}] CLOSE_{close_verdict} | PnL_Total: {net_pnl_total:.2f} EUR | "
+                    f"NewBalance: {new_balance:.2f} EUR | ExitPrice: {current_price:.2f}\n"
+                )
+                append_to_log_with_rotation(log_file, log_line)
                 
                 if tg_msg_id:
                     final_text = tg_text + f"\n🛑 POSIZIONE CHIUSA: {close_verdict}"
@@ -851,18 +851,14 @@ async def monitor_pending_trigger(pending_trigger: dict) -> None:
                 
                 # --- Black Box Logging ---
                 log_file = "data/bot_live.log"
-                try:
-                    with open(log_file, "a", encoding="utf-8") as lf:
-                        log_line = (
-                            f"[{ts_now}] TRIGGER_BREAKOUT_{side} | Score: {score} | Price: {entry:.2f} | "
-                            f"SL: {targets['sl']:.2f} | TP: {targets['tp']:.2f} | "
-                            f"ATR: {atr_val:.2f} | Size: {position_size:.6f} | "
-                            f"Balance: {balance:.2f} EUR | RiskClass: {Config.RISK_CLASS} | "
-                            f"Confirmations: {', '.join(logs)}\n"
-                        )
-                        lf.write(log_line)
-                except Exception:
-                    pass
+                log_line = (
+                    f"[{ts_now}] TRIGGER_BREAKOUT_{side} | Score: {score} | Price: {entry:.2f} | "
+                    f"SL: {targets['sl']:.2f} | TP: {targets['tp']:.2f} | "
+                    f"ATR: {atr_val:.2f} | Size: {position_size:.6f} | "
+                    f"Balance: {balance:.2f} EUR | RiskClass: {Config.RISK_CLASS} | "
+                    f"Confirmations: {', '.join(logs)}\n"
+                )
+                append_to_log_with_rotation(log_file, log_line)
 
                 await asyncio.sleep(2)
                 break
@@ -889,7 +885,7 @@ async def run_bot() -> None:
         return
 
     # --- Indicators ---
-    df = TechnicalAnalyzer().add_indicators(df)
+    df = TechnicalAnalyzer().add_indicators(df, is_live=True)
 
     # --- Decision ---
     engine = DecisionEngine()  # Usa automaticamente le soglie evolute TRENDING_THRESHOLD e RANGING_THRESHOLD
@@ -1047,17 +1043,13 @@ async def run_bot() -> None:
 
         # --- Black Box Logging ---
         log_file = "data/bot_live.log"
-        try:
-            with open(log_file, "a", encoding="utf-8") as lf:
-                log_line = (
-                    f"[{ts}] PENDING_BREAKOUT_{verdict} | Score: {score} | "
-                    f"SignalHigh: {last['High']:.2f} | SignalLow: {last['Low']:.2f} | "
-                    f"ATR: {atr_val:.2f} | Balance: {balance:.2f} EUR | RiskClass: {risk_class} | "
-                    f"Confirmations: {', '.join(logs)}\n"
-                )
-                lf.write(log_line)
-        except Exception:
-            pass
+        log_line = (
+            f"[{ts}] PENDING_BREAKOUT_{verdict} | Score: {score} | "
+            f"SignalHigh: {last['High']:.2f} | SignalLow: {last['Low']:.2f} | "
+            f"ATR: {atr_val:.2f} | Balance: {balance:.2f} EUR | RiskClass: {risk_class} | "
+            f"Confirmations: {', '.join(logs)}\n"
+        )
+        append_to_log_with_rotation(log_file, log_line)
     else:
         print(f"  HOLD — score corrente: {v_color}{score}{RESET}")
         print("  Conferme Attive:")
@@ -1083,16 +1075,12 @@ async def run_bot() -> None:
 
         # --- Black Box Logging ---
         log_file = "data/bot_live.log"
-        try:
-            with open(log_file, "a", encoding="utf-8") as lf:
-                log_line = (
-                    f"[{ts}] {verdict} | Score: {score} | Price: {entry:.2f} | "
-                    f"ATR: {atr_val:.2f} | Balance: {balance:.2f} EUR | RiskClass: {risk_class} | "
-                    f"Confirmations: {', '.join(logs)}\n"
-                )
-                lf.write(log_line)
-        except Exception:
-            pass
+        log_line = (
+            f"[{ts}] {verdict} | Score: {score} | Price: {entry:.2f} | "
+            f"ATR: {atr_val:.2f} | Balance: {balance:.2f} EUR | RiskClass: {risk_class} | "
+            f"Confirmations: {', '.join(logs)}\n"
+        )
+        append_to_log_with_rotation(log_file, log_line)
 
     print(f"{sep}\n")
 
@@ -1247,7 +1235,7 @@ async def main() -> None:
                     )
                     df = await client.fetch_async()
                     if df is not None and not df.empty:
-                        df = TechnicalAnalyzer().add_indicators(df)
+                        df = TechnicalAnalyzer().add_indicators(df, is_live=True)
                         engine = DecisionEngine()
                         res = engine.evaluate(df)
                         verdict, score, conf, entry_type = res[0], res[1], res[2], res[3]
@@ -1326,14 +1314,11 @@ async def main() -> None:
                 # Log
                 log_file = "data/bot_live.log"
                 ts_log = datetime.now(timezone.utc).isoformat()
-                try:
-                    with open(log_file, "a", encoding="utf-8") as lf:
-                        lf.write(
-                            f"[{ts_log}] Price: {current_price:.2f} | Balance: {balance_now:.2f} | "
-                            f"OpenTrades: {len(open_trades)}/{Config.MAX_CONCURRENT_TRADES}\n"
-                        )
-                except Exception:
-                    pass
+                log_line = (
+                    f"[{ts_log}] Price: {current_price:.2f} | Balance: {balance_now:.2f} | "
+                    f"OpenTrades: {len(open_trades)}/{Config.MAX_CONCURRENT_TRADES}\n"
+                )
+                append_to_log_with_rotation(log_file, log_line)
 
                 print(f"{sep}\n")
 
@@ -1346,6 +1331,7 @@ async def main() -> None:
 
     finally:
         await exchange.close()
+        await notifier.close()
 
 
 if __name__ == "__main__":

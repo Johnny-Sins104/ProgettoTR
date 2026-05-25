@@ -145,7 +145,8 @@ def _candle_stats(row: Any, df: pd.DataFrame, settings: CandlestickPatternSettin
     upper_wick = max(0.0, high - max(open_, close))
     lower_wick = max(0.0, min(open_, close) - low)
     vol_col = _col(df, "Volume", "volume")
-    avg_vol = _last_mean(df, vol_col, 20, volume)
+    # Exclude current candle from rolling average calculation to remove look-ahead bias
+    avg_vol = _last_mean(df.iloc[:-1], vol_col, 20, volume) if len(df) >= 2 else volume
     return {
         "open": open_,
         "high": high,
@@ -206,59 +207,111 @@ def detect_candlestick_patterns(
     confirmations: list[str] = []
     missing: list[str] = []
 
-    # Single-candle patterns.
-    if small_body:
-        neutral.append("doji")
-    if stats["lower_wick_ratio"] >= settings.wick_ratio and stats["lower_wick"] >= max(stats["body"], 1e-12) * settings.pin_wick_to_body:
-        if bullish_body or stats["body_ratio"] <= 0.30:
-            bullish.append("hammer")
-            bullish.append("bullish_pin_bar")
-    if stats["upper_wick_ratio"] >= settings.wick_ratio and stats["upper_wick"] >= max(stats["body"], 1e-12) * settings.pin_wick_to_body:
-        if bearish_body or stats["body_ratio"] <= 0.30:
-            bearish.append("shooting_star")
-            bearish.append("bearish_pin_bar")
+    # Single-candle patterns (with exclusivity & contextual checks)
+    is_hammer = False
+    is_shooting_star = False
+
+    # Check for absolute minimal volatility (micro-range floor)
+    is_micro_range = stats["range"] <= stats["close"] * 0.00005
+
+    if stats["lower_wick_ratio"] >= settings.wick_ratio and stats["lower_wick"] >= max(stats["body"], 1e-12) * settings.pin_wick_to_body and stats["upper_wick_ratio"] <= 0.10:
+        if (bullish_body or stats["body_ratio"] <= 0.30) and not is_micro_range and not small_body:
+            # Context-aware: Hammer is bullish only in downtrend/support, at peaks it is a Hanging Man (bearish)
+            if range_pos <= 0.50:
+                bullish.append("hammer")
+                bullish.append("bullish_pin_bar")
+                is_hammer = True
+            else:
+                bearish.append("hanging_man")
+
+    if stats["upper_wick_ratio"] >= settings.wick_ratio and stats["upper_wick"] >= max(stats["body"], 1e-12) * settings.pin_wick_to_body and stats["lower_wick_ratio"] <= 0.10:
+        if (bearish_body or stats["body_ratio"] <= 0.30) and not is_micro_range and not small_body:
+            # Context-aware: Shooting Star is bearish only in uptrend/resistance, at lows it is an Inverted Hammer (bullish)
+            if range_pos >= 0.50:
+                bearish.append("shooting_star")
+                bearish.append("bearish_pin_bar")
+                is_shooting_star = True
+            else:
+                bullish.append("inverted_hammer")
+
+    if (small_body or is_micro_range) and not is_hammer and not is_shooting_star:
+        # Categorized Dojis
+        if stats["lower_wick_ratio"] >= 0.70 and not is_micro_range:
+            bullish.append("dragonfly_doji")
+        elif stats["upper_wick_ratio"] >= 0.70 and not is_micro_range:
+            bearish.append("gravestone_doji")
+        else:
+            neutral.append("doji")
 
     # Two-candle patterns.
-    if bullish_body and prev_bearish and c >= po and o <= pc and stats["body"] > prev_stats["body"] * 0.75:
+    # Engulfing: exige >= 1.05 expansion of body size (5% volume/body dominance)
+    if bullish_body and prev_bearish and c >= po and o <= pc and stats["body"] > prev_stats["body"] * 1.05:
         bullish.append("bullish_engulfing")
-    if bearish_body and prev_bullish and c <= po and o >= pc and stats["body"] > prev_stats["body"] * 0.75:
+    if bearish_body and prev_bullish and c <= po and o >= pc and stats["body"] > prev_stats["body"] * 1.05:
         bearish.append("bearish_engulfing")
-    tol_inside = c * settings.inside_bar_tolerance_pct
-    if h <= ph + tol_inside and l >= pl - tol_inside:
+
+    # Inside Bar: strict containment (no breakout masking tolerance)
+    if h <= ph and l >= pl:
         neutral.append("inside_bar")
-    tol_outside = c * settings.outside_bar_tolerance_pct
-    if h >= ph - tol_outside and l <= pl + tol_outside:
-        neutral.append("outside_bar")
         if bullish_body:
-            bullish.append("bullish_outside_bar")
+            bullish.append("bullish_inside_bar")
         elif bearish_body:
+            bearish.append("bearish_inside_bar")
+
+    # Outside Bar: strict range expansion + close-near-extreme validation
+    if h > ph and l < pl:
+        neutral.append("outside_bar")
+        # Bullish Outside Bar: must close in upper 33% of range
+        if bullish_body and c >= h - stats["range"] * 0.33:
+            bullish.append("bullish_outside_bar")
+        # Bearish Outside Bar: must close in lower 33% of range
+        elif bearish_body and c <= l + stats["range"] * 0.33:
             bearish.append("bearish_outside_bar")
 
     # Three-candle reversal patterns.
     if len(df) >= 3:
-        if p2c < p2o and prev_stats["body_ratio"] <= 0.35 and bullish_body and c > (p2o + p2c) / 2.0:
-            bullish.append("morning_star")
-        if p2c > p2o and prev_stats["body_ratio"] <= 0.35 and bearish_body and c < (p2o + p2c) / 2.0:
-            bearish.append("evening_star")
-        if p2c < p2o and prev_bearish and bullish_body and c > pc and stats["body_ratio"] >= settings.min_body_ratio:
+        # Morning/Evening Star: require trend candle (p2) + gap in bodies
+        is_p2_trend = prev2_stats["body_ratio"] >= settings.min_body_ratio
+        if p2c < p2o and is_p2_trend and prev_stats["body_ratio"] <= 0.35 and bullish_body and c > (p2o + p2c) / 2.0:
+            # Body gap validation: star body completely below both adjacent bodies
+            if max(prev_stats["open"], prev_stats["close"]) < min(p2c, o):
+                bullish.append("morning_star")
+        if p2c > p2o and is_p2_trend and prev_stats["body_ratio"] <= 0.35 and bearish_body and c < (p2o + p2c) / 2.0:
+            # Body gap validation: star body completely above both adjacent bodies
+            if min(prev_stats["open"], prev_stats["close"]) > max(p2c, o):
+                bearish.append("evening_star")
+
+        # Three-bar reversal: require first candle (p2) to be trend + reclaim previous open (po) instead of lowest close (pc)
+        if p2c < p2o and prev_bearish and bullish_body and c > po and stats["body_ratio"] >= settings.min_body_ratio:
             bullish.append("bullish_three_bar_reversal")
-        if p2c > p2o and prev_bullish and bearish_body and c < pc and stats["body_ratio"] >= settings.min_body_ratio:
+        if p2c > p2o and prev_bullish and bearish_body and c < po and stats["body_ratio"] >= settings.min_body_ratio:
             bearish.append("bearish_three_bar_reversal")
 
     # Level-based structural candle patterns.
     buffer = c * settings.reclaim_buffer_pct
-    if local_support > 0 and l < local_support - buffer and c > local_support + buffer:
+    # Fake Breakdown: must open ABOVE support
+    if local_support > 0 and o > local_support and l < local_support - buffer and c > local_support + buffer:
         bullish.append("fake_breakdown_reclaim")
         confirmations.append("support_reclaim")
-    if local_resistance > 0 and h > local_resistance + buffer and c < local_resistance - buffer:
+    # Fake Breakout: must open BELOW resistance
+    if local_resistance > 0 and o < local_resistance and h > local_resistance + buffer and c < local_resistance - buffer:
         bearish.append("fake_breakout_reclaim")
         confirmations.append("resistance_reclaim")
-    if local_resistance > 0 and pc > local_resistance and l <= local_resistance * (1.0 + settings.retest_tolerance_pct) and c > local_resistance:
-        bullish.append("breakout_retest_hold")
-        confirmations.append("breakout_retest_hold")
-    if local_support > 0 and pc < local_support and h >= local_support * (1.0 - settings.retest_tolerance_pct) and c < local_support:
-        bearish.append("breakdown_retest_reject")
-        confirmations.append("breakdown_retest_reject")
+
+    # Retest Hold/Reject: fix Trigger Infinito (must retest exactly on first candle) + confirm hold
+    is_immediate_breakout = p2c <= local_resistance and pc > local_resistance
+    if local_resistance > 0 and is_immediate_breakout and l <= local_resistance * (1.0 + settings.retest_tolerance_pct) and c > local_resistance:
+        # Confirm hold: candle must show reaction (bullish body or hammer)
+        if bullish_body or is_hammer:
+            bullish.append("breakout_retest_hold")
+            confirmations.append("breakout_retest_hold")
+
+    is_immediate_breakdown = p2c >= local_support and pc < local_support
+    if local_support > 0 and is_immediate_breakdown and h >= local_support * (1.0 - settings.retest_tolerance_pct) and c < local_support:
+        # Confirm reject: candle must show rejection (bearish body or shooting star)
+        if bearish_body or is_shooting_star:
+            bearish.append("breakdown_retest_reject")
+            confirmations.append("breakdown_retest_reject")
 
     if near_support:
         confirmations.append("near_support")

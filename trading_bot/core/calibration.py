@@ -167,7 +167,7 @@ class ProbabilityCalibrator:
     """
 
     # Minimum samples needed to fit each method safely.
-    _MIN_SAMPLES = {"isotonic": 100, "sigmoid": 40, "none": 0}
+    _MIN_SAMPLES = {"isotonic": 300, "sigmoid": 50, "none": 0}
 
     def __init__(
         self,

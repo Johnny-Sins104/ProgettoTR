@@ -46,12 +46,12 @@ def check(condition: bool, label: str, detail: str = "") -> None:
         failures += 1
         print(f"  [FAIL] {label}  |  {detail}")
 
-# ── T01: Basic import and instantiation ──────────────────────────────────────
+# -- T01: Basic import and instantiation --------------------------------------
 engine = make_engine()
 check(engine is not None, "T01: DynamicRiskEngine instantiates")
 check(isinstance(RiskManager(), DynamicRiskEngine), "T02: RiskManager is DynamicRiskEngine alias")
 
-# ── T03: Volatility regime classification ─────────────────────────────────────
+# -- T03: Volatility regime classification -------------------------------------
 atrs_normal = [600.0] * 20
 for a in atrs_normal:
     engine._push_atr(a)
@@ -71,7 +71,7 @@ regime_l, ratio_l = engine._classify_vol_regime(400.0)   # 0.67x median
 check(regime_l == VolatilityRegime.LOW_VOL, "T06: 0.67x ATR -> LOW_VOL regime",
       f"got {regime_l}, ratio={ratio_l}")
 
-# ── T07: Drawdown tier classification ────────────────────────────────────────
+# -- T07: Drawdown tier classification ----------------------------------------
 eng2 = make_engine(balance=1000.0)
 eng2._peak_balance = 1000.0
 
@@ -96,7 +96,7 @@ tier = eng2._classify_dd_tier(dd)
 check(tier == DrawdownTier.PROTECTED, "T09: 25% DD -> PROTECTED tier",
       f"dd={dd:.1f}%, tier={tier}")
 
-# ── T10: Hysteresis — tier should not relax immediately ───────────────────────
+# -- T10: Hysteresis — tier should not relax immediately -----------------------
 # Still 22.5% DD: should stay PROTECTED
 eng2._current_balance = 775.0
 dd = eng2._compute_drawdown_pct()
@@ -104,7 +104,7 @@ tier = eng2._classify_dd_tier(dd)
 check(tier == DrawdownTier.PROTECTED, "T10: Hysteresis — 22.5% DD stays PROTECTED",
       f"dd={dd:.1f}%, tier={tier}")
 
-# ── T11: Kelly calculation ────────────────────────────────────────────────────
+# -- T11: Kelly calculation ----------------------------------------------------
 eng3 = make_engine()
 raw_k, capped_k, kf = eng3._compute_kelly(75.0, 2.0, "TRENDING", DrawdownTier.NORMAL)
 # Kelly formula: f* = (0.75*2 - 0.25)/2 = (1.5-0.25)/2 = 0.625
@@ -115,7 +115,7 @@ check(capped_k <= 0.20, "T12: Capped Kelly <= hard max 20%",
 check(capped_k <= raw_k * kf + 1e-9, "T13: Capped Kelly <= raw * fraction (hard cap may apply)",
       f"capped={capped_k:.4f}, raw*kf={raw_k*kf:.4f}")
 
-# ── T14: Vol multiplier reduces risk in HIGH_VOL ─────────────────────────────
+# -- T14: Vol multiplier reduces risk in HIGH_VOL -----------------------------
 eng4 = make_engine(balance=1000.0)
 for a in [600.0] * 20:
     eng4._push_atr(a)
@@ -139,7 +139,7 @@ check(size_h < size_n, "T14: HIGH_VOL reduces position size vs NORMAL",
 check(snap_h.vol_multiplier < snap_n.vol_multiplier, "T15: HIGH_VOL multiplier < NORMAL multiplier",
       f"vol_mult_norm={snap_n.vol_multiplier}, vol_mult_high={snap_h.vol_multiplier}")
 
-# ── T16: Drawdown circuit-breaker reduces size ────────────────────────────────
+# -- T16: Drawdown circuit-breaker reduces size --------------------------------
 eng5 = make_engine(balance=1000.0)
 for a in [600.0] * 20:
     eng5._push_atr(a)
@@ -165,7 +165,7 @@ pct_reduction = (size_base - size_dd) / size_base * 100
 check(pct_reduction > 50, "T18: Size reduction > 50% at REDUCED tier",
       f"actual reduction = {pct_reduction:.1f}%")
 
-# ── T19: calculate_targets backward compatibility ─────────────────────────────
+# -- T19: calculate_targets backward compatibility -----------------------------
 eng6 = make_engine()
 targets = eng6.calculate_targets("BUY", 60000.0, 600.0, rr_ratio=2.0)
 check("sl" in targets and "tp" in targets, "T19: calculate_targets returns sl+tp")
@@ -175,7 +175,7 @@ check(targets["tp"] > 60000.0, "T21: BUY tp > entry",
       f"tp={targets['tp']:.2f}")
 check("tp1" in targets and "tp2" in targets, "T22: calculate_targets returns tp1+tp2 (scale-out)")
 
-# ── T23: calculate_kelly_risk_pct shim ───────────────────────────────────────
+# -- T23: calculate_kelly_risk_pct shim ---------------------------------------
 eng7 = make_engine(balance=1000.0)
 for a in [600.0] * 20:
     eng7._push_atr(a)
@@ -183,7 +183,7 @@ kelly_risk = eng7.calculate_kelly_risk_pct(75.0, 2.0, 0.07)
 check(0.005 <= kelly_risk <= 0.20, "T23: Kelly shim returns valid range",
       f"got {kelly_risk:.4f}")
 
-# ── T24: Daily loss limit blocks sizing ───────────────────────────────────────
+# -- T24: Daily loss limit blocks sizing ---------------------------------------
 eng8 = make_engine(balance=1000.0)
 eng8._daily_start_balance = 1000.0
 eng8._current_balance = 940.0  # -6% daily PnL (below -5% limit)
@@ -198,14 +198,14 @@ check(size_blocked == 0.0, "T24: Daily loss limit blocks new position (size=0)",
 check(snap_blocked.daily_loss_blocked, "T25: Snapshot records daily_loss_blocked=True",
       f"got {snap_blocked.daily_loss_blocked}")
 
-# ── T26: Profit lock activates at +30% ────────────────────────────────────────
+# -- T26: Profit lock activates at +30% ----------------------------------------
 eng9 = make_engine(balance=1000.0)  # profit_lock_pct=30.0 set by make_engine default
 eng9._current_balance = 1350.0   # +35% above initial
 check(eng9._check_profit_lock(), "T26: Profit lock fires at +35% gain")
 eng9._current_balance = 1290.0   # +29% — below threshold
 check(not eng9._check_profit_lock(), "T27: Profit lock OFF at +29% gain")
 
-# ── T28: RiskSnapshot fields are populated ────────────────────────────────────
+# -- T28: RiskSnapshot fields are populated ------------------------------------
 eng10 = make_engine(balance=1000.0)
 for a in [600.0] * 20:
     eng10._push_atr(a)
@@ -226,12 +226,12 @@ check(snap.notional_value > 0, "T32: Snapshot notional_value > 0",
 check(0 < snap.effective_leverage <= 10.0, "T33: Effective leverage within bounds",
       f"got {snap.effective_leverage:.3f}x")
 
-# ── T34: Diagnostics aggregation ─────────────────────────────────────────────
+# -- T34: Diagnostics aggregation ---------------------------------------------
 diag = eng10.compute_diagnostics()
 check(diag.n_snapshots == 1, "T34: Diagnostics counts 1 snapshot", f"got {diag.n_snapshots}")
 check(diag.avg_risk_pct > 0, "T35: Diagnostics avg_risk_pct > 0", f"got {diag.avg_risk_pct}")
 
-# ── T36: Export to CSV ────────────────────────────────────────────────────────
+# -- T36: Export to CSV --------------------------------------------------------
 import tempfile
 with tempfile.TemporaryDirectory() as tmpdir:
     csv_path = os.path.join(tmpdir, "test_risk_log.csv")
@@ -241,7 +241,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
         content = fh.read()
     check("trade_num" in content, "T37: CSV export contains trade_num column")
 
-# ── T38: Hard limits respected ────────────────────────────────────────────────
+# -- T38: Hard limits respected ------------------------------------------------
 eng11 = make_engine(balance=1000.0)
 for a in [600.0] * 20:
     eng11._push_atr(a)
@@ -254,13 +254,13 @@ size_max, snap_max = eng11.size_position(
 check(snap_max.final_risk_pct <= 0.20, "T38: Hard cap at 20% — extreme Kelly capped",
       f"got final_risk_pct={snap_max.final_risk_pct:.4f}")
 
-# ── T39: SELL side targets ────────────────────────────────────────────────────
+# -- T39: SELL side targets ----------------------------------------------------
 eng12 = make_engine()
 targets_sell = eng12.calculate_targets("SELL", 60000.0, 600.0, rr_ratio=2.0)
 check(targets_sell["sl"] > 60000.0, "T39: SELL sl > entry", f"sl={targets_sell['sl']:.2f}")
 check(targets_sell["tp"] < 60000.0, "T40: SELL tp < entry", f"tp={targets_sell['tp']:.2f}")
 
-# ── Final summary ─────────────────────────────────────────────────────────────
+# -- Final summary -------------------------------------------------------------
 print()
 print("=" * 65)
 print(f"  RESULTS: {passes} passed  |  {failures} failed  |  {passes+failures} total")

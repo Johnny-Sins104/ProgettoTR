@@ -16,6 +16,17 @@ class Notifier:
         self._chat_id = telegram_chat_id
         self._offset  = 0
         self._polling_task = None
+        self._session = None  # Pooled ClientSession
+
+    async def get_session(self) -> aiohttp.ClientSession:
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self) -> None:
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     def send_alert(self, message: str, print_console: bool = True) -> None:
         """Invia su Telegram e, se print_console e' True, stampa a console in un box."""
@@ -39,11 +50,11 @@ class Notifier:
             "chat_id": self._chat_id,
             "text": message
         }
-        async with aiohttp.ClientSession() as session:
-            try:
-                await session.post(url, json=payload, timeout=5)
-            except Exception as e:
-                print(f"[NOTIFIER ERROR] Telegram: {e}")
+        try:
+            session = await self.get_session()
+            await session.post(url, json=payload, timeout=5)
+        except Exception as e:
+            print(f"[NOTIFIER ERROR] Telegram: {e}")
 
     async def send_interactive_monitor(self, message: str) -> int | None:
         """Invia il monitor con pulsante inline e ritorna il message_id"""
@@ -62,16 +73,16 @@ class Notifier:
                 ]]
             }
         }
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, json=payload, timeout=5) as resp:
-                    data = await resp.json()
-                    if data.get("ok"):
-                        return data["result"]["message_id"]
-                    else:
-                        print(f"[NOTIFIER ERROR] Telegram Send failed: {data}")
-            except Exception as e:
-                print(f"[NOTIFIER ERROR] Telegram Send Exception: {e}")
+        try:
+            session = await self.get_session()
+            async with session.post(url, json=payload, timeout=5) as resp:
+                data = await resp.json()
+                if data.get("ok"):
+                    return data["result"]["message_id"]
+                else:
+                    print(f"[NOTIFIER ERROR] Telegram Send failed: {data}")
+        except Exception as e:
+            print(f"[NOTIFIER ERROR] Telegram Send Exception: {e}")
         return None
 
     async def update_interactive_monitor(self, message_id: int, message: str, show_button: bool = True) -> None:
@@ -94,22 +105,23 @@ class Notifier:
                 ]]
             }
             
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, json=payload, timeout=5) as resp:
-                    data = await resp.json()
-                    if not data.get("ok"):
-                        if "message is not modified" not in data.get("description", ""):
-                            print(f"[NOTIFIER ERROR] Telegram Edit failed: {data}")
-            except Exception as e:
-                print(f"[NOTIFIER ERROR] Telegram Edit Exception: {e}")
+        try:
+            session = await self.get_session()
+            async with session.post(url, json=payload, timeout=5) as resp:
+                data = await resp.json()
+                if not data.get("ok"):
+                    if "message is not modified" not in data.get("description", ""):
+                        print(f"[NOTIFIER ERROR] Telegram Edit failed: {data}")
+        except Exception as e:
+            print(f"[NOTIFIER ERROR] Telegram Edit Exception: {e}")
 
     async def start_polling(self):
         """Avvia il polling per intercettare i click sui bottoni."""
         if not self._token:
             return
         url = f"https://api.telegram.org/bot{self._token}/getUpdates"
-        async with aiohttp.ClientSession() as session:
+        try:
+            session = await self.get_session()
             while True:
                 try:
                     payload = {"offset": self._offset, "timeout": 30}
@@ -127,3 +139,5 @@ class Notifier:
                 except Exception:
                     pass
                 await asyncio.sleep(1)
+        except Exception:
+            pass

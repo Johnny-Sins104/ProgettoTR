@@ -88,6 +88,17 @@ class TelegramControlBot:
         self.handlers: dict[str, CommandHandler] = {}
         self.enabled = bool(self.token and self.chat_id and aiohttp is not None)
         self.register("/help", lambda _c, _a: self.DEFAULT_HELP)
+        self._session = None  # Pooled ClientSession
+
+    async def get_session(self) -> aiohttp.ClientSession:
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self) -> None:
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     def register(self, command: str, handler: CommandHandler) -> None:
         self.handlers[command.lower().strip()] = handler
@@ -104,8 +115,8 @@ class TelegramControlBot:
         url = f"https://api.telegram.org/bot{self.token}/sendMessage"
         payload = {"chat_id": self.chat_id, "text": text[:3900]}
         try:
-            async with aiohttp.ClientSession() as session:
-                await session.post(url, json=payload, timeout=8)
+            session = await self.get_session()
+            await session.post(url, json=payload, timeout=8)
         except Exception as exc:
             print(f"[TelegramV2] send failed: {exc}")
             self.audit("TELEGRAM_SEND_FAILED", error=str(exc), error_type=exc.__class__.__name__)
@@ -120,27 +131,27 @@ class TelegramControlBot:
             allowed_user_count=len(self.allowed_user_ids),
             rate_limit_seconds=self.rate_limit_seconds,
         )
-        async with aiohttp.ClientSession() as session:
-            while True:
-                try:
-                    async with session.post(url, json={"offset": self.offset, "timeout": 25}, timeout=30) as resp:
-                        data = await resp.json()
-                    if data.get("ok"):
-                        for update in data.get("result", []):
-                            self.offset = int(update.get("update_id", self.offset)) + 1
-                            message = update.get("message") or {}
-                            text = str(message.get("text") or "").strip()
-                            user_id = str((message.get("from") or {}).get("id") or "")
-                            chat_id = str((message.get("chat") or {}).get("id") or "")
-                            if text:
-                                await self.handle_text(text, user_id=user_id, chat_id=chat_id)
-                except asyncio.CancelledError:
-                    self.audit("TELEGRAM_POLLING_CANCELLED")
-                    raise
-                except Exception as exc:
-                    print(f"[TelegramV2] polling error: {exc}")
-                    self.audit("TELEGRAM_POLLING_ERROR", error=str(exc), error_type=exc.__class__.__name__)
-                    await asyncio.sleep(5)
+        session = await self.get_session()
+        while True:
+            try:
+                async with session.post(url, json={"offset": self.offset, "timeout": 25}, timeout=30) as resp:
+                    data = await resp.json()
+                if data.get("ok"):
+                    for update in data.get("result", []):
+                        self.offset = int(update.get("update_id", self.offset)) + 1
+                        message = update.get("message") or {}
+                        text = str(message.get("text") or "").strip()
+                        user_id = str((message.get("from") or {}).get("id") or "")
+                        chat_id = str((message.get("chat") or {}).get("id") or "")
+                        if text:
+                            await self.handle_text(text, user_id=user_id, chat_id=chat_id)
+            except asyncio.CancelledError:
+                self.audit("TELEGRAM_POLLING_CANCELLED")
+                raise
+            except Exception as exc:
+                print(f"[TelegramV2] polling error: {exc}")
+                self.audit("TELEGRAM_POLLING_ERROR", error=str(exc), error_type=exc.__class__.__name__)
+                await asyncio.sleep(5)
 
     def _is_authorized(self, *, user_id: str) -> bool:
         if self.allowed_user_ids:

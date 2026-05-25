@@ -1,12 +1,76 @@
 import pandas as pd
 import pandas_ta as ta
+import numpy as np
+import numba
+
+
+@numba.jit(nopython=True, cache=True)
+def _compute_fvgs_numba(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    n = len(highs)
+    in_bull_fvg = np.zeros(n, dtype=np.int32)
+    in_bear_fvg = np.zeros(n, dtype=np.int32)
+    
+    max_gaps = 2000
+    
+    bull_tops = np.zeros(max_gaps, dtype=np.float64)
+    bull_bottoms = np.zeros(max_gaps, dtype=np.float64)
+    bull_active = np.zeros(max_gaps, dtype=np.bool_)
+    
+    bear_tops = np.zeros(max_gaps, dtype=np.float64)
+    bear_bottoms = np.zeros(max_gaps, dtype=np.float64)
+    bear_active = np.zeros(max_gaps, dtype=np.bool_)
+    
+    for idx in range(2, n):
+        if highs[idx-2] < lows[idx]:
+            for j in range(max_gaps):
+                if not bull_active[j]:
+                    bull_tops[j] = lows[idx]
+                    bull_bottoms[j] = highs[idx-2]
+                    bull_active[j] = True
+                    break
+        
+        if lows[idx-2] > highs[idx]:
+            for j in range(max_gaps):
+                if not bear_active[j]:
+                    bear_tops[j] = lows[idx-2]
+                    bear_bottoms[j] = highs[idx]
+                    bear_active[j] = True
+                    break
+                    
+        curr_close = closes[idx]
+        curr_low = lows[idx]
+        curr_high = highs[idx]
+        
+        is_inside_bull = 0
+        for j in range(max_gaps):
+            if bull_active[j]:
+                if curr_low <= bull_bottoms[j]:
+                    bull_active[j] = False
+                else:
+                    if bull_bottoms[j] <= curr_close <= bull_tops[j]:
+                        is_inside_bull = 1
+        in_bull_fvg[idx] = is_inside_bull
+        
+        is_inside_bear = 0
+        for j in range(max_gaps):
+            if bear_active[j]:
+                if curr_high >= bear_tops[j]:
+                    bear_active[j] = False
+                else:
+                    if bear_bottoms[j] <= curr_close <= bear_tops[j]:
+                        is_inside_bear = 1
+        in_bear_fvg[idx] = is_inside_bear
+        
+    return in_bull_fvg, in_bear_fvg
 
 
 class TechnicalAnalyzer:
 
-    def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+    def add_indicators(self, df: pd.DataFrame, is_live: bool = False) -> pd.DataFrame:
         # pandas_ta richiede colonne lowercase
         df_ta = df.copy()
+        if is_live and len(df_ta) > 1000:
+            df_ta = df_ta.iloc[-1000:]
         df_ta.columns = df_ta.columns.str.lower()
 
         # EMA 200
@@ -112,52 +176,50 @@ class TechnicalAnalyzer:
         df_ta.loc[bear_vol / total_vol >= 0.60, "volume_bias"] = "BEARISH"
 
         # ── FAIR VALUE GAPS (FVG) ────────────────────────────────────────── #
-        bull_fvgs = []  # list of {"top": float, "bottom": float}
-        bear_fvgs = []  # list of {"top": float, "bottom": float}
-        in_bull_fvg = [0] * len(df_ta)
-        in_bear_fvg = [0] * len(df_ta)
-
         highs = df_ta["high"].values
         lows = df_ta["low"].values
         closes = df_ta["close"].values
 
-        for idx in range(2, len(df_ta)):
-            # Formazione di nuovi FVG alla candela precedente (idx-1)
-            # Bullish FVG: High[idx-2] < Low[idx]
-            if highs[idx-2] < lows[idx]:
-                bull_fvgs.append({"top": lows[idx], "bottom": highs[idx-2]})
-            # Bearish FVG: Low[idx-2] > High[idx]
-            if lows[idx-2] > highs[idx]:
-                bear_fvgs.append({"top": lows[idx-2], "bottom": highs[idx]})
+        try:
+            in_bull_fvg, in_bear_fvg = _compute_fvgs_numba(highs, lows, closes)
+        except Exception:
+            # Fallback a loop Python nativo se Numba fallisce
+            bull_fvgs = []  # list of {"top": float, "bottom": float}
+            bear_fvgs = []  # list of {"top": float, "bottom": float}
+            in_bull_fvg = [0] * len(df_ta)
+            in_bear_fvg = [0] * len(df_ta)
 
-            # Aggiornamento e rimozione di FVG mitigati alla candela corrente idx
-            curr_close = closes[idx]
-            curr_low = lows[idx]
-            curr_high = highs[idx]
+            for idx in range(2, len(df_ta)):
+                if highs[idx-2] < lows[idx]:
+                    bull_fvgs.append({"top": lows[idx], "bottom": highs[idx-2]})
+                if lows[idx-2] > highs[idx]:
+                    bear_fvgs.append({"top": lows[idx-2], "bottom": highs[idx]})
 
-            # Bullish FVG mitigato se il Low scende sotto il bottom dell'FVG
-            active_bull = []
-            is_inside_bull = 0
-            for fvg in bull_fvgs:
-                if curr_low <= fvg["bottom"]:
-                    continue  # Mitigato completamente
-                active_bull.append(fvg)
-                if fvg["bottom"] <= curr_close <= fvg["top"]:
-                    is_inside_bull = 1
-            bull_fvgs = active_bull
-            in_bull_fvg[idx] = is_inside_bull
+                curr_close = closes[idx]
+                curr_low = lows[idx]
+                curr_high = highs[idx]
 
-            # Bearish FVG mitigato se l'High sale sopra il top dell'FVG
-            active_bear = []
-            is_inside_bear = 0
-            for fvg in bear_fvgs:
-                if curr_high >= fvg["top"]:
-                    continue  # Mitigato completamente
-                active_bear.append(fvg)
-                if fvg["bottom"] <= curr_close <= fvg["top"]:
-                    is_inside_bear = 1
-            bear_fvgs = active_bear
-            in_bear_fvg[idx] = is_inside_bear
+                active_bull = []
+                is_inside_bull = 0
+                for fvg in bull_fvgs:
+                    if curr_low <= fvg["bottom"]:
+                        continue
+                    active_bull.append(fvg)
+                    if fvg["bottom"] <= curr_close <= fvg["top"]:
+                        is_inside_bull = 1
+                bull_fvgs = active_bull
+                in_bull_fvg[idx] = is_inside_bull
+
+                active_bear = []
+                is_inside_bear = 0
+                for fvg in bear_fvgs:
+                    if curr_high >= fvg["top"]:
+                        continue
+                    active_bear.append(fvg)
+                    if fvg["bottom"] <= curr_close <= fvg["top"]:
+                        is_inside_bear = 1
+                bear_fvgs = active_bear
+                in_bear_fvg[idx] = is_inside_bear
 
         df_ta["in_bull_fvg"] = in_bull_fvg
         df_ta["in_bear_fvg"] = in_bear_fvg

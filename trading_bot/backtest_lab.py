@@ -50,7 +50,15 @@ def _execution_cost_for_trade(
     order_type: str = "LIMIT",
     entry_type: str = "BREAKOUT",
 ) -> tuple[float, dict]:
-    """Return deterministic round-trip execution friction for a closed trade leg."""
+    """Return deterministic round-trip execution friction for a closed trade leg.
+
+    NOTE: Metodologicamente, il backtest applica la friction (slippage e fee)
+    detraendola dal PnL complessivo al termine del trade, a differenza dell'engine
+    live/paper che calcola lo slippage in tempo reale all'ingresso/uscita
+    spostando fisicamente i livelli SL/TP. Questo modello offline stima con
+    accuratezza l'impatto economico complessivo pur mantenendo la stabilità dei
+    trigger storici.
+    """
     notional = abs(float(size or 0.0)) * max(0.0, float(entry_price or exit_price or 0.0))
     try:
         est = ExecutionCostModel.estimate_round_trip_bps(

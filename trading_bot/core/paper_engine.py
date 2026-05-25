@@ -24,13 +24,32 @@ from core.engine import DecisionEngine
 from core.paper_broker import PaperBroker
 from core.broker_adapter import PaperBrokerAdapter, ExchangeBrokerAdapter
 from core.paper_position_monitor import PaperPositionMonitor
-from core.paper_lifecycle import max_cycle_sequence, write_lifecycle_report
-from core.paper_performance import write_performance_artifacts
 from core.telegram_control import TelegramControlBot
 from core.telegram_proactive import TelegramProactiveNotifier, TelegramProactiveSettings, stable_hash
-from core.paper_signal_diagnostics import build_signal_diagnostic, write_signal_diagnostics_report, write_signal_diagnostics_backfill_report
+from core.analyzer import TechnicalAnalyzer
+
+# ==============================================================================
+# SISTEMA DI DIAGNOSTICA, AUDIT E REPORTING (PAPER UNLOCK PIPELINE)
+# ==============================================================================
+# Questi moduli contengono i tool di reporting per le varie fasi del ciclo di
+# vita della paper-trading pipeline, tra cui l'analisi del regime di mercato,
+# i test shadow e le pre-condizioni necessarie per l'abilitazione del trading live.
+# ==============================================================================
+
+# -- Core Metrics & Performance Reports
+from core.paper_lifecycle import max_cycle_sequence, write_lifecycle_report
+from core.paper_performance import write_performance_artifacts
+from core.paper_once_console_summary import print_paper_once_console_summary
+
+# -- Signal Diagnostics & Shadow Simulations
+from core.paper_signal_diagnostics import (
+    build_signal_diagnostic,
+    write_signal_diagnostics_report,
+    write_signal_diagnostics_backfill_report,
+)
 from core.paper_shadow_simulation import write_shadow_unlock_report
-from core.paper_unlock_gate import PaperUnlockGateSettings, evaluate_paper_unlock
+
+# -- Market Structure & Scenario Diagnostics
 from core.crypto_intraday_scenario import build_crypto_scenario_diagnostic, write_crypto_scenario_report
 from core.candlestick_patterns import build_candlestick_pattern_diagnostic, write_candlestick_pattern_report
 from core.pattern_conditioned_shadow import write_pattern_conditioned_shadow_report
@@ -41,18 +60,25 @@ from core.structure_filter_diagnostics import write_structure_filter_diagnostics
 from core.structure_context_repair import write_structure_context_repair_report
 from core.repaired_structure_shadow_validation import write_repaired_structure_shadow_validation_report
 from core.independent_repaired_validation import write_independent_repaired_validation_report
+
+# -- Paper Unlock Gate & Profile Refinements
+from core.paper_unlock_gate import PaperUnlockGateSettings, evaluate_paper_unlock
 from core.paper_unlock_profile_refinement import write_paper_unlock_profile_refinement_report
 from core.paper_unlock_experiment_design import write_paper_unlock_experiment_design_report
 from core.paper_unlock_shadow_dry_run import write_paper_unlock_shadow_dry_run_report
 from core.paper_unlock_shadow_rate_calibration import write_paper_unlock_shadow_rate_calibration_report
 from core.paper_unlock_bounded_cadence import write_paper_unlock_bounded_cadence_report
 from core.paper_unlock_shadow_stability_review import write_paper_unlock_shadow_stability_review_report
+
+# -- Activation Drafts & Preflights
 from core.paper_unlock_activation_draft import write_paper_unlock_activation_draft_report
 from core.paper_unlock_experiment_switch_draft import write_paper_unlock_experiment_switch_draft_report
 from core.paper_unlock_manual_switch_preflight import write_paper_unlock_manual_switch_preflight_report
 from core.paper_unlock_manual_activation_patch import write_paper_unlock_manual_activation_patch_report
 from core.paper_unlock_final_enable_preflight import write_paper_unlock_final_enable_preflight_report
 from core.paper_unlock_guarded_enable import write_paper_unlock_guarded_enable_report
+
+# -- Supervised Execution, Auditing & Guardrails
 from core.paper_unlock_runtime_audit import (
     RuntimePaperOrderAuditSettings,
     build_guarded_runtime_audit_event,
@@ -74,14 +100,17 @@ from core.paper_unlock_handoff_dry_run import (
     build_paper_order_handoff_dry_run_event,
     write_paper_unlock_handoff_dry_run_report,
 )
+from core.paper_unlock_supervised_execution import (
+    PaperUnlockSupervisedExecutionSettings,
+    build_paper_supervised_execution_event,
+    write_paper_unlock_supervised_execution_report,
+)
 from core.paper_order_leakage_guard import (
     PaperOrderLeakageGuardSettings,
     build_legacy_paper_order_blocked_event,
     should_block_paper_order_attempt,
     write_paper_order_leakage_guard_report,
 )
-from core.paper_once_console_summary import print_paper_once_console_summary
-from core.analyzer import TechnicalAnalyzer
 
 
 @dataclass
@@ -148,6 +177,9 @@ class PaperEngineSettings:
     paper_unlock_routing_bridge_enabled: bool = True
     paper_unlock_candidate_audit_enabled: bool = True
     paper_unlock_handoff_dry_run_enabled: bool = True
+    paper_unlock_supervised_execution_enabled: bool = True
+    paper_unlock_supervised_execution_operator_enable: bool = False
+    paper_unlock_supervised_execution_confirm: str = ""
     paper_order_leakage_guard_enabled: bool = True
     shadow_simulation_enabled: bool = True
     paper_unlock_profile: str = "BTC_ONLY_40_Q60"
@@ -191,6 +223,9 @@ class PaperTradingEngine:
         Config.PAPER_UNLOCK_ROUTING_BRIDGE_ENABLED = bool(settings.paper_unlock_routing_bridge_enabled)
         Config.PAPER_UNLOCK_CANDIDATE_AUDIT_ENABLED = bool(settings.paper_unlock_candidate_audit_enabled)
         Config.PAPER_UNLOCK_HANDOFF_DRY_RUN_ENABLED = bool(settings.paper_unlock_handoff_dry_run_enabled)
+        Config.PAPER_UNLOCK_SUPERVISED_EXECUTION_ENABLED = bool(settings.paper_unlock_supervised_execution_enabled)
+        Config.PAPER_UNLOCK_SUPERVISED_EXECUTION_OPERATOR_ENABLE = bool(settings.paper_unlock_supervised_execution_operator_enable)
+        Config.PAPER_UNLOCK_SUPERVISED_EXECUTION_CONFIRM = str(settings.paper_unlock_supervised_execution_confirm or "")
         Config.PAPER_ORDER_LEAKAGE_GUARD_ENABLED = bool(settings.paper_order_leakage_guard_enabled)
         self.data_dir = Path(settings.data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -221,6 +256,7 @@ class PaperTradingEngine:
         self.routing_bridge_settings = GuardedPaperRoutingBridgeSettings.from_config(Config)
         self.candidate_audit_settings = GuardedPaperOrderCandidateAuditSettings.from_config(Config)
         self.handoff_dry_run_settings = PaperOrderHandoffDryRunSettings.from_config(Config)
+        self.supervised_execution_settings = PaperUnlockSupervisedExecutionSettings.from_config(Config)
         self.order_leakage_guard_settings = PaperOrderLeakageGuardSettings.from_config(Config)
         self.position_monitor = PaperPositionMonitor(output_path=self.data_dir / "paper_position_monitor.json")
         self._cycle_seq = max_cycle_sequence(self.data_dir / "paper_events.jsonl")
@@ -347,7 +383,7 @@ class PaperTradingEngine:
             self.broker.save()
             self.write_status_file()
             report = self.write_lifecycle_report()
-            artifacts = self.write_performance_artifacts()
+            artifacts = await asyncio.to_thread(self.write_performance_artifacts)
             if self.settings.dry_run_once and self._last_completed_cycle_summary and not self._paper_once_console_summary_printed:
                 print_paper_once_console_summary(
                     self._last_completed_cycle_summary,
@@ -358,8 +394,6 @@ class PaperTradingEngine:
             self.broker.emit("ENGINE_STOPPED", lifecycle_status=report.get("status"), shutdown_requested=self._shutdown_requested)
             self.broker.save()
             self.write_status_file()
-            report = self.write_lifecycle_report()
-            artifacts = self.write_performance_artifacts()
             if self._shutdown_requested:
                 await self._notify_shutdown(lifecycle_report=report, artifacts=artifacts, reason="CTRL+C / shutdown_requested")
             if tg_task:
@@ -367,6 +401,9 @@ class PaperTradingEngine:
                 with contextlib.suppress(asyncio.CancelledError):
                     await tg_task
                 self.broker.emit("ASYNC_TASK_CANCELLED", component="telegram_poll_forever")
+            if hasattr(self, "telegram") and self.telegram:
+                await self.telegram.close()
+            await asyncio.sleep(0.250)  # Allow lingering aiohttp connections/sockets to close fully
             self.proactive.save()
             if self._shutdown_requested:
                 print("[PaperEngine] Engine stopped cleanly.", flush=True)
@@ -432,7 +469,7 @@ class PaperTradingEngine:
         self.broker.emit("CYCLE_COMPLETED", **summary)
         self._last_completed_cycle_summary = dict(summary)
         self.write_lifecycle_report()
-        artifacts = self.write_performance_artifacts()
+        artifacts = await asyncio.to_thread(self.write_performance_artifacts)
         drift_status = artifacts.get("drift", {}).get("status") if isinstance(artifacts, dict) else "NA"
         self._print_cycle_summary(summary, drift_status=drift_status)
         if self.settings.dry_run_once:
@@ -948,7 +985,7 @@ class PaperTradingEngine:
                 self.broker.emit("MARKET_DATA_EMPTY", cycle_id=cycle_id, symbol=symbol)
                 result["error"] = 1
                 return result
-            df = TechnicalAnalyzer().add_indicators(df)
+            df = TechnicalAnalyzer().add_indicators(df, is_live=True)
             last = df.iloc[-1]
             last_price = float(last["Close"])
             candle_ts = str(df.index[-1])
@@ -1151,6 +1188,82 @@ class PaperTradingEngine:
                                 open_positions_count=len(self.broker.open_positions),
                             )
                             self.broker.emit(**handoff_event)
+                            if self.settings.paper_unlock_supervised_execution_enabled:
+                                supervised_probe_event = build_paper_supervised_execution_event(
+                                    settings=self.supervised_execution_settings,
+                                    handoff_event=handoff_event,
+                                    open_positions_count=len(self.broker.open_positions),
+                                )
+                                if bool(supervised_probe_event.get("supervised_submit_allowed")):
+                                    supervised_metadata = {
+                                        "score": score,
+                                        "confidence": conf,
+                                        "combination": "GuardedSupervisedPaperExecution",
+                                        "timeframe": self.settings.timeframe,
+                                        "cost_model": self.settings.cost_model,
+                                        "candle_ts": str(df.index[-1]),
+                                        "cycle_id": cycle_id,
+                                        "paper_unlock": True,
+                                        "unlock_profile": supervised_probe_event.get("profile_name"),
+                                        "unlock_tag": "PAPER_SUPERVISED_EXECUTION_29_4_4S",
+                                        "guarded_supervised_execution": True,
+                                        "paper_order_source": "guarded_supervised_execution",
+                                        "execution_source": "guarded_supervised_execution",
+                                        "candidate_ready": True,
+                                        "handoff_would_create_order": True,
+                                        "source_handoff_event_type": handoff_event.get("event_type"),
+                                        "source_candidate_event_type": candidate_event.get("event_type"),
+                                        "market_structure_bias": ((structure_diag or {}).get("structure_bias") if structure_diag else None),
+                                        "market_structure_location": ((structure_diag or {}).get("price_location") if structure_diag else None),
+                                        "market_structure_confirmation": ((structure_diag or {}).get("confirmation_summary") if structure_diag else None),
+                                    }
+                                    try:
+                                        supervised_order = self.broker_adapter.place_order(
+                                            symbol=str(supervised_probe_event.get("symbol") or symbol),
+                                            side=str(supervised_probe_event.get("side") or verdict),  # type: ignore[arg-type]
+                                            qty=float(supervised_probe_event.get("position_size") or 0.0),
+                                            price=float(supervised_probe_event.get("entry_price") or last_price),
+                                            stop_loss=float(supervised_probe_event.get("stop_loss") or 0.0),
+                                            take_profit=float(supervised_probe_event.get("take_profit") or 0.0),
+                                            metadata=supervised_metadata,
+                                        )
+                                        supervised_event = build_paper_supervised_execution_event(
+                                            settings=self.supervised_execution_settings,
+                                            handoff_event=handoff_event,
+                                            open_positions_count=max(0, len(self.broker.open_positions) - 1),
+                                            broker_submit_called=True,
+                                            order_submitted=True,
+                                            position_opened=True,
+                                            order_id=supervised_order.order_id,
+                                        )
+                                        self.broker.emit(**supervised_event)
+                                        result["signal"] = 1
+                                        result["order"] = 1
+                                        await self._notify_order_filled(
+                                            symbol=str(supervised_event.get("symbol") or symbol),
+                                            side=str(supervised_event.get("side") or verdict),
+                                            order_id=supervised_order.order_id,
+                                            qty=float(supervised_event.get("position_size") or 0.0),
+                                            price=float(supervised_event.get("entry_price") or last_price),
+                                            stop_loss=float(supervised_event.get("stop_loss") or 0.0),
+                                            take_profit=float(supervised_event.get("take_profit") or 0.0),
+                                            cycle_id=cycle_id,
+                                        )
+                                        await self._notify_position_opened(symbol=str(supervised_event.get("symbol") or symbol), side=str(supervised_event.get("side") or verdict), cycle_id=cycle_id)
+                                        return result
+                                    except Exception as exc:
+                                        supervised_event = build_paper_supervised_execution_event(
+                                            settings=self.supervised_execution_settings,
+                                            handoff_event=handoff_event,
+                                            open_positions_count=len(self.broker.open_positions),
+                                            broker_submit_called=True,
+                                            order_submitted=False,
+                                            position_opened=False,
+                                            error=str(exc),
+                                        )
+                                        self.broker.emit(**supervised_event)
+                                else:
+                                    self.broker.emit(**supervised_probe_event)
 
             evaluate_elapsed = max(0.0, time.monotonic() - evaluate_started_at) if evaluate_started_at else 0.0
             structure_state = ""
@@ -1518,6 +1631,10 @@ class PaperTradingEngine:
             "paper_unlock_candidate_audit_report_path": str(self.data_dir / "paper_unlock_candidate_audit_report.json"),
             "paper_unlock_handoff_dry_run_enabled": bool(self.settings.paper_unlock_handoff_dry_run_enabled),
             "paper_unlock_handoff_dry_run_report_path": str(self.data_dir / "paper_unlock_handoff_dry_run_report.json"),
+            "paper_unlock_supervised_execution_enabled": bool(self.settings.paper_unlock_supervised_execution_enabled),
+            "paper_unlock_supervised_execution_report_path": str(self.data_dir / "paper_unlock_supervised_execution_report.json"),
+            "paper_unlock_supervised_execution_operator_enable": bool(self.settings.paper_unlock_supervised_execution_operator_enable),
+            "paper_unlock_supervised_execution_operator_confirmation_ok": bool(self.supervised_execution_settings.confirmation_ok),
             "paper_unlock": {
                 "enabled": bool(self.unlock_settings.enabled),
                 "profile": self.unlock_settings.profile,
@@ -2320,6 +2437,11 @@ class PaperTradingEngine:
             return {}
         return write_paper_order_leakage_guard_report(self.data_dir, self.order_leakage_guard_settings)
 
+    def write_paper_unlock_supervised_execution_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_supervised_execution_enabled:
+            return {}
+        return write_paper_unlock_supervised_execution_report(self.data_dir, self.supervised_execution_settings)
+
     def write_candlestick_pattern_report(self) -> dict[str, Any]:
         if not self.settings.candlestick_patterns_enabled:
             return {}
@@ -2360,6 +2482,7 @@ class PaperTradingEngine:
         paper_unlock_routing_bridge = self.write_paper_unlock_routing_bridge_report()
         paper_unlock_candidate_audit = self.write_paper_unlock_candidate_audit_report()
         paper_unlock_handoff_dry_run = self.write_paper_unlock_handoff_dry_run_report()
+        paper_unlock_supervised_execution = self.write_paper_unlock_supervised_execution_report()
         paper_order_leakage_guard = self.write_paper_order_leakage_guard_report()
         artifacts = write_performance_artifacts(self.data_dir)
         if diagnostics:
@@ -2420,6 +2543,8 @@ class PaperTradingEngine:
             artifacts["paper_unlock_candidate_audit"] = paper_unlock_candidate_audit
         if paper_unlock_handoff_dry_run:
             artifacts["paper_unlock_handoff_dry_run"] = paper_unlock_handoff_dry_run
+        if paper_unlock_supervised_execution:
+            artifacts["paper_unlock_supervised_execution"] = paper_unlock_supervised_execution
         if paper_order_leakage_guard:
             artifacts["paper_order_leakage_guard"] = paper_order_leakage_guard
         return artifacts
@@ -2646,6 +2771,9 @@ def settings_from_args(args: Any) -> PaperEngineSettings:
         paper_unlock_routing_bridge_enabled=(False if bool(getattr(args, "no_paper_unlock_routing_bridge", False)) else bool(getattr(Config, "PAPER_UNLOCK_ROUTING_BRIDGE_ENABLED", True))),
         paper_unlock_candidate_audit_enabled=(False if bool(getattr(args, "no_paper_unlock_candidate_audit", False)) else bool(getattr(Config, "PAPER_UNLOCK_CANDIDATE_AUDIT_ENABLED", True))),
         paper_unlock_handoff_dry_run_enabled=(False if bool(getattr(args, "no_paper_unlock_handoff_dry_run", False)) else bool(getattr(Config, "PAPER_UNLOCK_HANDOFF_DRY_RUN_ENABLED", True))),
+        paper_unlock_supervised_execution_enabled=(False if bool(getattr(args, "no_paper_unlock_supervised_execution", False)) else bool(getattr(Config, "PAPER_UNLOCK_SUPERVISED_EXECUTION_ENABLED", True))),
+        paper_unlock_supervised_execution_operator_enable=(bool(getattr(args, "paper_unlock_supervised_execution", False)) or bool(getattr(Config, "PAPER_UNLOCK_SUPERVISED_EXECUTION_OPERATOR_ENABLE", False))),
+        paper_unlock_supervised_execution_confirm=str(getattr(args, "paper_unlock_supervised_confirm", "") or getattr(Config, "PAPER_UNLOCK_SUPERVISED_EXECUTION_CONFIRM", "") or ""),
         paper_order_leakage_guard_enabled=(False if bool(getattr(args, "no_paper_order_leakage_guard", False)) else bool(getattr(Config, "PAPER_ORDER_LEAKAGE_GUARD_ENABLED", True))),
         shadow_simulation_enabled=(False if bool(getattr(args, "no_shadow_simulation", False)) else bool(getattr(Config, "PAPER_SHADOW_SIMULATION_ENABLED", True))),
         paper_unlock_profile=str(getattr(args, "paper_unlock_profile", "") or getattr(Config, "PAPER_UNLOCK_PROFILE", "BTC_ONLY_40_Q60")),
