@@ -4,11 +4,17 @@ import argparse
 import asyncio
 import os
 import sys
+import threading
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
 if __package__ in {None, ""}:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.paper_engine import PaperTradingEngine, settings_from_args
+from core.paper_once_runner_footer import print_runner_once_footer_from_events, read_latest_cycle_completed
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,6 +43,28 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-pattern-conditioned-shadow", action="store_true", help="Disable Prompt 29.5.0c pattern-conditioned shadow/backtest review for this run.")
     parser.add_argument("--no-scenario-pattern-calibration", action="store_true", help="Disable Prompt 29.5.0d scenario-pattern calibration report generation for this run.")
     parser.add_argument("--no-market-structure-map", action="store_true", help="Disable Prompt 29.5.0e liquidity/supply-demand/structure map diagnostics for this run.")
+    parser.add_argument("--no-calibrated-structure-shadow", action="store_true", help="Disable Prompt 29.5.0f calibrated scenario-pattern-structure shadow review for this run.")
+    parser.add_argument("--no-structure-filter-diagnostics", action="store_true", help="Disable Prompt 29.5.0g structure filter diagnostics / confirmation quality audit for this run.")
+    parser.add_argument("--no-structure-context-repair", action="store_true", help="Disable Prompt 29.5.0h strict structure context repair / confirmation relabeling for this run.")
+    parser.add_argument("--no-repaired-structure-shadow-validation", action="store_true", help="Disable Prompt 29.5.0i repaired structure shadow validation / MAP_SCORE_65_79 and BOS audit for this run.")
+    parser.add_argument("--no-independent-repaired-validation", action="store_true", help="Disable Prompt 29.5.0j independent repaired validation stability / walk-forward guard for this run.")
+    parser.add_argument("--no-paper-unlock-profile-refinement", action="store_true", help="Disable Prompt 29.4.4c paper unlock profile refinement design for this run.")
+    parser.add_argument("--no-paper-unlock-experiment-design", action="store_true", help="Disable Prompt 29.4.4d calibrated paper-only unlock experiment design for this run.")
+    parser.add_argument("--no-paper-unlock-shadow-dry-run", action="store_true", help="Disable Prompt 29.4.4e paper-only shadow experiment dry-run harness for this run.")
+    parser.add_argument("--no-paper-unlock-shadow-rate-calibration", action="store_true", help="Disable Prompt 29.4.4f shadow dry-run sample expansion / rate-limit calibration for this run.")
+    parser.add_argument("--no-paper-unlock-bounded-cadence", action="store_true", help="Disable Prompt 29.4.4g bounded cadence expansion / rolling shadow collection for this run.")
+    parser.add_argument("--no-paper-unlock-shadow-stability-review", action="store_true", help="Disable Prompt 29.4.4h shadow sample stability review for this run.")
+    parser.add_argument("--no-paper-unlock-activation-draft", action="store_true", help="Disable Prompt 29.4.4i guarded paper-only activation draft for this run.")
+    parser.add_argument("--no-paper-unlock-experiment-switch-draft", action="store_true", help="Disable Prompt 29.4.4j guarded paper-only experiment switch implementation draft for this run.")
+    parser.add_argument("--no-paper-unlock-manual-switch-preflight", action="store_true", help="Disable Prompt 29.4.4k manual paper-only switch dry-run / fail-closed preflight for this run.")
+    parser.add_argument("--no-paper-unlock-manual-activation-patch", action="store_true", help="Disable Prompt 29.4.4l explicit manual paper-only activation patch draft for this run.")
+    parser.add_argument("--no-paper-unlock-final-enable-preflight", action="store_true", help="Disable Prompt 29.4.4m final manual paper-only enable preflight for this run.")
+    parser.add_argument("--no-paper-unlock-guarded-enable", action="store_true", help="Disable Prompt 29.4.4n guarded paper-only enable implementation for this run.")
+    parser.add_argument("--no-paper-unlock-runtime-audit", action="store_true", help="Disable Prompt 29.4.4o runtime paper-order audit for this run.")
+    parser.add_argument("--no-paper-unlock-routing-bridge", action="store_true", help="Disable Prompt 29.4.4p guarded paper-only routing bridge audit for this run.")
+    parser.add_argument("--no-paper-unlock-candidate-audit", action="store_true", help="Disable Prompt 29.4.4q first guarded paper-order candidate audit for this run.")
+    parser.add_argument("--no-paper-unlock-handoff-dry-run", action="store_true", help="Disable Prompt 29.4.4r paper order handoff dry-run audit for this run.")
+    parser.add_argument("--no-paper-order-leakage-guard", action="store_true", help="Disable Prompt 29.4.4r-1 legacy paper order leakage guard for this run.")
     parser.set_defaults(paper_unlock=None)
     parser.add_argument("--paper-unlock", dest="paper_unlock", action="store_true", help="Enable Prompt 29.4.4 paper-only unlock gate for this run.")
     parser.add_argument("--no-paper-unlock", dest="paper_unlock", action="store_false", help="Disable Prompt 29.4.4 paper-only unlock gate for this run.")
@@ -44,19 +72,142 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def async_main() -> None:
-    args = build_parser().parse_args()
-    engine = PaperTradingEngine(settings_from_args(args))
+async def async_main(engine: PaperTradingEngine) -> None:
     await engine.run()
 
 
-def main() -> None:
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on", "y"}
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
     try:
-        asyncio.run(async_main())
+        return float(raw)
+    except Exception:
+        return default
+
+
+def _start_once_footer_watchdog(
+    *,
+    enabled: bool,
+    started_at: datetime,
+    events_path: Path,
+    engine_ref: dict[str, Any],
+) -> threading.Thread | None:
+    """Hardens Windows --once runs where engine finalization can hang after CYCLE_COMPLETED.
+
+    Prompt 29.4.4o-3c is deliberately console/output only. The watchdog does not
+    touch gates, risk, routing, broker state, orders, or positions. It only watches
+    for a completed cycle already written to paper_events.jsonl, prints the same
+    runner fallback footer, then exits the one-shot process if the engine remains
+    alive past a small grace window.
+    """
+    if not enabled:
+        return None
+    if not _env_bool("PAPER_ONCE_HARD_EXIT_AFTER_COMPLETED", True):
+        return None
+
+    poll_seconds = max(0.1, _env_float("PAPER_ONCE_WATCHDOG_POLL_SECONDS", 0.25))
+    grace_seconds = max(0.0, _env_float("PAPER_ONCE_HARD_EXIT_GRACE_SECONDS", 3.0))
+    timeout_seconds = max(grace_seconds + 1.0, _env_float("PAPER_ONCE_WATCHDOG_TIMEOUT_SECONDS", 300.0))
+
+    def _engine_footer_printed() -> bool:
+        engine = engine_ref.get("engine")
+        return bool(getattr(engine, "paper_once_console_summary_printed", False)) if engine is not None else False
+
+    def _watch() -> None:
+        deadline = time.monotonic() + timeout_seconds
+        cycle_seen_at: float | None = None
+        cycle_id = ""
+        notice_printed = False
+        while time.monotonic() < deadline:
+            if _engine_footer_printed():
+                return
+            cycle_event = read_latest_cycle_completed(events_path, started_at=started_at)
+            if cycle_event:
+                if cycle_seen_at is None:
+                    cycle_seen_at = time.monotonic()
+                    cycle_id = str(cycle_event.get("cycle_id") or "")
+                if not notice_printed:
+                    print(
+                        f"[PAPER ONCE WATCHDOG] cycle_completed_detected=true cycle_id={cycle_id} "
+                        f"hard_exit_grace_seconds={grace_seconds:.2f}",
+                        flush=True,
+                    )
+                    notice_printed = True
+                if time.monotonic() - cycle_seen_at >= grace_seconds:
+                    if not _engine_footer_printed():
+                        print_runner_once_footer_from_events(
+                            events_path,
+                            started_at=started_at,
+                            stream=sys.stdout,
+                            force=True,
+                        )
+                    print(
+                        f"[PAPER ONCE EXIT] reason=cycle_completed_watchdog_hard_exit cycle_id={cycle_id}",
+                        flush=True,
+                    )
+                    try:
+                        sys.stdout.flush()
+                        sys.stderr.flush()
+                    except Exception:
+                        pass
+                    os._exit(0)
+            time.sleep(poll_seconds)
+
+    thread = threading.Thread(target=_watch, name="paper_once_footer_watchdog", daemon=True)
+    thread.start()
+    return thread
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    started_at = datetime.now(timezone.utc)
+    interrupted = False
+    engine = None
+    events_path = Path(args.data_dir if hasattr(args, "data_dir") else "data") / "paper_events.jsonl"
+    engine_ref: dict[str, Any] = {}
+    _start_once_footer_watchdog(
+        enabled=bool(args.once),
+        started_at=started_at,
+        events_path=events_path,
+        engine_ref=engine_ref,
+    )
+
+    try:
+        engine = PaperTradingEngine(settings_from_args(args))
+        engine_ref["engine"] = engine
+        asyncio.run(async_main(engine))
     except KeyboardInterrupt:
-        # PaperTradingEngine.run() performs the audit logging in its cancellation
-        # path.  Suppress the default traceback so operator shutdown is clean.
-        pass
+        interrupted = True
+    finally:
+        if args.once:
+            already_printed = False
+            if engine is not None:
+                already_printed = bool(getattr(engine, "paper_once_console_summary_printed", False))
+
+            printed = False
+            if not already_printed:
+                printed = print_runner_once_footer_from_events(
+                    events_path,
+                    started_at=started_at,
+                    stream=sys.stdout,
+                )
+
+            if interrupted and not printed and not already_printed:
+                print("[PAPER ONCE INTERRUPTED]", flush=True)
+                print("reason=keyboard_interrupt_before_cycle_completed", flush=True)
+
+    if interrupted:
+        os._exit(130)
+    else:
+        os._exit(0)
 
 
 if __name__ == "__main__":

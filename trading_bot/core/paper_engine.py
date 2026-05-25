@@ -10,6 +10,7 @@ import asyncio
 import contextlib
 import json
 import os
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -35,6 +36,51 @@ from core.candlestick_patterns import build_candlestick_pattern_diagnostic, writ
 from core.pattern_conditioned_shadow import write_pattern_conditioned_shadow_report
 from core.scenario_pattern_calibration import write_scenario_pattern_calibration_report
 from core.market_structure_map import build_market_structure_map_diagnostic, write_market_structure_map_report
+from core.calibrated_structure_shadow import write_calibrated_structure_shadow_report
+from core.structure_filter_diagnostics import write_structure_filter_diagnostics_report
+from core.structure_context_repair import write_structure_context_repair_report
+from core.repaired_structure_shadow_validation import write_repaired_structure_shadow_validation_report
+from core.independent_repaired_validation import write_independent_repaired_validation_report
+from core.paper_unlock_profile_refinement import write_paper_unlock_profile_refinement_report
+from core.paper_unlock_experiment_design import write_paper_unlock_experiment_design_report
+from core.paper_unlock_shadow_dry_run import write_paper_unlock_shadow_dry_run_report
+from core.paper_unlock_shadow_rate_calibration import write_paper_unlock_shadow_rate_calibration_report
+from core.paper_unlock_bounded_cadence import write_paper_unlock_bounded_cadence_report
+from core.paper_unlock_shadow_stability_review import write_paper_unlock_shadow_stability_review_report
+from core.paper_unlock_activation_draft import write_paper_unlock_activation_draft_report
+from core.paper_unlock_experiment_switch_draft import write_paper_unlock_experiment_switch_draft_report
+from core.paper_unlock_manual_switch_preflight import write_paper_unlock_manual_switch_preflight_report
+from core.paper_unlock_manual_activation_patch import write_paper_unlock_manual_activation_patch_report
+from core.paper_unlock_final_enable_preflight import write_paper_unlock_final_enable_preflight_report
+from core.paper_unlock_guarded_enable import write_paper_unlock_guarded_enable_report
+from core.paper_unlock_runtime_audit import (
+    RuntimePaperOrderAuditSettings,
+    build_guarded_runtime_audit_event,
+    guarded_enable_runtime_state,
+    write_paper_unlock_runtime_audit_report,
+)
+from core.paper_unlock_routing_bridge import (
+    GuardedPaperRoutingBridgeSettings,
+    build_guarded_paper_routing_bridge_event,
+    write_paper_unlock_routing_bridge_report,
+)
+from core.paper_unlock_candidate_audit import (
+    GuardedPaperOrderCandidateAuditSettings,
+    build_guarded_paper_order_candidate_audit_event,
+    write_paper_unlock_candidate_audit_report,
+)
+from core.paper_unlock_handoff_dry_run import (
+    PaperOrderHandoffDryRunSettings,
+    build_paper_order_handoff_dry_run_event,
+    write_paper_unlock_handoff_dry_run_report,
+)
+from core.paper_order_leakage_guard import (
+    PaperOrderLeakageGuardSettings,
+    build_legacy_paper_order_blocked_event,
+    should_block_paper_order_attempt,
+    write_paper_order_leakage_guard_report,
+)
+from core.paper_once_console_summary import print_paper_once_console_summary
 from core.analyzer import TechnicalAnalyzer
 
 
@@ -81,6 +127,28 @@ class PaperEngineSettings:
     pattern_conditioned_shadow_enabled: bool = True
     scenario_pattern_calibration_enabled: bool = True
     market_structure_map_enabled: bool = True
+    calibrated_structure_shadow_enabled: bool = True
+    structure_filter_diagnostics_enabled: bool = True
+    structure_context_repair_enabled: bool = True
+    repaired_structure_shadow_validation_enabled: bool = True
+    independent_repaired_validation_enabled: bool = True
+    paper_unlock_profile_refinement_enabled: bool = True
+    paper_unlock_experiment_design_enabled: bool = True
+    paper_unlock_shadow_dry_run_enabled: bool = True
+    paper_unlock_shadow_rate_calibration_enabled: bool = True
+    paper_unlock_bounded_cadence_enabled: bool = True
+    paper_unlock_shadow_stability_review_enabled: bool = True
+    paper_unlock_activation_draft_enabled: bool = True
+    paper_unlock_experiment_switch_draft_enabled: bool = True
+    paper_unlock_manual_switch_preflight_enabled: bool = True
+    paper_unlock_manual_activation_patch_enabled: bool = True
+    paper_unlock_final_enable_preflight_enabled: bool = True
+    paper_unlock_guarded_enable_enabled: bool = True
+    paper_unlock_runtime_audit_enabled: bool = True
+    paper_unlock_routing_bridge_enabled: bool = True
+    paper_unlock_candidate_audit_enabled: bool = True
+    paper_unlock_handoff_dry_run_enabled: bool = True
+    paper_order_leakage_guard_enabled: bool = True
     shadow_simulation_enabled: bool = True
     paper_unlock_profile: str = "BTC_ONLY_40_Q60"
     paper_unlock_allowed_symbols: list[str] | None = None
@@ -102,6 +170,28 @@ class PaperTradingEngine:
         Config.PATTERN_CONDITIONED_SHADOW_ENABLED = bool(settings.pattern_conditioned_shadow_enabled)
         Config.SCENARIO_PATTERN_CALIBRATION_ENABLED = bool(settings.scenario_pattern_calibration_enabled)
         Config.MARKET_STRUCTURE_MAP_ENABLED = bool(settings.market_structure_map_enabled)
+        Config.CALIBRATED_STRUCTURE_SHADOW_ENABLED = bool(settings.calibrated_structure_shadow_enabled)
+        Config.STRUCTURE_FILTER_DIAGNOSTICS_ENABLED = bool(settings.structure_filter_diagnostics_enabled)
+        Config.STRUCTURE_CONTEXT_REPAIR_ENABLED = bool(settings.structure_context_repair_enabled)
+        Config.REPAIRED_STRUCTURE_SHADOW_VALIDATION_ENABLED = bool(settings.repaired_structure_shadow_validation_enabled)
+        Config.INDEPENDENT_REPAIRED_VALIDATION_ENABLED = bool(settings.independent_repaired_validation_enabled)
+        Config.PAPER_UNLOCK_PROFILE_REFINEMENT_ENABLED = bool(settings.paper_unlock_profile_refinement_enabled)
+        Config.PAPER_UNLOCK_EXPERIMENT_DESIGN_ENABLED = bool(settings.paper_unlock_experiment_design_enabled)
+        Config.PAPER_UNLOCK_SHADOW_DRY_RUN_ENABLED = bool(settings.paper_unlock_shadow_dry_run_enabled)
+        Config.PAPER_UNLOCK_SHADOW_RATE_CALIBRATION_ENABLED = bool(settings.paper_unlock_shadow_rate_calibration_enabled)
+        Config.PAPER_UNLOCK_BOUNDED_CADENCE_ENABLED = bool(settings.paper_unlock_bounded_cadence_enabled)
+        Config.PAPER_UNLOCK_SHADOW_STABILITY_REVIEW_ENABLED = bool(settings.paper_unlock_shadow_stability_review_enabled)
+        Config.PAPER_UNLOCK_ACTIVATION_DRAFT_ENABLED = bool(settings.paper_unlock_activation_draft_enabled)
+        Config.PAPER_UNLOCK_EXPERIMENT_SWITCH_DRAFT_ENABLED = bool(settings.paper_unlock_experiment_switch_draft_enabled)
+        Config.PAPER_UNLOCK_MANUAL_SWITCH_PREFLIGHT_ENABLED = bool(settings.paper_unlock_manual_switch_preflight_enabled)
+        Config.PAPER_UNLOCK_MANUAL_ACTIVATION_PATCH_ENABLED = bool(settings.paper_unlock_manual_activation_patch_enabled)
+        Config.PAPER_UNLOCK_FINAL_ENABLE_PREFLIGHT_ENABLED = bool(settings.paper_unlock_final_enable_preflight_enabled)
+        Config.PAPER_UNLOCK_GUARDED_ENABLE_ENABLED = bool(settings.paper_unlock_guarded_enable_enabled)
+        Config.PAPER_UNLOCK_RUNTIME_AUDIT_ENABLED = bool(settings.paper_unlock_runtime_audit_enabled)
+        Config.PAPER_UNLOCK_ROUTING_BRIDGE_ENABLED = bool(settings.paper_unlock_routing_bridge_enabled)
+        Config.PAPER_UNLOCK_CANDIDATE_AUDIT_ENABLED = bool(settings.paper_unlock_candidate_audit_enabled)
+        Config.PAPER_UNLOCK_HANDOFF_DRY_RUN_ENABLED = bool(settings.paper_unlock_handoff_dry_run_enabled)
+        Config.PAPER_ORDER_LEAKAGE_GUARD_ENABLED = bool(settings.paper_order_leakage_guard_enabled)
         self.data_dir = Path(settings.data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.broker = PaperBroker(
@@ -127,6 +217,11 @@ class PaperTradingEngine:
                     "allowed_symbols": tuple(settings.paper_unlock_allowed_symbols),
                 }
             )
+        self.runtime_audit_settings = RuntimePaperOrderAuditSettings.from_config(Config)
+        self.routing_bridge_settings = GuardedPaperRoutingBridgeSettings.from_config(Config)
+        self.candidate_audit_settings = GuardedPaperOrderCandidateAuditSettings.from_config(Config)
+        self.handoff_dry_run_settings = PaperOrderHandoffDryRunSettings.from_config(Config)
+        self.order_leakage_guard_settings = PaperOrderLeakageGuardSettings.from_config(Config)
         self.position_monitor = PaperPositionMonitor(output_path=self.data_dir / "paper_position_monitor.json")
         self._cycle_seq = max_cycle_sequence(self.data_dir / "paper_events.jsonl")
         self._shutdown_requested = False
@@ -136,6 +231,8 @@ class PaperTradingEngine:
         self._last_position_pnl_pct_by_id: dict[str, float] = {}
         self._last_position_notify_cycle_by_id: dict[str, int] = {}
         self._startup_banner_printed = False
+        self._last_completed_cycle_summary: dict[str, Any] | None = None
+        self._paper_once_console_summary_printed = False
         allowed_users = [x for x in os.getenv("TELEGRAM_ALLOWED_USER_IDS", getattr(Config, "TELEGRAM_ALLOWED_USER_IDS", "")).replace(";", ",").split(",") if x.strip()]
         self.telegram = TelegramControlBot(
             token=Config.TELEGRAM_TOKEN,
@@ -178,6 +275,10 @@ class PaperTradingEngine:
         self.telegram.register("/pause", self._cmd_pause)
         self.telegram.register("/resume", self._cmd_resume)
         self.telegram.register("/kill", self._cmd_kill)
+
+    @property
+    def paper_once_console_summary_printed(self) -> bool:
+        return self._paper_once_console_summary_printed
 
     def _cmd_pause(self, _command: str, _args: list[str]) -> str:
         self.broker.is_paused = True
@@ -242,11 +343,18 @@ class PaperTradingEngine:
                 self.broker.emit("ASYNC_TASK_CANCELLED", cycle_id=self._active_cycle_id, component="paper_engine")
             raise
         finally:
-            print("[PaperEngine] Shutdown requested. Closing exchange sessions...") if self._shutdown_requested else None
+            print("[PaperEngine] Shutdown requested. Closing exchange sessions...", flush=True) if self._shutdown_requested else None
             self.broker.save()
             self.write_status_file()
             report = self.write_lifecycle_report()
             artifacts = self.write_performance_artifacts()
+            if self.settings.dry_run_once and self._last_completed_cycle_summary and not self._paper_once_console_summary_printed:
+                print_paper_once_console_summary(
+                    self._last_completed_cycle_summary,
+                    runtime_audit=(artifacts.get("paper_unlock_runtime_audit") if isinstance(artifacts, dict) else None),
+                    routing_bridge=(artifacts.get("paper_unlock_routing_bridge") if isinstance(artifacts, dict) else None),
+                )
+                self._paper_once_console_summary_printed = True
             self.broker.emit("ENGINE_STOPPED", lifecycle_status=report.get("status"), shutdown_requested=self._shutdown_requested)
             self.broker.save()
             self.write_status_file()
@@ -261,7 +369,7 @@ class PaperTradingEngine:
                 self.broker.emit("ASYNC_TASK_CANCELLED", component="telegram_poll_forever")
             self.proactive.save()
             if self._shutdown_requested:
-                print("[PaperEngine] Engine stopped cleanly.")
+                print("[PaperEngine] Engine stopped cleanly.", flush=True)
 
     async def tick(self) -> dict[str, Any]:
         self._cycle_seq += 1
@@ -322,15 +430,23 @@ class PaperTradingEngine:
             "elapsed_seconds": round(elapsed, 4),
         })
         self.broker.emit("CYCLE_COMPLETED", **summary)
+        self._last_completed_cycle_summary = dict(summary)
         self.write_lifecycle_report()
         artifacts = self.write_performance_artifacts()
         drift_status = artifacts.get("drift", {}).get("status") if isinstance(artifacts, dict) else "NA"
         self._print_cycle_summary(summary, drift_status=drift_status)
+        if self.settings.dry_run_once:
+            print_paper_once_console_summary(
+                summary,
+                runtime_audit=(artifacts.get("paper_unlock_runtime_audit") if isinstance(artifacts, dict) else None),
+                routing_bridge=(artifacts.get("paper_unlock_routing_bridge") if isinstance(artifacts, dict) else None),
+            )
+            self._paper_once_console_summary_printed = True
         monitor_text = self.render_position_monitor()
         if monitor_text and (self.settings.console_verbose or int(summary.get("open_positions") or 0) > 0):
-            print(monitor_text)
+            print(monitor_text, flush=True)
         elif self.settings.console_show_flat_monitor and not monitor_text:
-            print("PAPER POSITION MONITOR | FLAT")
+            print("PAPER POSITION MONITOR | FLAT", flush=True)
         await self._notify_after_cycle(summary, artifacts=artifacts, drift_status=str(drift_status or "NA"))
 
     def _console_header_line(self) -> str:
@@ -346,14 +462,14 @@ class PaperTradingEngine:
     def _print_startup_banner(self) -> None:
         if self._startup_banner_printed:
             return
-        print(self._console_header_line())
-        print(f"assets={','.join(self.settings.symbols)} poll={self.settings.poll_seconds:g}s")
+        print(self._console_header_line(), flush=True)
+        print(f"assets={','.join(self.settings.symbols)} poll={self.settings.poll_seconds:g}s", flush=True)
         self._startup_banner_printed = True
 
     def _print_cycle_summary(self, summary: dict[str, Any], *, drift_status: str) -> None:
         header_every = max(0, int(self.settings.console_header_every_n_cycles or 0))
         if header_every and self._cycle_seq > 0 and self._cycle_seq % header_every == 0:
-            print(self._console_header_line())
+            print(self._console_header_line(), flush=True)
         now_label = datetime.now().strftime("%H:%M:%S")
         base = (
             f"[{now_label}] cycle={self._cycle_seq} scanned={summary['scanned']} "
@@ -368,7 +484,7 @@ class PaperTradingEngine:
             )
         else:
             base += f" errors={summary['errors']}"
-        print(base)
+        print(base, flush=True)
 
     async def _send_proactive(
         self,
@@ -781,19 +897,52 @@ class PaperTradingEngine:
                     cycle_id=cycle_id,
                 )
 
+    def _paper_once_progress_logs_enabled(self) -> bool:
+        """Return whether Prompt 29.4.4o-3b console progress logs should print.
+
+        This is visibility-only: it does not alter fetch, evaluation, routing,
+        broker state, risk, gates, orders, or positions. By default it is active
+        for --once runs, where silence after model registry loading can be
+        mistaken for a frozen process.
+        """
+        env_value = str(os.getenv("PAPER_ONCE_PROGRESS_LOGS", "") or "").strip().lower()
+        if env_value in {"0", "false", "no", "off"}:
+            return False
+        if env_value in {"1", "true", "yes", "on"}:
+            return True
+        return bool(self.settings.dry_run_once)
+
+    def _print_once_progress(self, message: str) -> None:
+        if self._paper_once_progress_logs_enabled():
+            print(message, flush=True)
+
     async def evaluate_symbol(self, symbol: str, *, cycle_id: str = "") -> dict[str, Any]:
         result: dict[str, Any] = {"symbol": symbol, "scanned": 0, "signal": 0, "order": 0, "error": 0, "no_signal": 0, "skipped": 0}
         client: ExchangeClient | None = None
+        progress_phase = "init"
+        fetch_started_at = 0.0
+        evaluate_started_at = 0.0
+        candle_limit = int(os.getenv("PAPER_CANDLE_LIMIT", "500"))
         try:
+            progress_phase = "fetch"
+            fetch_started_at = time.monotonic()
+            self._print_once_progress(
+                f"[FETCH START] symbol={symbol} timeframe={self.settings.timeframe} limit={candle_limit}"
+            )
             client = ExchangeClient(
                 exchange_id=Config.EXCHANGE_ID,
                 symbol=symbol,
                 timeframe=self.settings.timeframe,
-                limit=int(os.getenv("PAPER_CANDLE_LIMIT", "500")),
+                limit=candle_limit,
                 api_key=None,
                 api_secret=None,
             )
             df = await client.fetch_async()
+            fetch_elapsed = max(0.0, time.monotonic() - fetch_started_at)
+            candle_count = 0 if df is None else int(getattr(df, "shape", [0])[0] or 0)
+            self._print_once_progress(
+                f"[FETCH DONE] symbol={symbol} candles={candle_count} elapsed_seconds={fetch_elapsed:.4f}"
+            )
             self.broker.emit("EXCHANGE_CLIENT_CLOSED", cycle_id=cycle_id, symbol=symbol)
             if df is None or df.empty:
                 self.broker.emit("MARKET_DATA_EMPTY", cycle_id=cycle_id, symbol=symbol)
@@ -829,6 +978,9 @@ class PaperTradingEngine:
                 result["skipped"] = 1
                 self.broker.emit("ASSET_SKIPPED", cycle_id=cycle_id, symbol=symbol, reason="position_already_open")
                 return result
+            progress_phase = "evaluate"
+            evaluate_started_at = time.monotonic()
+            self._print_once_progress(f"[EVALUATE START] symbol={symbol}")
             verdict, score, conf, _entry_type, _conf_verdict, conf_comb = DecisionEngine().evaluate(df)
             candle_key = f"{symbol}:{candle_ts}"
             duplicate_candle = bool(verdict in {"BUY", "SELL"} and self.last_signal_by_symbol.get(symbol) == candle_key)
@@ -892,6 +1044,7 @@ class PaperTradingEngine:
                 )
                 self.broker.emit(**structure_diag)
 
+            guarded_enable_state = guarded_enable_runtime_state(self.data_dir, self.runtime_audit_settings) if self.settings.paper_unlock_runtime_audit_enabled else {}
             unlock_decision = None
             if verdict not in {"BUY", "SELL"} and self.unlock_settings.enabled:
                 unlock_decision = evaluate_paper_unlock(
@@ -933,6 +1086,88 @@ class PaperTradingEngine:
                     _entry_type = "PAPER_UNLOCK"
                     _conf_verdict = "PAPER_UNLOCK"
                     conf_comb = f"PaperUnlock({unlock_decision.profile})"
+
+            if self.settings.paper_unlock_runtime_audit_enabled and self.runtime_audit_settings.emit_runtime_events:
+                runtime_audit_event = build_guarded_runtime_audit_event(
+                    settings=self.runtime_audit_settings,
+                    guarded_enable_state=guarded_enable_state,
+                    cycle_id=cycle_id,
+                    symbol=symbol,
+                    candle_ts=candle_ts,
+                    mode=self.settings.mode,
+                    signal_diagnostic=signal_diag,
+                    scenario_diagnostic=scenario_diag,
+                    pattern_diagnostic=pattern_diag,
+                    structure_diagnostic=structure_diag,
+                    legacy_unlock_decision=(unlock_decision.to_dict() if unlock_decision is not None else {}),
+                    duplicate_candle=unlock_duplicate_candle,
+                    open_positions_count=len(self.broker.open_positions),
+                )
+                self.broker.emit(**runtime_audit_event)
+                if self.settings.paper_unlock_routing_bridge_enabled and self.routing_bridge_settings.emit_bridge_events:
+                    routing_bridge_event = build_guarded_paper_routing_bridge_event(
+                        settings=self.routing_bridge_settings,
+                        runtime_audit_event=runtime_audit_event,
+                        cycle_id=cycle_id,
+                        symbol=symbol,
+                        open_positions_count=len(self.broker.open_positions),
+                    )
+                    self.broker.emit(**routing_bridge_event)
+                    if (
+                        self.settings.paper_unlock_candidate_audit_enabled
+                        and self.candidate_audit_settings.enabled
+                        and self.candidate_audit_settings.emit_candidate_events
+                        and bool(routing_bridge_event.get("would_submit"))
+                    ):
+                        candidate_atr = float(last.get("atr", 0.0) or 0.0) or last_price * 0.01
+                        candidate_event = build_guarded_paper_order_candidate_audit_event(
+                            settings=self.candidate_audit_settings,
+                            routing_bridge_event=routing_bridge_event,
+                            cycle_id=cycle_id,
+                            symbol=symbol,
+                            candle_ts=candle_ts,
+                            entry_price=last_price,
+                            atr=candidate_atr,
+                            account_balance=float(self.broker.balance),
+                            equity=float(self.broker.snapshot(self.last_prices).get("equity") or self.broker.balance),
+                            open_positions_count=len(self.broker.open_positions),
+                            duplicate_candle=unlock_duplicate_candle,
+                            duplicate_order=False,
+                            daily_entry_count=0,
+                            weekly_entry_count=0,
+                            max_daily_entries=int(getattr(Config, "PAPER_UNLOCK_GUARDED_ENABLE_MAX_DAILY_ENTRIES", 6) or 6),
+                            max_weekly_entries=int(getattr(Config, "PAPER_UNLOCK_GUARDED_ENABLE_MAX_WEEKLY_ENTRIES", 30) or 30),
+                        )
+                        self.broker.emit(**candidate_event)
+                        if (
+                            self.settings.paper_unlock_handoff_dry_run_enabled
+                            and self.handoff_dry_run_settings.enabled
+                            and self.handoff_dry_run_settings.emit_handoff_events
+                            and bool(candidate_event.get("candidate_ready"))
+                        ):
+                            handoff_event = build_paper_order_handoff_dry_run_event(
+                                settings=self.handoff_dry_run_settings,
+                                candidate_event=candidate_event,
+                                open_positions_count=len(self.broker.open_positions),
+                            )
+                            self.broker.emit(**handoff_event)
+
+            evaluate_elapsed = max(0.0, time.monotonic() - evaluate_started_at) if evaluate_started_at else 0.0
+            structure_state = ""
+            map_score = ""
+            if isinstance(structure_diag, dict):
+                structure_state = str(
+                    structure_diag.get("runtime_structure_state")
+                    or structure_diag.get("structure_state")
+                    or structure_diag.get("state")
+                    or structure_diag.get("confirmation_summary")
+                    or ""
+                )
+                map_score = structure_diag.get("map_score", "")
+            self._print_once_progress(
+                f"[EVALUATE DONE] symbol={symbol} side={verdict} signal={1 if verdict in {'BUY', 'SELL'} else 0} "
+                f"map_score={map_score} structure_state={structure_state} elapsed_seconds={evaluate_elapsed:.4f}"
+            )
 
             if verdict not in {"BUY", "SELL"}:
                 result["no_signal"] = 1
@@ -996,7 +1231,96 @@ class PaperTradingEngine:
                 )
                 return result
             result["signal"] = 1
-            if unlock_decision is not None and unlock_decision.accepted:
+            paper_unlock_signal = bool(unlock_decision is not None and unlock_decision.accepted)
+            unlock_profile = (unlock_decision.profile if unlock_decision is not None and unlock_decision.accepted else None)
+            unlock_tag = (unlock_decision.tag if unlock_decision is not None and unlock_decision.accepted else None)
+            signal_payload = {
+                "cycle_id": cycle_id,
+                "symbol": symbol,
+                "side": verdict,
+                "score": score,
+                "confidence": conf,
+                "candle_ts": candle_ts,
+                "paper_unlock": paper_unlock_signal,
+                "unlock_profile": unlock_profile,
+                "scenario": (scenario_diag or {}).get("scenario") if scenario_diag else None,
+                "scenario_directional_bias": (scenario_diag or {}).get("directional_bias") if scenario_diag else None,
+                "scenario_alignment": (scenario_diag or {}).get("scenario_alignment") if scenario_diag else None,
+                "candlestick_patterns": (pattern_diag or {}).get("patterns") if pattern_diag else None,
+                "candlestick_bias": (pattern_diag or {}).get("pattern_bias") if pattern_diag else None,
+                "candlestick_score": (pattern_diag or {}).get("pattern_score") if pattern_diag else None,
+                "candlestick_integration": (pattern_diag or {}).get("scenario_integration") if pattern_diag else None,
+                "candlestick_alignment": (pattern_diag or {}).get("pattern_alignment") if pattern_diag else None,
+                "market_structure_bias": (structure_diag or {}).get("structure_bias") if structure_diag else None,
+                "market_structure_location": (structure_diag or {}).get("price_location") if structure_diag else None,
+                "market_structure_confirmation": (structure_diag or {}).get("confirmation_summary") if structure_diag else None,
+                "market_structure_missing_confirmation": (structure_diag or {}).get("missing_confirmation") if structure_diag else None,
+                "paper_order_guard_enabled": bool(self.order_leakage_guard_settings.enabled),
+                "paper_order_guard_fail_closed": bool(self.order_leakage_guard_settings.fail_closed),
+            }
+            self.broker.emit("SIGNAL_DETECTED", **signal_payload)
+            self.last_signal_by_symbol[symbol] = candle_key
+
+            atr = float(last.get("atr", 0.0) or 0.0) or last_price * 0.01
+            if verdict == "BUY":
+                stop_loss = last_price - Config.ATR_MULT * atr
+                take_profit = last_price + Config.ATR_MULT * atr * self.settings.rr
+            else:
+                stop_loss = last_price + Config.ATR_MULT * atr
+                take_profit = last_price - Config.ATR_MULT * atr * self.settings.rr
+            qty = self._position_qty(last_price=last_price, stop_loss=stop_loss)
+            if qty <= 0:
+                self.broker.emit("SIGNAL_REJECTED", cycle_id=cycle_id, symbol=symbol, side=verdict, reason="zero_qty", score=score)
+                return result
+
+            order_metadata = {
+                "score": score,
+                "confidence": conf,
+                "combination": conf_comb,
+                "timeframe": self.settings.timeframe,
+                "cost_model": self.settings.cost_model,
+                "candle_ts": str(df.index[-1]),
+                "cycle_id": cycle_id,
+                "paper_unlock": paper_unlock_signal,
+                "unlock_profile": unlock_profile,
+                "unlock_tag": unlock_tag,
+                "regime": ((signal_diag or {}).get("regime") if paper_unlock_signal else (conf.get("regime") if isinstance(conf, dict) else None)),
+                "crypto_scenario": ((scenario_diag or {}).get("scenario") if scenario_diag else None),
+                "scenario_directional_bias": ((scenario_diag or {}).get("directional_bias") if scenario_diag else None),
+                "scenario_alignment": ((scenario_diag or {}).get("scenario_alignment") if scenario_diag else None),
+                "market_structure_bias": ((structure_diag or {}).get("structure_bias") if structure_diag else None),
+                "market_structure_location": ((structure_diag or {}).get("price_location") if structure_diag else None),
+                "market_structure_confirmation": ((structure_diag or {}).get("confirmation_summary") if structure_diag else None),
+            }
+            if should_block_paper_order_attempt(settings=self.order_leakage_guard_settings, metadata=order_metadata):
+                source_path = "paper_unlock_legacy_execution" if paper_unlock_signal else "legacy_score_meta"
+                risk_amount = abs(last_price - stop_loss) * qty
+                block_event = build_legacy_paper_order_blocked_event(
+                    settings=self.order_leakage_guard_settings,
+                    cycle_id=cycle_id,
+                    symbol=symbol,
+                    side=verdict,
+                    score=score,
+                    confidence=conf,
+                    combination=str(conf_comb or ""),
+                    candle_ts=candle_ts,
+                    entry_price=last_price,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    qty=qty,
+                    notional=abs(qty * last_price),
+                    risk_amount=risk_amount,
+                    paper_unlock=paper_unlock_signal,
+                    unlock_profile=unlock_profile,
+                    source_path=source_path,
+                )
+                self.broker.emit(**block_event)
+                self._print_once_progress(
+                    f"[PAPER ORDER BLOCKED] symbol={symbol} side={verdict} reason=paper_order_source_not_authorized source={source_path}"
+                )
+                return result
+
+            if paper_unlock_signal:
                 self.broker.emit(
                     "PAPER_UNLOCK_SIGNAL",
                     cycle_id=cycle_id,
@@ -1009,43 +1333,9 @@ class PaperTradingEngine:
                     live_execution_enabled=False,
                 )
                 await self._notify_unlock_signal(symbol=symbol, side=verdict, decision=unlock_decision, cycle_id=cycle_id)
-            self.broker.emit(
-                "SIGNAL_DETECTED",
-                cycle_id=cycle_id,
-                symbol=symbol,
-                side=verdict,
-                score=score,
-                confidence=conf,
-                candle_ts=candle_ts,
-                paper_unlock=bool(unlock_decision is not None and unlock_decision.accepted),
-                unlock_profile=(unlock_decision.profile if unlock_decision is not None and unlock_decision.accepted else None),
-                scenario=(scenario_diag or {}).get("scenario") if scenario_diag else None,
-                scenario_directional_bias=(scenario_diag or {}).get("directional_bias") if scenario_diag else None,
-                scenario_alignment=(scenario_diag or {}).get("scenario_alignment") if scenario_diag else None,
-                candlestick_patterns=(pattern_diag or {}).get("patterns") if pattern_diag else None,
-                candlestick_bias=(pattern_diag or {}).get("pattern_bias") if pattern_diag else None,
-                candlestick_score=(pattern_diag or {}).get("pattern_score") if pattern_diag else None,
-                candlestick_integration=(pattern_diag or {}).get("scenario_integration") if pattern_diag else None,
-                candlestick_alignment=(pattern_diag or {}).get("pattern_alignment") if pattern_diag else None,
-                market_structure_bias=(structure_diag or {}).get("structure_bias") if structure_diag else None,
-                market_structure_location=(structure_diag or {}).get("price_location") if structure_diag else None,
-                market_structure_confirmation=(structure_diag or {}).get("confirmation_summary") if structure_diag else None,
-                market_structure_missing_confirmation=(structure_diag or {}).get("missing_confirmation") if structure_diag else None,
-            )
-            if not (unlock_decision is not None and unlock_decision.accepted):
-                await self._notify_signal_detected(symbol=symbol, side=verdict, score=score, conf=conf, cycle_id=cycle_id)
-            self.last_signal_by_symbol[symbol] = candle_key
-            atr = float(last.get("atr", 0.0) or 0.0) or last_price * 0.01
-            if verdict == "BUY":
-                stop_loss = last_price - Config.ATR_MULT * atr
-                take_profit = last_price + Config.ATR_MULT * atr * self.settings.rr
             else:
-                stop_loss = last_price + Config.ATR_MULT * atr
-                take_profit = last_price - Config.ATR_MULT * atr * self.settings.rr
-            qty = self._position_qty(last_price=last_price, stop_loss=stop_loss)
-            if qty <= 0:
-                self.broker.emit("SIGNAL_REJECTED", cycle_id=cycle_id, symbol=symbol, side=verdict, reason="zero_qty", score=score)
-                return result
+                await self._notify_signal_detected(symbol=symbol, side=verdict, score=score, conf=conf, cycle_id=cycle_id)
+
             order = self.broker_adapter.place_order(
                 symbol=symbol,
                 side=verdict,  # type: ignore[arg-type]
@@ -1053,25 +1343,7 @@ class PaperTradingEngine:
                 price=last_price,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                metadata={
-                    "score": score,
-                    "confidence": conf,
-                    "combination": conf_comb,
-                    "timeframe": self.settings.timeframe,
-                    "cost_model": self.settings.cost_model,
-                    "candle_ts": str(df.index[-1]),
-                    "cycle_id": cycle_id,
-                    "paper_unlock": bool(unlock_decision is not None and unlock_decision.accepted),
-                    "unlock_profile": (unlock_decision.profile if unlock_decision is not None and unlock_decision.accepted else None),
-                    "unlock_tag": (unlock_decision.tag if unlock_decision is not None and unlock_decision.accepted else None),
-                    "regime": ((signal_diag or {}).get("regime") if unlock_decision is not None and unlock_decision.accepted else (conf.get("regime") if isinstance(conf, dict) else None)),
-                    "crypto_scenario": ((scenario_diag or {}).get("scenario") if scenario_diag else None),
-                    "scenario_directional_bias": ((scenario_diag or {}).get("directional_bias") if scenario_diag else None),
-                    "scenario_alignment": ((scenario_diag or {}).get("scenario_alignment") if scenario_diag else None),
-                    "market_structure_bias": ((structure_diag or {}).get("structure_bias") if structure_diag else None),
-                    "market_structure_location": ((structure_diag or {}).get("price_location") if structure_diag else None),
-                    "market_structure_confirmation": ((structure_diag or {}).get("confirmation_summary") if structure_diag else None),
-                },
+                metadata=order_metadata,
             )
             result["order"] = 1
             self.broker.emit("PAPER_ORDER_CONFIRMED", cycle_id=cycle_id, symbol=symbol, side=verdict, order_id=order.order_id, qty=qty, price=last_price)
@@ -1093,9 +1365,19 @@ class PaperTradingEngine:
             raise
         except Exception as exc:
             result["error"] = 1
+            elapsed_start = fetch_started_at if progress_phase == "fetch" else evaluate_started_at
+            elapsed = max(0.0, time.monotonic() - elapsed_start) if elapsed_start else 0.0
+            if progress_phase == "fetch":
+                self._print_once_progress(
+                    f"[FETCH ERROR] symbol={symbol} error_type={exc.__class__.__name__} elapsed_seconds={elapsed:.4f}"
+                )
+            else:
+                self._print_once_progress(
+                    f"[EVALUATE ERROR] symbol={symbol} error_type={exc.__class__.__name__} elapsed_seconds={elapsed:.4f}"
+                )
             self.broker.emit("SYMBOL_ERROR", cycle_id=cycle_id, symbol=symbol, error=str(exc), error_type=exc.__class__.__name__)
             self.broker.emit("EXCHANGE_CLIENT_CLOSED", cycle_id=cycle_id, symbol=symbol, status="error")
-            print(f"[PaperEngine] Symbol error | {symbol} | {exc} | skipped")
+            print(f"[PaperEngine] Symbol error | {symbol} | {exc} | skipped", flush=True)
             return result
 
     def _position_qty(self, *, last_price: float, stop_loss: float) -> float:
@@ -1129,6 +1411,21 @@ class PaperTradingEngine:
             "pattern_conditioned_shadow_report_path": str(self.data_dir / "pattern_conditioned_shadow_report.json"),
             "scenario_pattern_calibration_report_path": str(self.data_dir / "scenario_pattern_calibration_report.json"),
             "market_structure_map_report_path": str(self.data_dir / "market_structure_map_report.json"),
+            "calibrated_structure_shadow_report_path": str(self.data_dir / "calibrated_structure_shadow_report.json"),
+            "structure_filter_diagnostics_report_path": str(self.data_dir / "structure_filter_diagnostics_report.json"),
+            "structure_context_repair_report_path": str(self.data_dir / "structure_context_repair_report.json"),
+            "repaired_structure_shadow_validation_report_path": str(self.data_dir / "repaired_structure_shadow_validation_report.json"),
+            "independent_repaired_validation_report_path": str(self.data_dir / "independent_repaired_validation_report.json"),
+            "paper_unlock_profile_refinement_report_path": str(self.data_dir / "paper_unlock_profile_refinement_report.json"),
+            "paper_unlock_experiment_design_report_path": str(self.data_dir / "paper_unlock_experiment_design_report.json"),
+            "paper_unlock_shadow_dry_run_report_path": str(self.data_dir / "paper_unlock_shadow_dry_run_report.json"),
+            "paper_unlock_shadow_rate_calibration_report_path": str(self.data_dir / "paper_unlock_shadow_rate_calibration_report.json"),
+            "paper_unlock_bounded_cadence_report_path": str(self.data_dir / "paper_unlock_bounded_cadence_report.json"),
+            "paper_unlock_shadow_stability_review_report_path": str(self.data_dir / "paper_unlock_shadow_stability_review_report.json"),
+            "paper_unlock_activation_draft_report_path": str(self.data_dir / "paper_unlock_activation_draft_report.json"),
+            "paper_unlock_experiment_switch_draft_report_path": str(self.data_dir / "paper_unlock_experiment_switch_draft_report.json"),
+            "paper_unlock_candidate_audit_report_path": str(self.data_dir / "paper_unlock_candidate_audit_report.json"),
+            "paper_unlock_handoff_dry_run_report_path": str(self.data_dir / "paper_unlock_handoff_dry_run_report.json"),
             "telegram_audit_path": str(self.data_dir / "telegram_audit.jsonl"),
             "telegram_enabled": bool(self.telegram.enabled),
             "telegram_read_only": bool(self.telegram.read_only),
@@ -1167,6 +1464,60 @@ class PaperTradingEngine:
             "market_structure_map_enabled": bool(self.settings.market_structure_map_enabled),
             "market_structure_map_report_path": str(self.data_dir / "market_structure_map_report.json"),
             "market_structure_map": self._read_market_structure_map_summary(),
+            "calibrated_structure_shadow_enabled": bool(self.settings.calibrated_structure_shadow_enabled),
+            "calibrated_structure_shadow_report_path": str(self.data_dir / "calibrated_structure_shadow_report.json"),
+            "calibrated_structure_shadow": self._read_calibrated_structure_shadow_summary(),
+            "structure_filter_diagnostics_enabled": bool(self.settings.structure_filter_diagnostics_enabled),
+            "structure_filter_diagnostics_report_path": str(self.data_dir / "structure_filter_diagnostics_report.json"),
+            "structure_filter_diagnostics": self._read_structure_filter_diagnostics_summary(),
+            "structure_context_repair_enabled": bool(self.settings.structure_context_repair_enabled),
+            "structure_context_repair_report_path": str(self.data_dir / "structure_context_repair_report.json"),
+            "structure_context_repair": self._read_structure_context_repair_summary(),
+            "repaired_structure_shadow_validation_enabled": bool(self.settings.repaired_structure_shadow_validation_enabled),
+            "repaired_structure_shadow_validation_report_path": str(self.data_dir / "repaired_structure_shadow_validation_report.json"),
+            "repaired_structure_shadow_validation": self._read_repaired_structure_shadow_validation_summary(),
+            "independent_repaired_validation_enabled": bool(self.settings.independent_repaired_validation_enabled),
+            "independent_repaired_validation_report_path": str(self.data_dir / "independent_repaired_validation_report.json"),
+            "independent_repaired_validation": self._read_independent_repaired_validation_summary(),
+            "paper_unlock_profile_refinement_enabled": bool(self.settings.paper_unlock_profile_refinement_enabled),
+            "paper_unlock_profile_refinement_report_path": str(self.data_dir / "paper_unlock_profile_refinement_report.json"),
+            "paper_unlock_profile_refinement": self._read_paper_unlock_profile_refinement_summary(),
+            "paper_unlock_experiment_design_enabled": bool(self.settings.paper_unlock_experiment_design_enabled),
+            "paper_unlock_experiment_design_report_path": str(self.data_dir / "paper_unlock_experiment_design_report.json"),
+            "paper_unlock_experiment_design": self._read_paper_unlock_experiment_design_summary(),
+            "paper_unlock_shadow_dry_run_enabled": bool(self.settings.paper_unlock_shadow_dry_run_enabled),
+            "paper_unlock_shadow_dry_run_report_path": str(self.data_dir / "paper_unlock_shadow_dry_run_report.json"),
+            "paper_unlock_shadow_dry_run": self._read_paper_unlock_shadow_dry_run_summary(),
+            "paper_unlock_shadow_rate_calibration_enabled": bool(self.settings.paper_unlock_shadow_rate_calibration_enabled),
+            "paper_unlock_shadow_rate_calibration_report_path": str(self.data_dir / "paper_unlock_shadow_rate_calibration_report.json"),
+            "paper_unlock_shadow_rate_calibration": self._read_paper_unlock_shadow_rate_calibration_summary(),
+            "paper_unlock_bounded_cadence_enabled": bool(self.settings.paper_unlock_bounded_cadence_enabled),
+            "paper_unlock_bounded_cadence_report_path": str(self.data_dir / "paper_unlock_bounded_cadence_report.json"),
+            "paper_unlock_shadow_stability_review_report_path": str(self.data_dir / "paper_unlock_shadow_stability_review_report.json"),
+            "paper_unlock_activation_draft_report_path": str(self.data_dir / "paper_unlock_activation_draft_report.json"),
+            "paper_unlock_experiment_switch_draft_report_path": str(self.data_dir / "paper_unlock_experiment_switch_draft_report.json"),
+            "paper_unlock_bounded_cadence": self._read_paper_unlock_bounded_cadence_summary(),
+            "paper_unlock_shadow_stability_review_enabled": bool(self.settings.paper_unlock_shadow_stability_review_enabled),
+            "paper_unlock_shadow_stability_review_report_path": str(self.data_dir / "paper_unlock_shadow_stability_review_report.json"),
+            "paper_unlock_activation_draft_report_path": str(self.data_dir / "paper_unlock_activation_draft_report.json"),
+            "paper_unlock_experiment_switch_draft_report_path": str(self.data_dir / "paper_unlock_experiment_switch_draft_report.json"),
+            "paper_unlock_shadow_stability_review": self._read_paper_unlock_shadow_stability_review_summary(),
+            "paper_unlock_activation_draft_enabled": bool(self.settings.paper_unlock_activation_draft_enabled),
+            "paper_unlock_activation_draft_report_path": str(self.data_dir / "paper_unlock_activation_draft_report.json"),
+            "paper_unlock_experiment_switch_draft_report_path": str(self.data_dir / "paper_unlock_experiment_switch_draft_report.json"),
+            "paper_unlock_activation_draft": self._read_paper_unlock_activation_draft_summary(),
+            "paper_unlock_guarded_enable_enabled": bool(self.settings.paper_unlock_guarded_enable_enabled),
+            "paper_unlock_guarded_enable_report_path": str(self.data_dir / "paper_unlock_guarded_enable_report.json"),
+            "paper_unlock_guarded_enable": self._read_paper_unlock_guarded_enable_summary(),
+            "paper_unlock_runtime_audit_enabled": bool(self.settings.paper_unlock_runtime_audit_enabled),
+            "paper_unlock_runtime_audit_report_path": str(self.data_dir / "paper_unlock_runtime_audit_report.json"),
+            "paper_unlock_runtime_audit": self._read_paper_unlock_runtime_audit_summary(),
+            "paper_unlock_routing_bridge_enabled": bool(self.settings.paper_unlock_routing_bridge_enabled),
+            "paper_unlock_routing_bridge_report_path": str(self.data_dir / "paper_unlock_routing_bridge_report.json"),
+            "paper_unlock_candidate_audit_enabled": bool(self.settings.paper_unlock_candidate_audit_enabled),
+            "paper_unlock_candidate_audit_report_path": str(self.data_dir / "paper_unlock_candidate_audit_report.json"),
+            "paper_unlock_handoff_dry_run_enabled": bool(self.settings.paper_unlock_handoff_dry_run_enabled),
+            "paper_unlock_handoff_dry_run_report_path": str(self.data_dir / "paper_unlock_handoff_dry_run_report.json"),
             "paper_unlock": {
                 "enabled": bool(self.unlock_settings.enabled),
                 "profile": self.unlock_settings.profile,
@@ -1377,6 +1728,598 @@ class PaperTradingEngine:
             return {}
         return write_scenario_pattern_calibration_report(self.data_dir)
 
+    def _read_calibrated_structure_shadow_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "calibrated_structure_shadow_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            best = decision.get("best_variant") or decision.get("best_watchlist_variant") or {}
+            if not isinstance(best, dict):
+                best = {}
+            profile = decision.get("candidate_profile", {}) if isinstance(decision.get("candidate_profile"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "next_patch": decision.get("next_patch", ""),
+                "candidate_profile": profile.get("name", ""),
+                "profile_status": profile.get("status", ""),
+                "structured_candidate_rows": counts.get("structured_candidate_rows", 0),
+                "candidate_rows_pre_structure": counts.get("candidate_rows_pre_structure", 0),
+                "best_variant": best.get("name", ""),
+                "best_expectancy_r": best.get("expectancy_r", 0.0),
+                "best_candidates": best.get("candidates", 0),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_calibrated_structure_shadow_report(self) -> dict[str, Any]:
+        if not self.settings.calibrated_structure_shadow_enabled:
+            return {}
+        return write_calibrated_structure_shadow_report(self.data_dir)
+
+    def _read_structure_filter_diagnostics_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "structure_filter_diagnostics_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            best = decision.get("best_audit_variant") if isinstance(decision.get("best_audit_variant"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "next_patch": decision.get("next_patch", ""),
+                "structured_candidate_rows": counts.get("structured_candidate_rows", 0),
+                "audit_variants": counts.get("audit_variants", 0),
+                "best_audit_variant": best.get("name", ""),
+                "best_expectancy_r": best.get("expectancy_r", 0.0),
+                "best_candidates": best.get("candidates", 0),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_structure_filter_diagnostics_report(self) -> dict[str, Any]:
+        if not self.settings.structure_filter_diagnostics_enabled:
+            return {}
+        return write_structure_filter_diagnostics_report(self.data_dir)
+
+    def _read_structure_context_repair_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "structure_context_repair_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            transitions = payload.get("transition_matrix", {}) if isinstance(payload.get("transition_matrix"), dict) else {}
+            best = decision.get("best_repaired_variant", {}) if isinstance(decision.get("best_repaired_variant"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "next_patch": decision.get("next_patch", ""),
+                "structured_candidate_rows": counts.get("structured_candidate_rows", 0),
+                "repair_variants": counts.get("repair_variants", 0),
+                "best_repaired_variant": best.get("name", ""),
+                "repaired_context_count": transitions.get("repaired_context_count", 0),
+                "repaired_confirmation_count": transitions.get("repaired_confirmation_count", 0),
+                "wait_state_count": transitions.get("wait_state_count", 0),
+                "conflict_count": transitions.get("conflict_count", 0),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_structure_context_repair_report(self) -> dict[str, Any]:
+        if not self.settings.structure_context_repair_enabled:
+            return {}
+        return write_structure_context_repair_report(self.data_dir)
+
+    def _read_repaired_structure_shadow_validation_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "repaired_structure_shadow_validation_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            matrix = payload.get("hypothesis_matrix", {}) if isinstance(payload.get("hypothesis_matrix"), dict) else {}
+            best = decision.get("best_validation_variant", {}) if isinstance(decision.get("best_validation_variant"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "next_patch": decision.get("next_patch", ""),
+                "structured_candidate_rows": counts.get("structured_candidate_rows", 0),
+                "validation_variants": counts.get("validation_variants", 0),
+                "best_validation_variant": best.get("name", ""),
+                "map_score_65_79_count": matrix.get("map_score_65_79_count", 0),
+                "map_score_65_79_entry_state_count": matrix.get("map_score_65_79_entry_state_count", 0),
+                "directional_bos_count": matrix.get("directional_bos_count", 0),
+                "confirmation_count": matrix.get("confirmation_count", 0),
+                "wait_watchlist_count": matrix.get("wait_watchlist_count", 0),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_repaired_structure_shadow_validation_report(self) -> dict[str, Any]:
+        if not self.settings.repaired_structure_shadow_validation_enabled:
+            return {}
+        return write_repaired_structure_shadow_validation_report(self.data_dir)
+
+    def _read_independent_repaired_validation_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "independent_repaired_validation_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            matrix = payload.get("independent_matrix", {}) if isinstance(payload.get("independent_matrix"), dict) else {}
+            wf = payload.get("walk_forward", {}) if isinstance(payload.get("walk_forward"), dict) else {}
+            wf_checks = wf.get("stability_checks", {}) if isinstance(wf.get("stability_checks"), dict) else {}
+            best = decision.get("best_stability_variant", {}) if isinstance(decision.get("best_stability_variant"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "next_patch": decision.get("next_patch", ""),
+                "structured_candidate_rows": counts.get("structured_candidate_rows", 0),
+                "target_candidate_rows": counts.get("target_candidate_rows", 0),
+                "best_stability_variant": best.get("name", ""),
+                "target_entry_state_rows": matrix.get("target_entry_state_rows", 0),
+                "target_bos_rows": matrix.get("target_bos_rows", 0),
+                "positive_fold_rate_pct": wf_checks.get("positive_fold_rate_pct", 0),
+                "passes_walk_forward_guard": bool(wf_checks.get("passes_walk_forward_guard", False)),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+                "paper_unlock_refinement_allowed": bool(decision.get("paper_unlock_refinement_allowed", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_independent_repaired_validation_report(self) -> dict[str, Any]:
+        if not self.settings.independent_repaired_validation_enabled:
+            return {}
+        return write_independent_repaired_validation_report(self.data_dir)
+
+    def _read_paper_unlock_profile_refinement_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_profile_refinement_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            best = decision.get("best_profile_design_variant", {}) if isinstance(decision.get("best_profile_design_variant"), dict) else {}
+            source = payload.get("source_validation", {}) if isinstance(payload.get("source_validation"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "profile_name": decision.get("profile_name", ""),
+                "next_patch": decision.get("next_patch", ""),
+                "target_candidate_rows": counts.get("target_candidate_rows", 0),
+                "best_profile_design_variant": best.get("name", ""),
+                "independent_guard_ok": bool(source.get("independent_guard_ok", False)),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+                "paper_unlock_refinement_allowed": bool(decision.get("paper_unlock_refinement_allowed", False)),
+                "paper_unlock_experiment_allowed": bool(decision.get("paper_unlock_experiment_allowed", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_profile_refinement_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_profile_refinement_enabled:
+            return {}
+        return write_paper_unlock_profile_refinement_report(self.data_dir)
+
+    def _read_paper_unlock_experiment_design_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_experiment_design_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            best = decision.get("best_experiment_design_variant", {}) if isinstance(decision.get("best_experiment_design_variant"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "profile_name": decision.get("profile_name", ""),
+                "experiment_name": decision.get("experiment_name", ""),
+                "next_patch": decision.get("next_patch", ""),
+                "target_candidate_rows": counts.get("target_candidate_rows", 0),
+                "best_experiment_design_variant": best.get("name", ""),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+                "paper_unlock_experiment_allowed": bool(decision.get("paper_unlock_experiment_allowed", False)),
+                "paper_orders_enabled": bool(decision.get("paper_orders_enabled", False) or payload.get("paper_orders_enabled", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_experiment_design_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_experiment_design_enabled:
+            return {}
+        return write_paper_unlock_experiment_design_report(self.data_dir)
+
+    def _read_paper_unlock_shadow_dry_run_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_shadow_dry_run_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            gate = payload.get("shadow_dry_run_gate", {}) if isinstance(payload.get("shadow_dry_run_gate"), dict) else {}
+            equity = payload.get("equity_dry_run", {}) if isinstance(payload.get("equity_dry_run"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "profile_name": decision.get("profile_name", ""),
+                "experiment_name": decision.get("experiment_name", ""),
+                "harness_name": decision.get("harness_name", ""),
+                "next_patch": decision.get("next_patch", ""),
+                "source_target_rows": counts.get("source_target_rows", 0),
+                "entry_candidate_rows": counts.get("entry_candidate_rows", 0),
+                "shadow_selected_entries": counts.get("shadow_selected_entries", 0),
+                "passes_shadow_dry_run_gate": bool(gate.get("passes_shadow_dry_run_gate", False)),
+                "max_consecutive_losses": equity.get("max_consecutive_losses", 0),
+                "max_drawdown_pct": equity.get("max_drawdown_pct", 0),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+                "paper_unlock_experiment_allowed": bool(decision.get("paper_unlock_experiment_allowed", False)),
+                "paper_orders_enabled": bool(decision.get("paper_orders_enabled", False) or payload.get("paper_orders_enabled", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_shadow_dry_run_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_shadow_dry_run_enabled:
+            return {}
+        return write_paper_unlock_shadow_dry_run_report(self.data_dir)
+
+    def _read_paper_unlock_shadow_rate_calibration_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_shadow_rate_calibration_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            best = decision.get("best_rate_variant", {}) if isinstance(decision.get("best_rate_variant"), dict) else {}
+            return {
+                "status": payload.get("status", "NA"),
+                "decision_status": decision.get("status", "NA"),
+                "calibration_name": payload.get("calibration_name", ""),
+                "best_rate_variant": best.get("name", ""),
+                "best_selected_entries": best.get("selected_entries", counts.get("best_selected_entries", 0)),
+                "source_target_rows": counts.get("source_target_rows", 0),
+                "entry_candidate_rows": counts.get("entry_candidate_rows", 0),
+                "next_patch": decision.get("next_patch", ""),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+                "paper_unlock_experiment_allowed": bool(decision.get("paper_unlock_experiment_allowed", False)),
+                "paper_orders_enabled": bool(decision.get("paper_orders_enabled", False) or payload.get("paper_orders_enabled", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_shadow_rate_calibration_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_shadow_rate_calibration_enabled:
+            return {}
+        return write_paper_unlock_shadow_rate_calibration_report(self.data_dir)
+
+    def _read_paper_unlock_bounded_cadence_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_bounded_cadence_report.json"
+        if not path.exists():
+            return {"status": "MISSING", "path": str(path)}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            best = decision.get("best_bounded_cadence_variant", {}) if isinstance(decision.get("best_bounded_cadence_variant"), dict) else {}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            return {
+                "status": payload.get("status", "UNKNOWN"),
+                "decision": decision.get("status", "UNKNOWN"),
+                "collection_name": payload.get("collection_name", ""),
+                "best_bounded_cadence_variant": best.get("name", ""),
+                "best_selected_entries": best.get("selected_entries", counts.get("best_selected_entries", 0)),
+                "entry_candidate_rows": counts.get("entry_candidate_rows", 0),
+                "next_patch": decision.get("next_patch", ""),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+                "paper_unlock_experiment_allowed": bool(decision.get("paper_unlock_experiment_allowed", False)),
+                "paper_orders_enabled": bool(decision.get("paper_orders_enabled", False) or payload.get("paper_orders_enabled", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_bounded_cadence_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_bounded_cadence_enabled:
+            return {}
+        return write_paper_unlock_bounded_cadence_report(self.data_dir)
+
+
+    def _read_paper_unlock_shadow_stability_review_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_shadow_stability_review_report.json"
+        if not path.exists():
+            return {"status": "MISSING", "path": str(path)}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            checks = payload.get("stability_checks", {}) if isinstance(payload.get("stability_checks"), dict) else {}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            return {
+                "status": payload.get("status", "UNKNOWN"),
+                "decision_status": decision.get("status", "UNKNOWN"),
+                "review_name": payload.get("review_name", ""),
+                "best_stability_review_variant": decision.get("best_stability_review_variant", ""),
+                "selected_entries": decision.get("selected_entries", counts.get("selected_entries", 0)),
+                "next_patch": decision.get("next_patch", ""),
+                "sample_ok": bool(checks.get("sample_ok", False)),
+                "rolling_window_ok": bool(checks.get("rolling_window_ok", False)),
+                "holdout_ok": bool(checks.get("holdout_ok", False)),
+                "concentration_ok": bool(checks.get("concentration_ok", False)),
+                "temporal_dispersion_ok": bool(checks.get("temporal_dispersion_ok", False)),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+                "paper_unlock_experiment_allowed": bool(decision.get("paper_unlock_experiment_allowed", False)),
+                "paper_orders_enabled": bool(decision.get("paper_orders_enabled", False) or payload.get("paper_orders_enabled", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_shadow_stability_review_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_shadow_stability_review_enabled:
+            return {}
+        return write_paper_unlock_shadow_stability_review_report(self.data_dir)
+
+    def _read_paper_unlock_activation_draft_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_activation_draft_report.json"
+        if not path.exists():
+            return {"status": "MISSING", "path": str(path)}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            prereq = payload.get("stability_prerequisite", {}) if isinstance(payload.get("stability_prerequisite"), dict) else {}
+            counts = payload.get("counts", {}) if isinstance(payload.get("counts"), dict) else {}
+            return {
+                "status": payload.get("status", "UNKNOWN"),
+                "decision_status": decision.get("status", "UNKNOWN"),
+                "draft_name": payload.get("draft_name", ""),
+                "profile_name": payload.get("profile_name", ""),
+                "best_stability_review_variant": decision.get("best_stability_review_variant", ""),
+                "selected_entries": decision.get("selected_entries", counts.get("selected_entries", 0)),
+                "interlocks_ready": bool(decision.get("interlocks_ready", False)),
+                "stability_prerequisite_ok": bool(prereq.get("passes_stability_prerequisite", False)),
+                "next_patch": decision.get("next_patch", ""),
+                "operational_unlock_allowed": bool(decision.get("operational_unlock_allowed", False)),
+                "paper_unlock_experiment_allowed": bool(decision.get("paper_unlock_experiment_allowed", False)),
+                "paper_orders_enabled": bool(decision.get("paper_orders_enabled", False) or payload.get("paper_orders_enabled", False)),
+                "profile_activation_allowed": bool(decision.get("profile_activation_allowed", False) or payload.get("profile_activation_allowed", False)),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_activation_draft_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_activation_draft_enabled:
+            return {}
+        return write_paper_unlock_activation_draft_report(self.data_dir)
+
+    def _read_paper_unlock_experiment_switch_draft_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_experiment_switch_draft_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            return {
+                "status": payload.get("status"),
+                "decision": decision.get("status"),
+                "switch_name": payload.get("switch_name"),
+                "profile_name": payload.get("profile_name"),
+                "selected_entries": decision.get("selected_entries"),
+                "activation_draft_ready": decision.get("activation_draft_ready"),
+                "switch_implementation_ready": decision.get("switch_implementation_ready"),
+                "paper_orders_enabled": payload.get("paper_orders_enabled"),
+                "operational_unlock_allowed": payload.get("operational_unlock_allowed"),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_experiment_switch_draft_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_experiment_switch_draft_enabled:
+            return {}
+        return write_paper_unlock_experiment_switch_draft_report(self.data_dir)
+
+    def _read_paper_unlock_manual_switch_preflight_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_manual_switch_preflight_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            return {
+                "status": payload.get("status"),
+                "decision": decision.get("status"),
+                "preflight_name": payload.get("preflight_name"),
+                "switch_name": payload.get("switch_name"),
+                "profile_name": payload.get("profile_name"),
+                "selected_entries": decision.get("selected_entries"),
+                "switch_draft_ready": decision.get("switch_draft_ready"),
+                "fail_closed_preflight_ok": decision.get("fail_closed_preflight_ok"),
+                "paper_orders_enabled": payload.get("paper_orders_enabled"),
+                "operational_unlock_allowed": payload.get("operational_unlock_allowed"),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_manual_switch_preflight_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_manual_switch_preflight_enabled:
+            return {}
+        return write_paper_unlock_manual_switch_preflight_report(self.data_dir)
+
+    def _read_paper_unlock_manual_activation_patch_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_manual_activation_patch_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            return {
+                "status": payload.get("status"),
+                "decision": decision.get("status"),
+                "activation_patch_name": payload.get("activation_patch_name"),
+                "profile_name": payload.get("profile_name"),
+                "selected_entries": decision.get("selected_entries"),
+                "preflight_guard_ok": decision.get("preflight_guard_ok"),
+                "activation_preflight_ok": decision.get("activation_preflight_ok"),
+                "future_activation_simulation_ok": decision.get("future_activation_simulation_ok"),
+                "paper_orders_enabled": payload.get("paper_orders_enabled"),
+                "operational_unlock_allowed": payload.get("operational_unlock_allowed"),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_manual_activation_patch_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_manual_activation_patch_enabled:
+            return {}
+        return write_paper_unlock_manual_activation_patch_report(self.data_dir)
+
+    def _read_paper_unlock_final_enable_preflight_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_final_enable_preflight_report.json"
+        if not path.exists():
+            return {"status": "MISSING"}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return {"status": "INVALID"}
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            return {
+                "status": payload.get("status"),
+                "decision": decision.get("status"),
+                "final_preflight_name": payload.get("final_preflight_name"),
+                "profile_name": payload.get("profile_name"),
+                "selected_entries": decision.get("selected_entries"),
+                "activation_patch_guard_ok": decision.get("activation_patch_guard_ok"),
+                "final_enable_preflight_ok": decision.get("final_enable_preflight_ok"),
+                "paper_order_activation_candidate_allowed": decision.get("paper_order_activation_candidate_allowed"),
+                "paper_orders_enabled": payload.get("paper_orders_enabled"),
+                "operational_unlock_allowed": payload.get("operational_unlock_allowed"),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_final_enable_preflight_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_final_enable_preflight_enabled:
+            return {}
+        return write_paper_unlock_final_enable_preflight_report(self.data_dir)
+
+    def _read_paper_unlock_guarded_enable_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_guarded_enable_report.json"
+        if not path.exists():
+            return {}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+        return {
+            "status": payload.get("status"),
+            "decision": decision.get("status"),
+            "enable_name": decision.get("enable_name"),
+            "profile_name": decision.get("profile_name"),
+            "selected_entries": decision.get("selected_entries"),
+            "paper_orders_enabled": payload.get("paper_orders_enabled"),
+            "paper_unlock_experiment_allowed": payload.get("paper_unlock_experiment_allowed"),
+            "manual_activation_allowed": payload.get("manual_activation_allowed"),
+            "operational_unlock_allowed": payload.get("operational_unlock_allowed"),
+        }
+
+    def write_paper_unlock_guarded_enable_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_guarded_enable_enabled:
+            return {}
+        return write_paper_unlock_guarded_enable_report(self.data_dir)
+
+    def _read_paper_unlock_runtime_audit_summary(self) -> dict[str, Any]:
+        path = self.data_dir / "paper_unlock_runtime_audit_report.json"
+        if not path.exists():
+            return {}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            decision = payload.get("decision", {}) if isinstance(payload.get("decision"), dict) else {}
+            runtime = payload.get("runtime_profile_audit", {}) if isinstance(payload.get("runtime_profile_audit"), dict) else {}
+            legacy = payload.get("legacy_unlock_audit", {}) if isinstance(payload.get("legacy_unlock_audit"), dict) else {}
+            return {
+                "status": payload.get("status"),
+                "decision_status": decision.get("status"),
+                "profile_name": decision.get("profile_name"),
+                "latest_cycle_id": decision.get("latest_cycle_id"),
+                "runtime_audit_events": decision.get("runtime_audit_events"),
+                "legacy_unlock_events": decision.get("legacy_unlock_events"),
+                "runtime_accepts_diagnostic": decision.get("runtime_accepts_diagnostic"),
+                "runtime_rejects": decision.get("runtime_rejects"),
+                "runtime_coverage_ok": decision.get("runtime_coverage_ok"),
+                "legacy_profile_counts": legacy.get("legacy_profile_counts"),
+                "reject_reason_counts": runtime.get("reject_reason_counts"),
+                "paper_orders_enabled": payload.get("paper_orders_enabled"),
+                "operational_unlock_allowed": payload.get("operational_unlock_allowed"),
+            }
+        except Exception as exc:
+            return {"status": "READ_ERROR", "error": str(exc)}
+
+    def write_paper_unlock_runtime_audit_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_runtime_audit_enabled:
+            return {}
+        return write_paper_unlock_runtime_audit_report(self.data_dir)
+
+    def write_paper_unlock_routing_bridge_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_routing_bridge_enabled:
+            return {}
+        return write_paper_unlock_routing_bridge_report(self.data_dir, self.routing_bridge_settings)
+
+    def write_paper_unlock_candidate_audit_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_candidate_audit_enabled:
+            return {}
+        return write_paper_unlock_candidate_audit_report(self.data_dir, self.candidate_audit_settings)
+
+    def write_paper_unlock_handoff_dry_run_report(self) -> dict[str, Any]:
+        if not self.settings.paper_unlock_handoff_dry_run_enabled:
+            return {}
+        return write_paper_unlock_handoff_dry_run_report(self.data_dir, self.handoff_dry_run_settings)
+
+    def write_paper_order_leakage_guard_report(self) -> dict[str, Any]:
+        if not self.settings.paper_order_leakage_guard_enabled:
+            return {}
+        return write_paper_order_leakage_guard_report(self.data_dir, self.order_leakage_guard_settings)
+
     def write_candlestick_pattern_report(self) -> dict[str, Any]:
         if not self.settings.candlestick_patterns_enabled:
             return {}
@@ -1396,6 +2339,28 @@ class PaperTradingEngine:
         pattern_conditioned_shadow = self.write_pattern_conditioned_shadow_report()
         scenario_pattern_calibration = self.write_scenario_pattern_calibration_report()
         market_structure_map = self.write_market_structure_map_report()
+        calibrated_structure_shadow = self.write_calibrated_structure_shadow_report()
+        structure_filter_diagnostics = self.write_structure_filter_diagnostics_report()
+        structure_context_repair = self.write_structure_context_repair_report()
+        repaired_structure_shadow_validation = self.write_repaired_structure_shadow_validation_report()
+        independent_repaired_validation = self.write_independent_repaired_validation_report()
+        paper_unlock_profile_refinement = self.write_paper_unlock_profile_refinement_report()
+        paper_unlock_experiment_design = self.write_paper_unlock_experiment_design_report()
+        paper_unlock_shadow_dry_run = self.write_paper_unlock_shadow_dry_run_report()
+        paper_unlock_shadow_rate_calibration = self.write_paper_unlock_shadow_rate_calibration_report()
+        paper_unlock_bounded_cadence = self.write_paper_unlock_bounded_cadence_report()
+        paper_unlock_shadow_stability_review = self.write_paper_unlock_shadow_stability_review_report()
+        paper_unlock_activation_draft = self.write_paper_unlock_activation_draft_report()
+        paper_unlock_experiment_switch_draft = self.write_paper_unlock_experiment_switch_draft_report()
+        paper_unlock_manual_switch_preflight = self.write_paper_unlock_manual_switch_preflight_report()
+        paper_unlock_manual_activation_patch = self.write_paper_unlock_manual_activation_patch_report()
+        paper_unlock_final_enable_preflight = self.write_paper_unlock_final_enable_preflight_report()
+        paper_unlock_guarded_enable = self.write_paper_unlock_guarded_enable_report()
+        paper_unlock_runtime_audit = self.write_paper_unlock_runtime_audit_report()
+        paper_unlock_routing_bridge = self.write_paper_unlock_routing_bridge_report()
+        paper_unlock_candidate_audit = self.write_paper_unlock_candidate_audit_report()
+        paper_unlock_handoff_dry_run = self.write_paper_unlock_handoff_dry_run_report()
+        paper_order_leakage_guard = self.write_paper_order_leakage_guard_report()
         artifacts = write_performance_artifacts(self.data_dir)
         if diagnostics:
             artifacts["signal_diagnostics"] = diagnostics
@@ -1413,6 +2378,50 @@ class PaperTradingEngine:
             artifacts["scenario_pattern_calibration"] = scenario_pattern_calibration
         if market_structure_map:
             artifacts["market_structure_map"] = market_structure_map
+        if calibrated_structure_shadow:
+            artifacts["calibrated_structure_shadow"] = calibrated_structure_shadow
+        if structure_filter_diagnostics:
+            artifacts["structure_filter_diagnostics"] = structure_filter_diagnostics
+        if structure_context_repair:
+            artifacts["structure_context_repair"] = structure_context_repair
+        if repaired_structure_shadow_validation:
+            artifacts["repaired_structure_shadow_validation"] = repaired_structure_shadow_validation
+        if independent_repaired_validation:
+            artifacts["independent_repaired_validation"] = independent_repaired_validation
+        if paper_unlock_profile_refinement:
+            artifacts["paper_unlock_profile_refinement"] = paper_unlock_profile_refinement
+        if paper_unlock_experiment_design:
+            artifacts["paper_unlock_experiment_design"] = paper_unlock_experiment_design
+        if paper_unlock_shadow_dry_run:
+            artifacts["paper_unlock_shadow_dry_run"] = paper_unlock_shadow_dry_run
+        if paper_unlock_shadow_rate_calibration:
+            artifacts["paper_unlock_shadow_rate_calibration"] = paper_unlock_shadow_rate_calibration
+        if paper_unlock_bounded_cadence:
+            artifacts["paper_unlock_bounded_cadence"] = paper_unlock_bounded_cadence
+        if paper_unlock_shadow_stability_review:
+            artifacts["paper_unlock_shadow_stability_review"] = paper_unlock_shadow_stability_review
+        if paper_unlock_activation_draft:
+            artifacts["paper_unlock_activation_draft"] = paper_unlock_activation_draft
+        if paper_unlock_experiment_switch_draft:
+            artifacts["paper_unlock_experiment_switch_draft"] = paper_unlock_experiment_switch_draft
+        if paper_unlock_manual_switch_preflight:
+            artifacts["paper_unlock_manual_switch_preflight"] = paper_unlock_manual_switch_preflight
+        if paper_unlock_manual_activation_patch:
+            artifacts["paper_unlock_manual_activation_patch"] = paper_unlock_manual_activation_patch
+        if paper_unlock_final_enable_preflight:
+            artifacts["paper_unlock_final_enable_preflight"] = paper_unlock_final_enable_preflight
+        if paper_unlock_guarded_enable:
+            artifacts["paper_unlock_guarded_enable"] = paper_unlock_guarded_enable
+        if paper_unlock_runtime_audit:
+            artifacts["paper_unlock_runtime_audit"] = paper_unlock_runtime_audit
+        if paper_unlock_routing_bridge:
+            artifacts["paper_unlock_routing_bridge"] = paper_unlock_routing_bridge
+        if paper_unlock_candidate_audit:
+            artifacts["paper_unlock_candidate_audit"] = paper_unlock_candidate_audit
+        if paper_unlock_handoff_dry_run:
+            artifacts["paper_unlock_handoff_dry_run"] = paper_unlock_handoff_dry_run
+        if paper_order_leakage_guard:
+            artifacts["paper_order_leakage_guard"] = paper_order_leakage_guard
         return artifacts
 
     def format_status(self) -> str:
@@ -1616,6 +2625,28 @@ def settings_from_args(args: Any) -> PaperEngineSettings:
         pattern_conditioned_shadow_enabled=(False if bool(getattr(args, "no_pattern_conditioned_shadow", False)) else bool(getattr(Config, "PATTERN_CONDITIONED_SHADOW_ENABLED", True))),
         scenario_pattern_calibration_enabled=(False if bool(getattr(args, "no_scenario_pattern_calibration", False)) else bool(getattr(Config, "SCENARIO_PATTERN_CALIBRATION_ENABLED", True))),
         market_structure_map_enabled=(False if bool(getattr(args, "no_market_structure_map", False)) else bool(getattr(Config, "MARKET_STRUCTURE_MAP_ENABLED", True))),
+        calibrated_structure_shadow_enabled=(False if bool(getattr(args, "no_calibrated_structure_shadow", False)) else bool(getattr(Config, "CALIBRATED_STRUCTURE_SHADOW_ENABLED", True))),
+        structure_filter_diagnostics_enabled=(False if bool(getattr(args, "no_structure_filter_diagnostics", False)) else bool(getattr(Config, "STRUCTURE_FILTER_DIAGNOSTICS_ENABLED", True))),
+        structure_context_repair_enabled=(False if bool(getattr(args, "no_structure_context_repair", False)) else bool(getattr(Config, "STRUCTURE_CONTEXT_REPAIR_ENABLED", True))),
+        repaired_structure_shadow_validation_enabled=(False if bool(getattr(args, "no_repaired_structure_shadow_validation", False)) else bool(getattr(Config, "REPAIRED_STRUCTURE_SHADOW_VALIDATION_ENABLED", True))),
+        independent_repaired_validation_enabled=(False if bool(getattr(args, "no_independent_repaired_validation", False)) else bool(getattr(Config, "INDEPENDENT_REPAIRED_VALIDATION_ENABLED", True))),
+        paper_unlock_profile_refinement_enabled=(False if bool(getattr(args, "no_paper_unlock_profile_refinement", False)) else bool(getattr(Config, "PAPER_UNLOCK_PROFILE_REFINEMENT_ENABLED", True))),
+        paper_unlock_experiment_design_enabled=(False if bool(getattr(args, "no_paper_unlock_experiment_design", False)) else bool(getattr(Config, "PAPER_UNLOCK_EXPERIMENT_DESIGN_ENABLED", True))),
+        paper_unlock_shadow_dry_run_enabled=(False if bool(getattr(args, "no_paper_unlock_shadow_dry_run", False)) else bool(getattr(Config, "PAPER_UNLOCK_SHADOW_DRY_RUN_ENABLED", True))),
+        paper_unlock_shadow_rate_calibration_enabled=(False if bool(getattr(args, "no_paper_unlock_shadow_rate_calibration", False)) else bool(getattr(Config, "PAPER_UNLOCK_SHADOW_RATE_CALIBRATION_ENABLED", True))),
+        paper_unlock_bounded_cadence_enabled=(False if bool(getattr(args, "no_paper_unlock_bounded_cadence", False)) else bool(getattr(Config, "PAPER_UNLOCK_BOUNDED_CADENCE_ENABLED", True))),
+        paper_unlock_shadow_stability_review_enabled=(False if bool(getattr(args, "no_paper_unlock_shadow_stability_review", False)) else bool(getattr(Config, "PAPER_UNLOCK_SHADOW_STABILITY_REVIEW_ENABLED", True))),
+        paper_unlock_activation_draft_enabled=(False if bool(getattr(args, "no_paper_unlock_activation_draft", False)) else bool(getattr(Config, "PAPER_UNLOCK_ACTIVATION_DRAFT_ENABLED", True))),
+        paper_unlock_experiment_switch_draft_enabled=(False if bool(getattr(args, "no_paper_unlock_experiment_switch_draft", False)) else bool(getattr(Config, "PAPER_UNLOCK_EXPERIMENT_SWITCH_DRAFT_ENABLED", True))),
+        paper_unlock_manual_switch_preflight_enabled=(False if bool(getattr(args, "no_paper_unlock_manual_switch_preflight", False)) else bool(getattr(Config, "PAPER_UNLOCK_MANUAL_SWITCH_PREFLIGHT_ENABLED", True))),
+        paper_unlock_manual_activation_patch_enabled=(False if bool(getattr(args, "no_paper_unlock_manual_activation_patch", False)) else bool(getattr(Config, "PAPER_UNLOCK_MANUAL_ACTIVATION_PATCH_ENABLED", True))),
+        paper_unlock_final_enable_preflight_enabled=(False if bool(getattr(args, "no_paper_unlock_final_enable_preflight", False)) else bool(getattr(Config, "PAPER_UNLOCK_FINAL_ENABLE_PREFLIGHT_ENABLED", True))),
+        paper_unlock_guarded_enable_enabled=(False if bool(getattr(args, "no_paper_unlock_guarded_enable", False)) else bool(getattr(Config, "PAPER_UNLOCK_GUARDED_ENABLE_ENABLED", True))),
+        paper_unlock_runtime_audit_enabled=(False if bool(getattr(args, "no_paper_unlock_runtime_audit", False)) else bool(getattr(Config, "PAPER_UNLOCK_RUNTIME_AUDIT_ENABLED", True))),
+        paper_unlock_routing_bridge_enabled=(False if bool(getattr(args, "no_paper_unlock_routing_bridge", False)) else bool(getattr(Config, "PAPER_UNLOCK_ROUTING_BRIDGE_ENABLED", True))),
+        paper_unlock_candidate_audit_enabled=(False if bool(getattr(args, "no_paper_unlock_candidate_audit", False)) else bool(getattr(Config, "PAPER_UNLOCK_CANDIDATE_AUDIT_ENABLED", True))),
+        paper_unlock_handoff_dry_run_enabled=(False if bool(getattr(args, "no_paper_unlock_handoff_dry_run", False)) else bool(getattr(Config, "PAPER_UNLOCK_HANDOFF_DRY_RUN_ENABLED", True))),
+        paper_order_leakage_guard_enabled=(False if bool(getattr(args, "no_paper_order_leakage_guard", False)) else bool(getattr(Config, "PAPER_ORDER_LEAKAGE_GUARD_ENABLED", True))),
         shadow_simulation_enabled=(False if bool(getattr(args, "no_shadow_simulation", False)) else bool(getattr(Config, "PAPER_SHADOW_SIMULATION_ENABLED", True))),
         paper_unlock_profile=str(getattr(args, "paper_unlock_profile", "") or getattr(Config, "PAPER_UNLOCK_PROFILE", "BTC_ONLY_40_Q60")),
         paper_unlock_allowed_symbols=[x.strip() for x in str(getattr(Config, "PAPER_UNLOCK_ALLOWED_SYMBOLS", "BTC/USDT")).replace(";", ",").split(",") if x.strip()],

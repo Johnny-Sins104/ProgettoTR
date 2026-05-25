@@ -102,6 +102,30 @@ class PaperPerformancePaths:
         return self.data_dir / "market_structure_map_report.json"
 
     @property
+    def calibrated_structure_shadow_path(self) -> Path:
+        return self.data_dir / "calibrated_structure_shadow_report.json"
+
+    @property
+    def structure_filter_diagnostics_path(self) -> Path:
+        return self.data_dir / "structure_filter_diagnostics_report.json"
+
+    @property
+    def structure_context_repair_path(self) -> Path:
+        return self.data_dir / "structure_context_repair_report.json"
+
+    @property
+    def repaired_structure_shadow_validation_path(self) -> Path:
+        return self.data_dir / "repaired_structure_shadow_validation_report.json"
+
+    @property
+    def independent_repaired_validation_path(self) -> Path:
+        return self.data_dir / "independent_repaired_validation_report.json"
+
+    @property
+    def paper_unlock_profile_refinement_path(self) -> Path:
+        return self.data_dir / "paper_unlock_profile_refinement_report.json"
+
+    @property
     def cost_stress_path(self) -> Path:
         return self.data_dir / "execution_cost_stress_report.json"
 
@@ -367,6 +391,12 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
     pattern_conditioned_shadow = _read_json(paths.pattern_conditioned_shadow_path)
     scenario_pattern_calibration = _read_json(paths.scenario_pattern_calibration_path)
     market_structure_map = _read_json(paths.market_structure_map_path)
+    calibrated_structure_shadow = _read_json(paths.calibrated_structure_shadow_path)
+    structure_filter_diagnostics = _read_json(paths.structure_filter_diagnostics_path)
+    structure_context_repair = _read_json(paths.structure_context_repair_path)
+    repaired_structure_shadow_validation = _read_json(paths.repaired_structure_shadow_validation_path)
+    independent_repaired_validation = _read_json(paths.independent_repaired_validation_path)
+    paper_unlock_profile_refinement = _read_json(paths.paper_unlock_profile_refinement_path)
     events = read_events(paths.events_path)
     event_counts = Counter(_event_type(e) for e in events)
     curve = _equity_curve(events, status)
@@ -419,6 +449,12 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
             "pattern_conditioned_shadow": str(paths.pattern_conditioned_shadow_path),
             "scenario_pattern_calibration": str(paths.scenario_pattern_calibration_path),
             "market_structure_map": str(paths.market_structure_map_path),
+            "calibrated_structure_shadow": str(paths.calibrated_structure_shadow_path),
+            "structure_filter_diagnostics": str(paths.structure_filter_diagnostics_path),
+            "structure_context_repair": str(paths.structure_context_repair_path),
+            "repaired_structure_shadow_validation": str(paths.repaired_structure_shadow_validation_path),
+            "independent_repaired_validation": str(paths.independent_repaired_validation_path),
+            "paper_unlock_profile_refinement": str(paths.paper_unlock_profile_refinement_path),
         },
         "engine": {
             "mode": status.get("mode", "paper"),
@@ -502,6 +538,30 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
             "market_structure_snapshots": (market_structure_map.get("counts") or {}).get("historical_snapshots_evaluated", 0) if isinstance(market_structure_map, dict) else 0,
             "market_structure_focus_bias": (((market_structure_map.get("decision") or {}).get("focus_latest") or {}).get("structure_bias") if isinstance(((market_structure_map.get("decision") or {}).get("focus_latest") if isinstance(market_structure_map.get("decision"), dict) else {}), dict) else "") if isinstance(market_structure_map, dict) else "",
             "market_structure_focus_confirmation": (((market_structure_map.get("decision") or {}).get("focus_latest") or {}).get("confirmation_summary") if isinstance(((market_structure_map.get("decision") or {}).get("focus_latest") if isinstance(market_structure_map.get("decision"), dict) else {}), dict) else "") if isinstance(market_structure_map, dict) else "",
+            "calibrated_structure_shadow_status": calibrated_structure_shadow.get("status", "NA") if isinstance(calibrated_structure_shadow, dict) else "NA",
+            "calibrated_structure_shadow_decision": ((calibrated_structure_shadow.get("decision") or {}).get("status") if isinstance(calibrated_structure_shadow.get("decision"), dict) else "NA") if isinstance(calibrated_structure_shadow, dict) else "NA",
+            "calibrated_structure_rows": (calibrated_structure_shadow.get("counts") or {}).get("structured_candidate_rows", 0) if isinstance(calibrated_structure_shadow, dict) else 0,
+            "calibrated_structure_best_variant": (((calibrated_structure_shadow.get("decision") or {}).get("best_variant") or (calibrated_structure_shadow.get("decision") or {}).get("best_watchlist_variant") or {}).get("name") if isinstance(((calibrated_structure_shadow.get("decision") or {}).get("best_variant") or (calibrated_structure_shadow.get("decision") or {}).get("best_watchlist_variant") if isinstance(calibrated_structure_shadow.get("decision"), dict) else {}), dict) else "") if isinstance(calibrated_structure_shadow, dict) else "",
+            "structure_filter_diagnostics_status": structure_filter_diagnostics.get("status", "NA") if isinstance(structure_filter_diagnostics, dict) else "NA",
+            "structure_filter_diagnostics_decision": ((structure_filter_diagnostics.get("decision") or {}).get("status") if isinstance(structure_filter_diagnostics.get("decision"), dict) else "NA") if isinstance(structure_filter_diagnostics, dict) else "NA",
+            "structure_filter_rows": (structure_filter_diagnostics.get("counts") or {}).get("structured_candidate_rows", 0) if isinstance(structure_filter_diagnostics, dict) else 0,
+            "structure_filter_best_variant": (((structure_filter_diagnostics.get("decision") or {}).get("best_audit_variant") or {}).get("name") if isinstance(((structure_filter_diagnostics.get("decision") or {}).get("best_audit_variant") if isinstance(structure_filter_diagnostics.get("decision"), dict) else {}), dict) else "") if isinstance(structure_filter_diagnostics, dict) else "",
+            "structure_context_repair_status": structure_context_repair.get("status", "NA") if isinstance(structure_context_repair, dict) else "NA",
+            "structure_context_repair_decision": ((structure_context_repair.get("decision") or {}).get("status") if isinstance(structure_context_repair.get("decision"), dict) else "NA") if isinstance(structure_context_repair, dict) else "NA",
+            "structure_context_repair_rows": (structure_context_repair.get("counts") or {}).get("structured_candidate_rows", 0) if isinstance(structure_context_repair, dict) else 0,
+            "structure_context_repair_best_variant": (((structure_context_repair.get("decision") or {}).get("best_repaired_variant") or {}).get("name") if isinstance(((structure_context_repair.get("decision") or {}).get("best_repaired_variant") if isinstance(structure_context_repair.get("decision"), dict) else {}), dict) else "") if isinstance(structure_context_repair, dict) else "",
+            "repaired_structure_shadow_validation_status": repaired_structure_shadow_validation.get("status", "NA") if isinstance(repaired_structure_shadow_validation, dict) else "NA",
+            "repaired_structure_shadow_validation_decision": ((repaired_structure_shadow_validation.get("decision") or {}).get("status") if isinstance(repaired_structure_shadow_validation.get("decision"), dict) else "NA") if isinstance(repaired_structure_shadow_validation, dict) else "NA",
+            "repaired_structure_shadow_validation_rows": (repaired_structure_shadow_validation.get("counts") or {}).get("structured_candidate_rows", 0) if isinstance(repaired_structure_shadow_validation, dict) else 0,
+            "repaired_structure_shadow_validation_best_variant": (((repaired_structure_shadow_validation.get("decision") or {}).get("best_validation_variant") or {}).get("name") if isinstance(((repaired_structure_shadow_validation.get("decision") or {}).get("best_validation_variant") if isinstance(repaired_structure_shadow_validation.get("decision"), dict) else {}), dict) else "") if isinstance(repaired_structure_shadow_validation, dict) else "",
+            "independent_repaired_validation_status": independent_repaired_validation.get("status", "NA") if isinstance(independent_repaired_validation, dict) else "NA",
+            "independent_repaired_validation_decision": ((independent_repaired_validation.get("decision") or {}).get("status") if isinstance(independent_repaired_validation.get("decision"), dict) else "NA") if isinstance(independent_repaired_validation, dict) else "NA",
+            "independent_repaired_validation_rows": (independent_repaired_validation.get("counts") or {}).get("target_candidate_rows", 0) if isinstance(independent_repaired_validation, dict) else 0,
+            "independent_repaired_validation_best_variant": (((independent_repaired_validation.get("decision") or {}).get("best_stability_variant") or {}).get("name") if isinstance(((independent_repaired_validation.get("decision") or {}).get("best_stability_variant") if isinstance(independent_repaired_validation.get("decision"), dict) else {}), dict) else "") if isinstance(independent_repaired_validation, dict) else "",
+            "paper_unlock_profile_refinement_status": paper_unlock_profile_refinement.get("status", "NA") if isinstance(paper_unlock_profile_refinement, dict) else "NA",
+            "paper_unlock_profile_refinement_decision": ((paper_unlock_profile_refinement.get("decision") or {}).get("status") if isinstance(paper_unlock_profile_refinement.get("decision"), dict) else "NA") if isinstance(paper_unlock_profile_refinement, dict) else "NA",
+            "paper_unlock_profile_refinement_rows": (paper_unlock_profile_refinement.get("counts") or {}).get("target_candidate_rows", 0) if isinstance(paper_unlock_profile_refinement, dict) else 0,
+            "paper_unlock_profile_refinement_profile": ((paper_unlock_profile_refinement.get("decision") or {}).get("profile_name") if isinstance(paper_unlock_profile_refinement.get("decision"), dict) else "") if isinstance(paper_unlock_profile_refinement, dict) else "",
         },
         "orders": {
             "submitted": orders_submitted,
@@ -519,6 +579,12 @@ def build_performance_report(data_dir: str | Path) -> dict[str, Any]:
         "pattern_conditioned_shadow": pattern_conditioned_shadow if isinstance(pattern_conditioned_shadow, dict) else {},
         "scenario_pattern_calibration": scenario_pattern_calibration if isinstance(scenario_pattern_calibration, dict) else {},
         "market_structure_map": market_structure_map if isinstance(market_structure_map, dict) else {},
+        "calibrated_structure_shadow": calibrated_structure_shadow if isinstance(calibrated_structure_shadow, dict) else {},
+        "structure_filter_diagnostics": structure_filter_diagnostics if isinstance(structure_filter_diagnostics, dict) else {},
+        "structure_context_repair": structure_context_repair if isinstance(structure_context_repair, dict) else {},
+        "repaired_structure_shadow_validation": repaired_structure_shadow_validation if isinstance(repaired_structure_shadow_validation, dict) else {},
+        "independent_repaired_validation": independent_repaired_validation if isinstance(independent_repaired_validation, dict) else {},
+        "paper_unlock_profile_refinement": paper_unlock_profile_refinement if isinstance(paper_unlock_profile_refinement, dict) else {},
         "positions": {
             "open": int(status.get("open_positions") or 0),
             "closed": len(closed_positions),
@@ -995,9 +1061,299 @@ def write_performance_artifacts(data_dir: str | Path) -> dict[str, Any]:
             market_structure_map = {"status": "FAIL", "error": str(exc)}
     else:
         market_structure_map = {"status": "DISABLED"}
+    try:
+        from config import Config
+        css_enabled = bool(getattr(Config, "CALIBRATED_STRUCTURE_SHADOW_ENABLED", True))
+    except Exception:
+        css_enabled = True
+    if css_enabled:
+        try:
+            from core.calibrated_structure_shadow import write_calibrated_structure_shadow_report
+            calibrated_structure_shadow = write_calibrated_structure_shadow_report(paths.data_dir)
+        except Exception as exc:
+            calibrated_structure_shadow = {"status": "FAIL", "error": str(exc)}
+    else:
+        calibrated_structure_shadow = {"status": "DISABLED"}
+    try:
+        from config import Config
+        sfd_enabled = bool(getattr(Config, "STRUCTURE_FILTER_DIAGNOSTICS_ENABLED", True))
+    except Exception:
+        sfd_enabled = True
+    if sfd_enabled:
+        try:
+            from core.structure_filter_diagnostics import write_structure_filter_diagnostics_report
+            structure_filter_diagnostics = write_structure_filter_diagnostics_report(paths.data_dir)
+        except Exception as exc:
+            structure_filter_diagnostics = {"status": "FAIL", "error": str(exc)}
+    else:
+        structure_filter_diagnostics = {"status": "DISABLED"}
+    try:
+        from config import Config
+        scr_enabled = bool(getattr(Config, "STRUCTURE_CONTEXT_REPAIR_ENABLED", True))
+    except Exception:
+        scr_enabled = True
+    if scr_enabled:
+        try:
+            from core.structure_context_repair import write_structure_context_repair_report
+            structure_context_repair = write_structure_context_repair_report(paths.data_dir)
+        except Exception as exc:
+            structure_context_repair = {"status": "FAIL", "error": str(exc)}
+    else:
+        structure_context_repair = {"status": "DISABLED"}
+    try:
+        from config import Config
+        rsv_enabled = bool(getattr(Config, "REPAIRED_STRUCTURE_SHADOW_VALIDATION_ENABLED", True))
+    except Exception:
+        rsv_enabled = True
+    if rsv_enabled:
+        try:
+            from core.repaired_structure_shadow_validation import write_repaired_structure_shadow_validation_report
+            repaired_structure_shadow_validation = write_repaired_structure_shadow_validation_report(paths.data_dir)
+        except Exception as exc:
+            repaired_structure_shadow_validation = {"status": "FAIL", "error": str(exc)}
+    else:
+        repaired_structure_shadow_validation = {"status": "DISABLED"}
+    try:
+        from config import Config
+        irv_enabled = bool(getattr(Config, "INDEPENDENT_REPAIRED_VALIDATION_ENABLED", True))
+    except Exception:
+        irv_enabled = True
+    if irv_enabled:
+        try:
+            from core.independent_repaired_validation import write_independent_repaired_validation_report
+            independent_repaired_validation = write_independent_repaired_validation_report(paths.data_dir)
+        except Exception as exc:
+            independent_repaired_validation = {"status": "FAIL", "error": str(exc)}
+    else:
+        independent_repaired_validation = {"status": "DISABLED"}
+    try:
+        from config import Config
+        pur_enabled = bool(getattr(Config, "PAPER_UNLOCK_PROFILE_REFINEMENT_ENABLED", True))
+    except Exception:
+        pur_enabled = True
+    if pur_enabled:
+        try:
+            from core.paper_unlock_profile_refinement import write_paper_unlock_profile_refinement_report
+            paper_unlock_profile_refinement = write_paper_unlock_profile_refinement_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_profile_refinement = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_profile_refinement = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        ped_enabled = bool(getattr(Config, "PAPER_UNLOCK_EXPERIMENT_DESIGN_ENABLED", True))
+    except Exception:
+        ped_enabled = True
+    if ped_enabled:
+        try:
+            from core.paper_unlock_experiment_design import write_paper_unlock_experiment_design_report
+            paper_unlock_experiment_design = write_paper_unlock_experiment_design_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_experiment_design = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_experiment_design = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        psd_enabled = bool(getattr(Config, "PAPER_UNLOCK_SHADOW_DRY_RUN_ENABLED", True))
+    except Exception:
+        psd_enabled = True
+    if psd_enabled:
+        try:
+            from core.paper_unlock_shadow_dry_run import write_paper_unlock_shadow_dry_run_report
+            paper_unlock_shadow_dry_run = write_paper_unlock_shadow_dry_run_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_shadow_dry_run = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_shadow_dry_run = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        psrc_enabled = bool(getattr(Config, "PAPER_UNLOCK_SHADOW_RATE_CALIBRATION_ENABLED", True))
+    except Exception:
+        psrc_enabled = True
+    if psrc_enabled:
+        try:
+            from core.paper_unlock_shadow_rate_calibration import write_paper_unlock_shadow_rate_calibration_report
+            paper_unlock_shadow_rate_calibration = write_paper_unlock_shadow_rate_calibration_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_shadow_rate_calibration = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_shadow_rate_calibration = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        pbc_enabled = bool(getattr(Config, "PAPER_UNLOCK_BOUNDED_CADENCE_ENABLED", True))
+    except Exception:
+        pbc_enabled = True
+    if pbc_enabled:
+        try:
+            from core.paper_unlock_bounded_cadence import write_paper_unlock_bounded_cadence_report
+            paper_unlock_bounded_cadence = write_paper_unlock_bounded_cadence_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_bounded_cadence = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_bounded_cadence = {"status": "DISABLED"}
+
+
+    try:
+        from config import Config
+        pssr_enabled = bool(getattr(Config, "PAPER_UNLOCK_SHADOW_STABILITY_REVIEW_ENABLED", True))
+    except Exception:
+        pssr_enabled = True
+    if pssr_enabled:
+        try:
+            from core.paper_unlock_shadow_stability_review import write_paper_unlock_shadow_stability_review_report
+            paper_unlock_shadow_stability_review = write_paper_unlock_shadow_stability_review_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_shadow_stability_review = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_shadow_stability_review = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        pad_enabled = bool(getattr(Config, "PAPER_UNLOCK_ACTIVATION_DRAFT_ENABLED", True))
+    except Exception:
+        pad_enabled = True
+    if pad_enabled:
+        try:
+            from core.paper_unlock_activation_draft import write_paper_unlock_activation_draft_report
+            paper_unlock_activation_draft = write_paper_unlock_activation_draft_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_activation_draft = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_activation_draft = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        psd_enabled = bool(getattr(Config, "PAPER_UNLOCK_EXPERIMENT_SWITCH_DRAFT_ENABLED", True))
+    except Exception:
+        psd_enabled = True
+    if psd_enabled:
+        try:
+            from core.paper_unlock_experiment_switch_draft import write_paper_unlock_experiment_switch_draft_report
+            paper_unlock_experiment_switch_draft = write_paper_unlock_experiment_switch_draft_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_experiment_switch_draft = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_experiment_switch_draft = {"status": "DISABLED"}
+
+
+    try:
+        from config import Config
+        pms_enabled = bool(getattr(Config, "PAPER_UNLOCK_MANUAL_SWITCH_PREFLIGHT_ENABLED", True))
+    except Exception:
+        pms_enabled = True
+    if pms_enabled:
+        try:
+            from core.paper_unlock_manual_switch_preflight import write_paper_unlock_manual_switch_preflight_report
+            paper_unlock_manual_switch_preflight = write_paper_unlock_manual_switch_preflight_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_manual_switch_preflight = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_manual_switch_preflight = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        pma_enabled = bool(getattr(Config, "PAPER_UNLOCK_MANUAL_ACTIVATION_PATCH_ENABLED", True))
+    except Exception:
+        pma_enabled = True
+    if pma_enabled:
+        try:
+            from core.paper_unlock_manual_activation_patch import write_paper_unlock_manual_activation_patch_report
+            paper_unlock_manual_activation_patch = write_paper_unlock_manual_activation_patch_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_manual_activation_patch = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_manual_activation_patch = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        pfe_enabled = bool(getattr(Config, "PAPER_UNLOCK_FINAL_ENABLE_PREFLIGHT_ENABLED", True))
+    except Exception:
+        pfe_enabled = True
+    if pfe_enabled:
+        try:
+            from core.paper_unlock_final_enable_preflight import write_paper_unlock_final_enable_preflight_report
+            paper_unlock_final_enable_preflight = write_paper_unlock_final_enable_preflight_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_final_enable_preflight = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_final_enable_preflight = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        pge_enabled = bool(getattr(Config, "PAPER_UNLOCK_GUARDED_ENABLE_ENABLED", True))
+    except Exception:
+        pge_enabled = True
+    if pge_enabled:
+        try:
+            from core.paper_unlock_guarded_enable import write_paper_unlock_guarded_enable_report
+            paper_unlock_guarded_enable = write_paper_unlock_guarded_enable_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_guarded_enable = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_guarded_enable = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        pra_enabled = bool(getattr(Config, "PAPER_UNLOCK_RUNTIME_AUDIT_ENABLED", True))
+    except Exception:
+        pra_enabled = True
+    if pra_enabled:
+        try:
+            from core.paper_unlock_runtime_audit import write_paper_unlock_runtime_audit_report
+            paper_unlock_runtime_audit = write_paper_unlock_runtime_audit_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_runtime_audit = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_runtime_audit = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        prb_enabled = bool(getattr(Config, "PAPER_UNLOCK_ROUTING_BRIDGE_ENABLED", True))
+    except Exception:
+        prb_enabled = True
+    if prb_enabled:
+        try:
+            from core.paper_unlock_routing_bridge import write_paper_unlock_routing_bridge_report
+            paper_unlock_routing_bridge = write_paper_unlock_routing_bridge_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_routing_bridge = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_routing_bridge = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        pca_enabled = bool(getattr(Config, "PAPER_UNLOCK_CANDIDATE_AUDIT_ENABLED", True))
+    except Exception:
+        pca_enabled = True
+    if pca_enabled:
+        try:
+            from core.paper_unlock_candidate_audit import write_paper_unlock_candidate_audit_report
+            paper_unlock_candidate_audit = write_paper_unlock_candidate_audit_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_candidate_audit = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_candidate_audit = {"status": "DISABLED"}
+
+    try:
+        from config import Config
+        phr_enabled = bool(getattr(Config, "PAPER_UNLOCK_HANDOFF_DRY_RUN_ENABLED", True))
+    except Exception:
+        phr_enabled = True
+    if phr_enabled:
+        try:
+            from core.paper_unlock_handoff_dry_run import write_paper_unlock_handoff_dry_run_report
+            paper_unlock_handoff_dry_run = write_paper_unlock_handoff_dry_run_report(paths.data_dir)
+        except Exception as exc:
+            paper_unlock_handoff_dry_run = {"status": "FAIL", "error": str(exc)}
+    else:
+        paper_unlock_handoff_dry_run = {"status": "DISABLED"}
     performance = build_performance_report(paths.data_dir)
     drift = build_drift_report(paths.data_dir, performance)
     paths.performance_path.write_text(json.dumps(performance, indent=2, sort_keys=True), encoding="utf-8")
     paths.drift_path.write_text(json.dumps(drift, indent=2, sort_keys=True), encoding="utf-8")
     paths.dashboard_path.write_text(build_dashboard_html(performance, drift, lifecycle), encoding="utf-8")
-    return {"performance": performance, "drift": drift, "dashboard_path": str(paths.dashboard_path), "unlock_rejection": unlock_rejection, "crypto_scenario": crypto_scenario, "candlestick_patterns": candlestick_patterns, "pattern_conditioned_shadow": pattern_conditioned_shadow, "scenario_pattern_calibration": scenario_pattern_calibration, "market_structure_map": market_structure_map}
+    return {"performance": performance, "drift": drift, "dashboard_path": str(paths.dashboard_path), "unlock_rejection": unlock_rejection, "crypto_scenario": crypto_scenario, "candlestick_patterns": candlestick_patterns, "pattern_conditioned_shadow": pattern_conditioned_shadow, "scenario_pattern_calibration": scenario_pattern_calibration, "market_structure_map": market_structure_map, "calibrated_structure_shadow": calibrated_structure_shadow, "structure_filter_diagnostics": structure_filter_diagnostics, "structure_context_repair": structure_context_repair, "repaired_structure_shadow_validation": repaired_structure_shadow_validation, "independent_repaired_validation": independent_repaired_validation, "paper_unlock_profile_refinement": paper_unlock_profile_refinement, "paper_unlock_experiment_design": paper_unlock_experiment_design, "paper_unlock_shadow_dry_run": paper_unlock_shadow_dry_run, "paper_unlock_shadow_rate_calibration": paper_unlock_shadow_rate_calibration, "paper_unlock_bounded_cadence": paper_unlock_bounded_cadence, "paper_unlock_shadow_stability_review": paper_unlock_shadow_stability_review, "paper_unlock_activation_draft": paper_unlock_activation_draft, "paper_unlock_experiment_switch_draft": paper_unlock_experiment_switch_draft, "paper_unlock_manual_switch_preflight": paper_unlock_manual_switch_preflight, "paper_unlock_manual_activation_patch": paper_unlock_manual_activation_patch, "paper_unlock_final_enable_preflight": paper_unlock_final_enable_preflight, "paper_unlock_guarded_enable": paper_unlock_guarded_enable, "paper_unlock_runtime_audit": paper_unlock_runtime_audit, "paper_unlock_routing_bridge": paper_unlock_routing_bridge, "paper_unlock_candidate_audit": paper_unlock_candidate_audit, "paper_unlock_handoff_dry_run": paper_unlock_handoff_dry_run}
