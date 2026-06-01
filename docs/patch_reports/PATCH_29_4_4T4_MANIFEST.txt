@@ -1,0 +1,31 @@
+PATCH 29.4.4t-4 — Launcher read-only dashboard banner/footer wiring
+
+Files included:
+- trading_bot/core/lsr_v2_launcher_read_only_dashboard_banner.py
+- trading_bot/run_lsr_v2_launcher_read_only_dashboard_banner.py
+- trading_bot/tests/test_lsr_v2_launcher_read_only_dashboard_banner.py
+- trading_bot/avvia_bot_live.py
+- avvia_bot_live.bat
+- trading_bot/docs/PROMPT_29_4_4T4_LAUNCHER_READ_ONLY_DASHBOARD_BANNER_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T4_MANIFEST.txt
+
+Patch type:
+- read-only
+- launcher visibility/banner wiring
+- no execution-mode change
+
+Safety invariants:
+- no live
+- no testnet
+- no exchange broker
+- no submit
+- no open
+- no close
+- no scheduler
+- no Telegram network/send
+- no paper_state/paper_status mutation
+- no re-entry
+- no fourth trade unlock
+
+Expected decision:
+- LSR_V2_LAUNCHER_READ_ONLY_DASHBOARD_BANNER_READY

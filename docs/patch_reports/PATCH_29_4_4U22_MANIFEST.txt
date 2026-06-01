@@ -1,0 +1,32 @@
+Patch: 29.4.4u-22 — Generic LSR-v2 paper-only order-intent validation preflight
+Type: patch-only
+Mode: preflight-only / read-only / fail-closed
+
+Files:
+- trading_bot/core/lsr_v2_generic_paper_only_order_intent_validation_preflight.py
+- trading_bot/run_lsr_v2_generic_paper_only_order_intent_validation_preflight.py
+- trading_bot/tests/test_lsr_v2_generic_paper_only_order_intent_validation_preflight.py
+- trading_bot/docs/PROMPT_29_4_4U22_GENERIC_LSR_V2_PAPER_ONLY_ORDER_INTENT_VALIDATION_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U22_MANIFEST.txt
+
+Upstream dependency:
+- 29.4.4u-21 — Generic LSR-v2 paper-only order-intent candidate audit
+
+Expected decision:
+- LSR_V2_GENERIC_PAPER_ONLY_ORDER_INTENT_VALIDATION_PREFLIGHT_READY
+
+Safety invariants:
+- no paper_order_intent materialization
+- no paper_order_intent persistence
+- no submit
+- no close
+- no broker call
+- no scheduler
+- no Telegram network send
+- no paper_state mutation
+- no paper_status mutation
+- no live/testnet/exchange broker
+- no ordinal expansion
+
+Next recommended patch:
+- 29.4.4u-23 — Generic LSR-v2 paper-only order-intent materialization dry-run

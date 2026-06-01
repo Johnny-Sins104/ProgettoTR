@@ -1,0 +1,10 @@
+Prompt 29.4.4s-10ai — External fixes selective merge + candlestick conflict hardening
+
+Files:
+trading_bot/core/candlestick_patterns.py
+trading_bot/core/correlation_engine.py
+trading_bot/core/notifier.py
+trading_bot/main.py
+trading_bot/tests/test_external_selective_merge.py
+trading_bot/docs/PROMPT_29_4_4S10AI_EXTERNAL_FIXES_SELECTIVE_MERGE_PATCH_REPORT.md
+PATCH_29_4_4S10AI_MANIFEST.txt

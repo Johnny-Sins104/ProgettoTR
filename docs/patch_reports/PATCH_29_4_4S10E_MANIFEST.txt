@@ -1,0 +1,19 @@
+PROMPT 29.4.4s-10e — LSR-v2 runtime bridge hard-hook + footer event-log fallback
+
+Modified/added files:
+- trading_bot/core/lsr_v2_runtime_bridge.py
+- trading_bot/core/paper_engine.py
+- trading_bot/core/paper_once_console_summary.py
+- trading_bot/core/paper_once_runner_footer.py
+- trading_bot/tests/test_paper_once_runner_footer_lsr_v2.py
+- trading_bot/tests/test_lsr_v2_runtime_bridge_cycle_scoped.py
+- trading_bot/docs/PROMPT_29_4_4S10E_LSR_V2_RUNTIME_HARD_HOOK_PATCH_REPORT.md
+
+Safety:
+- audit-only
+- fail-closed
+- no live/testnet/exchange broker
+- no broker call
+- no order submission
+- no position opening
+- no paper state mutation

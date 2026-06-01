@@ -1,0 +1,26 @@
+PATCH 29.4.4t-6 — Launcher/runner read-only handoff consolidation preflight
+
+Files:
+- trading_bot/core/lsr_v2_launcher_runner_read_only_handoff_preflight.py
+- trading_bot/run_lsr_v2_launcher_runner_read_only_handoff_preflight.py
+- trading_bot/tests/test_lsr_v2_launcher_runner_read_only_handoff_preflight.py
+- trading_bot/docs/PROMPT_29_4_4T6_LAUNCHER_RUNNER_READ_ONLY_HANDOFF_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T6_MANIFEST.txt
+
+Scope:
+- Audit-only/read-only handoff consolidation preflight after launcher/runner visibility parity.
+- Confirms source markers, validated artifacts, flat lock, absent operator envs, and safety-pinned future handoff plan.
+
+Safety:
+- No submit.
+- No open.
+- No close.
+- No broker call.
+- No scheduler.
+- No Telegram network/send.
+- No paper_state mutation.
+- No paper_status mutation.
+- No launcher/runner/engine mutation.
+- No re-entry.
+- No fourth-trade unlock.
+- No live/testnet/exchange broker.

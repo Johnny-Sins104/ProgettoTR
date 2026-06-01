@@ -1,0 +1,19 @@
+PATCH 29.4.4t-16 — LSR-v2 fourth-trade submit preflight
+
+FILES:
+trading_bot/core/lsr_v2_fourth_trade_submit_preflight.py
+trading_bot/run_lsr_v2_fourth_trade_submit_preflight.py
+trading_bot/tests/test_lsr_v2_fourth_trade_submit_preflight.py
+trading_bot/docs/PROMPT_29_4_4T16_FOURTH_TRADE_SUBMIT_PREFLIGHT_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4T16_MANIFEST.txt
+
+SAFETY:
+- submit-preflight-only
+- read-only
+- fail-closed
+- no broker calls
+- no submit/open/close
+- no scheduler
+- no Telegram/network send
+- no paper_state/paper_status mutation
+- no live/testnet/exchange broker

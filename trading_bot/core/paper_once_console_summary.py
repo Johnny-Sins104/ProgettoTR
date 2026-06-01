@@ -1,18 +1,20 @@
-"""Prompt 29.4.4o-2 paper once-cycle console flush hotfix.
+"""Prompt 29.4.4t-2 paper runner footer / console visibility consolidation.
 
 This module is deliberately formatting-only. It reads already-produced cycle and
 runtime audit summaries and prints a clear terminal footer for ``--once`` runs.
 It never changes gates, routing, risk, broker state, orders, or positions.
 
-29.4.4o-2 only hardens console delivery: every footer line is flushed and the
-caller can use the printed flag/fallback guard to avoid missing stdout footers.
+29.4.4t-2 extends the already read-only once footer with LSR-v2
+dashboard/lifecycle artifact visibility. It remains formatting-only: no gates,
+routing, broker calls, Telegram sends, orders, positions, or state files are
+mutated by this module.
 """
 from __future__ import annotations
 
 import sys
 from typing import Any, Mapping, TextIO
 
-PROMPT_ID = "29.4.4o-3c"
+PROMPT_ID = "29.4.4t-2"
 READY_DECISION = "PAPER_ONCE_CONSOLE_SUMMARY_FLUSH_READY"
 
 
@@ -57,6 +59,9 @@ def build_paper_once_console_summary_lines(
     *,
     runtime_audit: Mapping[str, Any] | None = None,
     routing_bridge: Mapping[str, Any] | None = None,
+    lsr_v2_bridge: Mapping[str, Any] | None = None,
+    lsr_v2_runtime_bridge: Mapping[str, Any] | None = None,
+    lsr_v2_engine_artifact_hook: Mapping[str, Any] | None = None,
 ) -> list[str]:
     """Return deterministic console lines for a completed ``--once`` cycle.
 
@@ -67,6 +72,9 @@ def build_paper_once_console_summary_lines(
     summary = summary if isinstance(summary, Mapping) else {}
     runtime_audit = runtime_audit if isinstance(runtime_audit, Mapping) else {}
     routing_bridge = routing_bridge if isinstance(routing_bridge, Mapping) else {}
+    lsr_v2_bridge = lsr_v2_bridge if isinstance(lsr_v2_bridge, Mapping) else {}
+    lsr_v2_runtime_bridge = lsr_v2_runtime_bridge if isinstance(lsr_v2_runtime_bridge, Mapping) else {}
+    lsr_v2_engine_artifact_hook = lsr_v2_engine_artifact_hook if isinstance(lsr_v2_engine_artifact_hook, Mapping) else {}
     runtime_decision = _safe_dict(runtime_audit.get("decision"))
     bridge_decision = _safe_dict(routing_bridge.get("decision"))
 
@@ -124,6 +132,56 @@ def build_paper_once_console_summary_lines(
             f"positions_opened_by_bridge={_safe_int(bridge_decision.get('positions_opened_by_bridge'), 0)}",
         ])
 
+    if lsr_v2_bridge:
+        lines.extend([
+            f"lsr_v2_bridge_decision={lsr_v2_bridge.get('decision') or ''}",
+            f"lsr_v2_bridge_events={_safe_int(lsr_v2_bridge.get('bridge_events'), 0)}",
+            f"lsr_v2_candidate_ready_events={_safe_int(lsr_v2_bridge.get('candidate_ready_events'), 0)}",
+            f"lsr_v2_would_route_count={_safe_int(lsr_v2_bridge.get('would_route_count'), 0)}",
+            f"lsr_v2_would_submit_count={_safe_int(lsr_v2_bridge.get('would_submit_count'), 0)}",
+            f"orders_submitted_by_lsr_v2_bridge={_safe_int(lsr_v2_bridge.get('orders_submitted_by_lsr_v2_bridge'), 0)}",
+            f"positions_opened_by_lsr_v2_bridge={_safe_int(lsr_v2_bridge.get('positions_opened_by_lsr_v2_bridge'), 0)}",
+        ])
+
+    if lsr_v2_runtime_bridge:
+        lines.extend([
+            f"lsr_v2_runtime_bridge_decision={lsr_v2_runtime_bridge.get('decision') or ''}",
+            "lsr_v2_runtime_bridge_prompt=29.4.4s-10f-1",
+            f"lsr_v2_runtime_cycle_id={lsr_v2_runtime_bridge.get('cycle_id') or lsr_v2_runtime_bridge.get('lsr_v2_runtime_cycle_id') or ''}",
+            f"lsr_v2_runtime_bridge_events={_safe_int(lsr_v2_runtime_bridge.get('runtime_bridge_events'), 0)}",
+            f"lsr_v2_runtime_candidate_events={_safe_int(lsr_v2_runtime_bridge.get('runtime_candidate_events'), 0)}",
+            f"lsr_v2_runtime_candidate_ready_events={_safe_int(lsr_v2_runtime_bridge.get('runtime_candidate_ready_events'), 0)}",
+            f"lsr_v2_runtime_would_route_count={_safe_int(lsr_v2_runtime_bridge.get('runtime_would_route_count'), lsr_v2_runtime_bridge.get('would_route_count', 0))}",
+            f"lsr_v2_runtime_would_submit_count={_safe_int(lsr_v2_runtime_bridge.get('runtime_would_submit_count'), 0)}",
+            f"lsr_v2_operator_enable={_bool_label(lsr_v2_runtime_bridge.get('lsr_v2_operator_enable', lsr_v2_runtime_bridge.get('operator_enable', False)))}",
+            f"lsr_v2_operator_confirmation_ok={_bool_label(lsr_v2_runtime_bridge.get('lsr_v2_operator_confirmation_ok', lsr_v2_runtime_bridge.get('operator_confirmation_ok', False)))}",
+            f"orders_submitted_by_lsr_v2_runtime_bridge={_safe_int(lsr_v2_runtime_bridge.get('orders_submitted_by_lsr_v2_runtime_bridge'), 0)}",
+            f"positions_opened_by_lsr_v2_runtime_bridge={_safe_int(lsr_v2_runtime_bridge.get('positions_opened_by_lsr_v2_runtime_bridge'), 0)}",
+            f"lsr_v2_standalone_bridge_events={_safe_int(lsr_v2_runtime_bridge.get('standalone_bridge_events'), 0)}",
+            f"lsr_v2_bridge_report_cycle_id={lsr_v2_runtime_bridge.get('lsr_v2_bridge_report_cycle_id') or ''}",
+            f"lsr_v2_bridge_report_stale={_bool_label(lsr_v2_runtime_bridge.get('lsr_v2_bridge_report_stale', False))}",
+        ])
+
+
+    if lsr_v2_engine_artifact_hook:
+        lines.extend([
+            f"lsr_v2_engine_hook_decision={lsr_v2_engine_artifact_hook.get('decision') or ''}",
+            f"lsr_v2_lifecycle_state={lsr_v2_engine_artifact_hook.get('lifecycle_state') or ''}",
+            f"lsr_v2_engine_artifact_hook_ready={_bool_label(lsr_v2_engine_artifact_hook.get('engine_artifact_hook_ready', False))}",
+            f"lsr_v2_paper_engine_hook_read_only={_bool_label(lsr_v2_engine_artifact_hook.get('paper_engine_hook_read_only', True))}",
+            f"lsr_v2_dashboard_ready={_bool_label(lsr_v2_engine_artifact_hook.get('telegram_dashboard_ready', False))}",
+            f"lsr_v2_telegram_payload_ready={_bool_label(lsr_v2_engine_artifact_hook.get('telegram_payload_ready', False))}",
+            f"lsr_v2_telegram_update_ready={_bool_label(lsr_v2_engine_artifact_hook.get('telegram_update_ready', False))}",
+            f"lsr_v2_telegram_send_allowed={_bool_label(lsr_v2_engine_artifact_hook.get('telegram_send_allowed', False))}",
+            f"lsr_v2_visual_sl_tp_progress_bar_ready={_bool_label(lsr_v2_engine_artifact_hook.get('visual_sl_tp_progress_bar_ready', False))}",
+            f"lsr_v2_visual_sl_tp_progress_bar={lsr_v2_engine_artifact_hook.get('visual_sl_tp_progress_bar') or ''}",
+            f"lsr_v2_fourth_trade_locked={_bool_label(lsr_v2_engine_artifact_hook.get('fourth_trade_locked', False))}",
+            f"lsr_v2_stability_lock_active={_bool_label(lsr_v2_engine_artifact_hook.get('stability_lock_active', False))}",
+            f"orders_submitted_by_lsr_v2_engine_artifact_hook={_safe_int(lsr_v2_engine_artifact_hook.get('orders_submitted_by_engine_artifact_hook'), 0)}",
+            f"positions_opened_by_lsr_v2_engine_artifact_hook={_safe_int(lsr_v2_engine_artifact_hook.get('positions_opened_by_engine_artifact_hook'), 0)}",
+            f"positions_closed_by_lsr_v2_engine_artifact_hook={_safe_int(lsr_v2_engine_artifact_hook.get('positions_closed_by_engine_artifact_hook'), 0)}",
+        ])
+
     if signals == 0 and orders == 0:
         reason = "all assets rejected by filters"
         if scanned <= 0:
@@ -161,6 +219,9 @@ def print_paper_once_console_summary(
     *,
     runtime_audit: Mapping[str, Any] | None = None,
     routing_bridge: Mapping[str, Any] | None = None,
+    lsr_v2_bridge: Mapping[str, Any] | None = None,
+    lsr_v2_runtime_bridge: Mapping[str, Any] | None = None,
+    lsr_v2_engine_artifact_hook: Mapping[str, Any] | None = None,
     stream: TextIO | None = None,
     flush: bool = True,
 ) -> None:
@@ -171,7 +232,14 @@ def print_paper_once_console_summary(
     terminal footer can be missed before process shutdown or interruption.
     """
     target = stream if stream is not None else sys.stdout
-    for line in build_paper_once_console_summary_lines(summary, runtime_audit=runtime_audit, routing_bridge=routing_bridge):
+    for line in build_paper_once_console_summary_lines(
+        summary,
+        runtime_audit=runtime_audit,
+        routing_bridge=routing_bridge,
+        lsr_v2_bridge=lsr_v2_bridge,
+        lsr_v2_runtime_bridge=lsr_v2_runtime_bridge,
+        lsr_v2_engine_artifact_hook=lsr_v2_engine_artifact_hook,
+    ):
         print(line, file=target, flush=flush)
     if flush:
         try:

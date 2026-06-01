@@ -1,0 +1,41 @@
+PATCH: 29.4.4u-67
+TITLE: Generic LSR-v2 supervised paper integrated dry-run runtime bundle
+BASELINE: 29.4.4u-66 validated
+TYPE: macro-patch / bundle / read-only / fail-closed
+
+FILES:
+- trading_bot/core/lsr_v2_generic_supervised_paper_integrated_dry_run_runtime_bundle.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_integrated_dry_run_runtime_preflight.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_integrated_dry_run_runtime_execution_scaffold.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_integrated_dry_run_runtime_execution.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_integrated_dry_run_runtime_bundle.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_integrated_dry_run_runtime_bundle.py
+- trading_bot/docs/PROMPT_29_4_4U67_GENERIC_LSR_V2_SUPERVISED_PAPER_INTEGRATED_DRY_RUN_RUNTIME_BUNDLE_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U67_MANIFEST.txt
+
+UPSTREAM REQUIRED:
+- data/lsr_v2_generic_supervised_paper_runtime_arming_bundle_report.json
+- decision LSR_V2_GENERIC_SUPERVISED_PAPER_RUNTIME_ARMING_BUNDLE_READY
+
+BUNDLE SUBSTEPS:
+- integrated dry-run runtime preflight
+- integrated dry-run runtime execution scaffold
+- integrated dry-run runtime execution
+
+SAFETY:
+- no state mutation
+- no status mutation
+- no broker call
+- no submit
+- no close
+- no scheduler
+- no Telegram/network send
+- no live/testnet/exchange enablement
+- no ordinal expansion
+- fail closed
+
+EXPECTED DECISION:
+LSR_V2_GENERIC_SUPERVISED_PAPER_INTEGRATED_DRY_RUN_RUNTIME_BUNDLE_READY
+
+NEXT PATCH:
+29.4.4u-68 — Generic LSR-v2 supervised paper order-intent real runtime activation bundle

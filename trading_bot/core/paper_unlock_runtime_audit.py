@@ -22,6 +22,7 @@ from typing import Any, Iterable, Mapping
 import json
 
 from config import Config
+from core.jsonl_utils import iter_jsonl_tail
 from core.calibrated_structure_shadow import _safe_float, _safe_int
 from core.paper_unlock_guarded_enable import ACTIVE_DECISION, ENABLE_NAME, PROFILE_NAME, REPORT_NAME as GUARDED_ENABLE_REPORT_NAME
 
@@ -53,27 +54,8 @@ def _read_json(path: str | Path) -> dict[str, Any]:
 
 
 def _read_jsonl(path: str | Path, *, max_lines: int = 5000) -> list[dict[str, Any]]:
-    p = Path(path)
-    if not p.exists():
-        return []
-    try:
-        lines = p.read_text(encoding="utf-8").splitlines()
-    except Exception:
-        return []
-    if max_lines > 0 and len(lines) > max_lines:
-        lines = lines[-max_lines:]
-    out: list[dict[str, Any]] = []
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            item = json.loads(line)
-        except Exception:
-            continue
-        if isinstance(item, dict):
-            out.append(item)
-    return out
+    return iter_jsonl_tail(path, max_lines=max_lines, require_event_type=False)
+
 
 
 def _counts(values: Iterable[Any]) -> dict[str, int]:

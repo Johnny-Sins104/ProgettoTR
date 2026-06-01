@@ -1,0 +1,21 @@
+Prompt 29.4.4s-10t — LSR-v2 second supervised paper trade controlled re-arm / candidate wait gate
+
+Files:
+trading_bot/core/lsr_v2_second_trade_rearm_gate.py
+trading_bot/run_lsr_v2_second_trade_rearm_gate.py
+trading_bot/tests/test_lsr_v2_second_trade_rearm_gate.py
+trading_bot/docs/PROMPT_29_4_4S10T_SECOND_TRADE_REARM_GATE_PATCH_REPORT.md
+
+Safety:
+- no live
+- no testnet
+- no exchange broker
+- no broker submit
+- no broker close
+- no new order
+- no new position
+- no paper state mutation
+- no paper status mutation
+- no re-entry
+- second_trade_execute_enabled=false
+- second_trade_submit_enabled=false

@@ -23,6 +23,7 @@ from core.client import ExchangeClient
 from core.engine import DecisionEngine
 from core.paper_broker import PaperBroker
 from core.broker_adapter import PaperBrokerAdapter, ExchangeBrokerAdapter
+from core.paper_market_data import CachedMarketDataNotFound, load_cached_ohlcv, load_replay_ohlcv
 from core.paper_position_monitor import PaperPositionMonitor
 from core.telegram_control import TelegramControlBot
 from core.telegram_proactive import TelegramProactiveNotifier, TelegramProactiveSettings, stable_hash
@@ -111,6 +112,26 @@ from core.paper_order_leakage_guard import (
     should_block_paper_order_attempt,
     write_paper_order_leakage_guard_report,
 )
+from core.edge_strategy_runtime_pruning import (
+    EdgeStrategyRuntimePruningSettings,
+    build_runtime_pruning_event,
+    extract_archetype,
+    evaluate_runtime_archetype_pruning,
+    write_edge_strategy_runtime_pruning_report,
+)
+from core.lsr_v2_paper_supervised_bridge import (
+    LSRV2PaperSupervisedBridgeSettings,
+    write_lsr_v2_paper_supervised_bridge_report,
+)
+from core.lsr_v2_runtime_bridge import (
+    LSRV2RuntimeBridgeSettings,
+    build_lsr_v2_runtime_bridge_events_for_symbol,
+    write_lsr_v2_runtime_bridge_artifacts,
+)
+from core.lsr_v2_engine_read_only_artifact_hook import (
+    EngineReadOnlyArtifactHookSettings,
+    write_lsr_v2_engine_read_only_artifact_hook_report,
+)
 
 
 @dataclass
@@ -121,11 +142,17 @@ class PaperEngineSettings:
     balance: float = 1000.0
     poll_seconds: float = 60.0
     dry_run_once: bool = False
+    max_cycles: int = 0
     max_positions: int = 3
     risk_per_trade_pct: float = 0.005
     rr: float = 2.0
     mode: str = "paper"
     data_dir: str = "data"
+    market_data_mode: str = "live"
+    market_data_cache_dir: str = "data"
+    market_data_replay_step: int = 1
+    market_data_replay_start_offset: int = 0
+    cycle_artifacts_enabled: bool = True
     console_verbose: bool = False
     ai_debug: bool = False
     console_header_every_n_cycles: int = 12
@@ -181,6 +208,12 @@ class PaperEngineSettings:
     paper_unlock_supervised_execution_operator_enable: bool = False
     paper_unlock_supervised_execution_confirm: str = ""
     paper_order_leakage_guard_enabled: bool = True
+    edge_strategy_pruning_enabled: bool = False
+    edge_strategy_pruning_audit_enabled: bool = True
+    lsr_v2_paper_supervised_bridge_enabled: bool = True
+    lsr_v2_paper_supervised_bridge_operator_enable: bool = False
+    lsr_v2_paper_supervised_bridge_confirm: str = ""
+    lsr_v2_engine_read_only_artifact_hook_enabled: bool = True
     shadow_simulation_enabled: bool = True
     paper_unlock_profile: str = "BTC_ONLY_40_Q60"
     paper_unlock_allowed_symbols: list[str] | None = None
@@ -227,6 +260,12 @@ class PaperTradingEngine:
         Config.PAPER_UNLOCK_SUPERVISED_EXECUTION_OPERATOR_ENABLE = bool(settings.paper_unlock_supervised_execution_operator_enable)
         Config.PAPER_UNLOCK_SUPERVISED_EXECUTION_CONFIRM = str(settings.paper_unlock_supervised_execution_confirm or "")
         Config.PAPER_ORDER_LEAKAGE_GUARD_ENABLED = bool(settings.paper_order_leakage_guard_enabled)
+        Config.EDGE_STRATEGY_PRUNING_ENABLED = bool(settings.edge_strategy_pruning_enabled)
+        Config.EDGE_STRATEGY_PRUNING_AUDIT_ENABLED = bool(settings.edge_strategy_pruning_audit_enabled)
+        Config.LSR_V2_PAPER_SUPERVISED_BRIDGE_ENABLED = bool(settings.lsr_v2_paper_supervised_bridge_enabled)
+        Config.LSR_V2_PAPER_SUPERVISED_BRIDGE_OPERATOR_ENABLE = bool(settings.lsr_v2_paper_supervised_bridge_operator_enable)
+        Config.LSR_V2_PAPER_SUPERVISED_BRIDGE_CONFIRM = str(settings.lsr_v2_paper_supervised_bridge_confirm or "")
+        Config.LSR_V2_ENGINE_READ_ONLY_ARTIFACT_HOOK_ENABLED = bool(settings.lsr_v2_engine_read_only_artifact_hook_enabled)
         self.data_dir = Path(settings.data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.broker = PaperBroker(
@@ -258,6 +297,14 @@ class PaperTradingEngine:
         self.handoff_dry_run_settings = PaperOrderHandoffDryRunSettings.from_config(Config)
         self.supervised_execution_settings = PaperUnlockSupervisedExecutionSettings.from_config(Config)
         self.order_leakage_guard_settings = PaperOrderLeakageGuardSettings.from_config(Config)
+        self.edge_strategy_pruning_settings = EdgeStrategyRuntimePruningSettings.from_config(Config)
+        self.lsr_v2_bridge_settings = LSRV2PaperSupervisedBridgeSettings.from_config(Config)
+        self.lsr_v2_runtime_bridge_settings = LSRV2RuntimeBridgeSettings(
+            data_dir=str(self.data_dir),
+            timeframe=str(settings.timeframe or "5m"),
+        )
+        self.lsr_v2_engine_read_only_artifact_hook_settings = EngineReadOnlyArtifactHookSettings(data_dir=str(self.data_dir))
+        self._lsr_v2_runtime_cycle_events: list[dict[str, Any]] = []
         self.position_monitor = PaperPositionMonitor(output_path=self.data_dir / "paper_position_monitor.json")
         self._cycle_seq = max_cycle_sequence(self.data_dir / "paper_events.jsonl")
         self._shutdown_requested = False
@@ -269,6 +316,8 @@ class PaperTradingEngine:
         self._startup_banner_printed = False
         self._last_completed_cycle_summary: dict[str, Any] | None = None
         self._paper_once_console_summary_printed = False
+        self._last_lsr_v2_bridge_runtime_cycle_id: str | None = None
+        self._market_data_replay_offsets: dict[str, int] = {}
         allowed_users = [x for x in os.getenv("TELEGRAM_ALLOWED_USER_IDS", getattr(Config, "TELEGRAM_ALLOWED_USER_IDS", "")).replace(";", ",").split(",") if x.strip()]
         self.telegram = TelegramControlBot(
             token=Config.TELEGRAM_TOKEN,
@@ -360,16 +409,28 @@ class PaperTradingEngine:
             timeframe=self.settings.timeframe,
             cost_model=self.settings.cost_model,
             once=bool(self.settings.dry_run_once),
+            max_cycles=int(self.settings.max_cycles or 0),
+            market_data_mode=self.settings.market_data_mode,
+            cycle_artifacts_enabled=bool(self.settings.cycle_artifacts_enabled),
         )
         self.exchange_adapter_stub.write_design_stub(self.data_dir / "exchange_broker_adapter_stub.json")
         self.write_status_file()
         self._print_startup_banner()
         await self._notify_startup()
         tg_task = asyncio.create_task(self.telegram.poll_forever(), name="telegram_poll_forever") if self.telegram.enabled else None
+        completed_cycles = 0
         try:
             while True:
                 await self.tick()
+                completed_cycles += 1
                 if self.settings.dry_run_once:
+                    break
+                if self.settings.max_cycles > 0 and completed_cycles >= self.settings.max_cycles:
+                    self.broker.emit(
+                        "MAX_CYCLES_REACHED",
+                        completed_cycles=completed_cycles,
+                        max_cycles=self.settings.max_cycles,
+                    )
                     break
                 await asyncio.sleep(self.settings.poll_seconds)
         except asyncio.CancelledError:
@@ -383,12 +444,19 @@ class PaperTradingEngine:
             self.broker.save()
             self.write_status_file()
             report = self.write_lifecycle_report()
-            artifacts = await asyncio.to_thread(self.write_performance_artifacts)
+            artifacts: dict[str, Any] = {}
+            if self.settings.cycle_artifacts_enabled:
+                artifacts = await asyncio.to_thread(self.write_performance_artifacts)
+            else:
+                self.broker.emit("ENGINE_STOP_ARTIFACTS_SKIPPED", reason="cycle_artifacts_disabled")
             if self.settings.dry_run_once and self._last_completed_cycle_summary and not self._paper_once_console_summary_printed:
                 print_paper_once_console_summary(
                     self._last_completed_cycle_summary,
                     runtime_audit=(artifacts.get("paper_unlock_runtime_audit") if isinstance(artifacts, dict) else None),
                     routing_bridge=(artifacts.get("paper_unlock_routing_bridge") if isinstance(artifacts, dict) else None),
+                    lsr_v2_bridge=(artifacts.get("lsr_v2_paper_supervised_bridge") if isinstance(artifacts, dict) else None),
+                    lsr_v2_runtime_bridge=(artifacts.get("lsr_v2_runtime_bridge") if isinstance(artifacts, dict) else None),
+                    lsr_v2_engine_artifact_hook=(artifacts.get("lsr_v2_engine_read_only_artifact_hook") if isinstance(artifacts, dict) else None),
                 )
                 self._paper_once_console_summary_printed = True
             self.broker.emit("ENGINE_STOPPED", lifecycle_status=report.get("status"), shutdown_requested=self._shutdown_requested)
@@ -422,12 +490,14 @@ class PaperTradingEngine:
         }
         self._active_cycle_id = cycle_id
         self._cycle_started_at = datetime.now(timezone.utc)
+        self._lsr_v2_runtime_cycle_events = []
         self.broker.emit(
             "CYCLE_STARTED",
             cycle_id=cycle_id,
             symbols=self.settings.symbols,
             timeframe=self.settings.timeframe,
             cost_model=self.settings.cost_model,
+            market_data_mode=self.settings.market_data_mode,
         )
         if self.broker.kill_switch:
             summary["skipped"] = len(self.settings.symbols)
@@ -469,7 +539,11 @@ class PaperTradingEngine:
         self.broker.emit("CYCLE_COMPLETED", **summary)
         self._last_completed_cycle_summary = dict(summary)
         self.write_lifecycle_report()
-        artifacts = await asyncio.to_thread(self.write_performance_artifacts)
+        artifacts: dict[str, Any] = {}
+        if self.settings.cycle_artifacts_enabled:
+            artifacts = await asyncio.to_thread(self.write_performance_artifacts)
+        else:
+            self.broker.emit("CYCLE_ARTIFACTS_SKIPPED", cycle_id=summary.get("cycle_id"), reason="cycle_artifacts_disabled")
         drift_status = artifacts.get("drift", {}).get("status") if isinstance(artifacts, dict) else "NA"
         self._print_cycle_summary(summary, drift_status=drift_status)
         if self.settings.dry_run_once:
@@ -477,6 +551,9 @@ class PaperTradingEngine:
                 summary,
                 runtime_audit=(artifacts.get("paper_unlock_runtime_audit") if isinstance(artifacts, dict) else None),
                 routing_bridge=(artifacts.get("paper_unlock_routing_bridge") if isinstance(artifacts, dict) else None),
+                lsr_v2_bridge=(artifacts.get("lsr_v2_paper_supervised_bridge") if isinstance(artifacts, dict) else None),
+                lsr_v2_runtime_bridge=(artifacts.get("lsr_v2_runtime_bridge") if isinstance(artifacts, dict) else None),
+                lsr_v2_engine_artifact_hook=(artifacts.get("lsr_v2_engine_read_only_artifact_hook") if isinstance(artifacts, dict) else None),
             )
             self._paper_once_console_summary_printed = True
         monitor_text = self.render_position_monitor()
@@ -953,6 +1030,81 @@ class PaperTradingEngine:
         if self._paper_once_progress_logs_enabled():
             print(message, flush=True)
 
+    def _emit_lsr_v2_runtime_bridge_for_symbol(self, *, symbol: str, df: Any, cycle_id: str) -> None:
+        """Emit cycle-scoped LSR-v2 audit events for one scanned symbol.
+
+        This is intentionally fail-closed.  It never routes, submits orders,
+        opens positions, or mutates paper state; it only appends diagnostics to
+        the event log and to the in-memory cycle artifact list.
+        """
+        if not self.settings.lsr_v2_paper_supervised_bridge_enabled:
+            return
+        try:
+            promotion_report = {}
+            promotion_path = self.data_dir / "lsr_v2_promotion_gate_report.json"
+            if promotion_path.exists():
+                try:
+                    promotion_report = json.loads(promotion_path.read_text(encoding="utf-8"))
+                    if not isinstance(promotion_report, dict):
+                        promotion_report = {}
+                except Exception:
+                    promotion_report = {}
+            candidate_event, bridge_event = build_lsr_v2_runtime_bridge_events_for_symbol(
+                df=df,
+                cycle_id=cycle_id,
+                symbol=symbol,
+                timeframe=str(self.settings.timeframe or "5m"),
+                promotion_gate_report=promotion_report,
+                bridge_settings=self.lsr_v2_bridge_settings,
+                runtime_settings=self.lsr_v2_runtime_bridge_settings,
+                open_positions_count=len(self.broker.open_positions),
+            )
+            # Force-pin runtime safety before the generic event writer sees it.
+            for payload in (candidate_event, bridge_event):
+                payload["would_submit"] = False
+                payload["broker_submit_called"] = False
+                payload["routing_enabled"] = False
+                payload["execution_enabled"] = False
+                payload["paper_order_submission_enabled"] = False
+                payload["live_enabled"] = False
+                payload["testnet_enabled"] = False
+                payload["exchange_broker_enabled"] = False
+                payload["orders_submitted_by_lsr_v2_runtime_bridge"] = 0
+                payload["positions_opened_by_lsr_v2_runtime_bridge"] = 0
+                self._lsr_v2_runtime_cycle_events.append(dict(payload))
+                self.broker.emit(**payload)
+            # s-10e: write the cycle-scoped runtime report incrementally. The
+            # watchdog hard-exit path can print the footer before the normal
+            # end-of-cycle artifacts are produced, so the report must exist as
+            # soon as symbol-level audit events are emitted. This is diagnostic
+            # only and force-pins all submission counters to zero.
+            try:
+                self.write_lsr_v2_runtime_bridge_report()
+            except Exception as report_exc:
+                self.broker.emit(
+                    "LSR_V2_RUNTIME_BRIDGE_REPORT_WRITE_FAILED",
+                    prompt_id="29.4.4s-10f-1",
+                    cycle_id=cycle_id,
+                    symbol=symbol,
+                    error=str(report_exc),
+                    orders_submitted_by_lsr_v2_runtime_bridge=0,
+                    positions_opened_by_lsr_v2_runtime_bridge=0,
+                    broker_submit_called=False,
+                    would_submit=False,
+                )
+        except Exception as exc:
+            self.broker.emit(
+                "LSR_V2_RUNTIME_BRIDGE_APPEND_FAILED",
+                prompt_id="29.4.4s-10f-1",
+                cycle_id=cycle_id,
+                symbol=symbol,
+                error=str(exc),
+                orders_submitted_by_lsr_v2_runtime_bridge=0,
+                positions_opened_by_lsr_v2_runtime_bridge=0,
+                broker_submit_called=False,
+                would_submit=False,
+            )
+
     async def evaluate_symbol(self, symbol: str, *, cycle_id: str = "") -> dict[str, Any]:
         result: dict[str, Any] = {"symbol": symbol, "scanned": 0, "signal": 0, "order": 0, "error": 0, "no_signal": 0, "skipped": 0}
         client: ExchangeClient | None = None
@@ -966,15 +1118,7 @@ class PaperTradingEngine:
             self._print_once_progress(
                 f"[FETCH START] symbol={symbol} timeframe={self.settings.timeframe} limit={candle_limit}"
             )
-            client = ExchangeClient(
-                exchange_id=Config.EXCHANGE_ID,
-                symbol=symbol,
-                timeframe=self.settings.timeframe,
-                limit=candle_limit,
-                api_key=None,
-                api_secret=None,
-            )
-            df = await client.fetch_async()
+            df = await self._fetch_market_data(symbol=symbol, limit=candle_limit, cycle_id=cycle_id)
             fetch_elapsed = max(0.0, time.monotonic() - fetch_started_at)
             candle_count = 0 if df is None else int(getattr(df, "shape", [0])[0] or 0)
             self._print_once_progress(
@@ -1002,6 +1146,7 @@ class PaperTradingEngine:
                 last_price=last_price,
                 closed_positions=len(closed),
             )
+            self._emit_lsr_v2_runtime_bridge_for_symbol(symbol=symbol, df=df, cycle_id=cycle_id)
             if self.broker.is_paused:
                 result["skipped"] = 1
                 self.broker.emit("ASSET_SKIPPED", cycle_id=cycle_id, symbol=symbol, reason="paused")
@@ -1374,6 +1519,43 @@ class PaperTradingEngine:
             self.broker.emit("SIGNAL_DETECTED", **signal_payload)
             self.last_signal_by_symbol[symbol] = candle_key
 
+            selected_archetype = extract_archetype(conf, signal_diag or {}, structure_diag or {}, scenario_diag or {})
+            pruning_event = build_runtime_pruning_event(
+                self.edge_strategy_pruning_settings,
+                cycle_id=cycle_id,
+                symbol=symbol,
+                side=verdict,
+                archetype=selected_archetype,
+                source_path=("paper_unlock_signal" if paper_unlock_signal else "legacy_score_meta"),
+                paper_unlock=paper_unlock_signal,
+                score=score,
+                confidence=conf,
+            )
+            if self.edge_strategy_pruning_settings.audit_enabled:
+                self.broker.emit(**pruning_event)
+            pruning_decision = evaluate_runtime_archetype_pruning(
+                self.edge_strategy_pruning_settings,
+                archetype=selected_archetype,
+            )
+            if pruning_decision.blocked:
+                self.broker.emit(
+                    "SIGNAL_REJECTED",
+                    cycle_id=cycle_id,
+                    symbol=symbol,
+                    side=verdict,
+                    reason=pruning_decision.reason,
+                    archetype=pruning_decision.archetype,
+                    score=score,
+                    edge_strategy_pruning_enabled=True,
+                    blocked_archetypes=list(self.edge_strategy_pruning_settings.blocked_archetypes),
+                    orders_submitted_by_pruning=0,
+                    positions_opened_by_pruning=0,
+                )
+                self._print_once_progress(
+                    f"[EDGE STRATEGY PRUNING BLOCKED] symbol={symbol} side={verdict} archetype={pruning_decision.archetype} reason={pruning_decision.reason}"
+                )
+                return result
+
             atr = float(last.get("atr", 0.0) or 0.0) or last_price * 0.01
             if verdict == "BUY":
                 stop_loss = last_price - Config.ATR_MULT * atr
@@ -1493,6 +1675,86 @@ class PaperTradingEngine:
             print(f"[PaperEngine] Symbol error | {symbol} | {exc} | skipped", flush=True)
             return result
 
+    async def _fetch_live_market_data(self, *, symbol: str, limit: int) -> Any:
+        client = ExchangeClient(
+            exchange_id=Config.EXCHANGE_ID,
+            symbol=symbol,
+            timeframe=self.settings.timeframe,
+            limit=limit,
+            api_key=None,
+            api_secret=None,
+        )
+        return await client.fetch_async()
+
+    def _load_cached_market_data(self, *, symbol: str, limit: int, replay: bool, cycle_id: str = "") -> Any:
+        cache_dir = self.settings.market_data_cache_dir or self.settings.data_dir
+        if replay:
+            loaded = load_replay_ohlcv(
+                data_dir=cache_dir,
+                symbol=symbol,
+                timeframe=self.settings.timeframe,
+                limit=limit,
+                replay_offsets=self._market_data_replay_offsets,
+                step=self.settings.market_data_replay_step,
+                start_offset=(self.settings.market_data_replay_start_offset or None),
+            )
+        else:
+            loaded = load_cached_ohlcv(
+                data_dir=cache_dir,
+                symbol=symbol,
+                timeframe=self.settings.timeframe,
+                limit=limit,
+            )
+        self.broker.emit(
+            "MARKET_DATA_CACHE_USED",
+            cycle_id=cycle_id,
+            symbol=symbol,
+            timeframe=self.settings.timeframe,
+            mode=self.settings.market_data_mode,
+            cache_path=str(loaded.path),
+            rows_available=loaded.rows_available,
+            rows_returned=loaded.rows_returned,
+            replay_end_offset=loaded.replay_end_offset,
+        )
+        return loaded.df
+
+    async def _fetch_market_data(self, *, symbol: str, limit: int, cycle_id: str = "") -> Any:
+        mode = str(self.settings.market_data_mode or "live").strip().lower()
+        if mode not in {"live", "auto", "cache", "replay"}:
+            mode = "live"
+        if mode == "cache":
+            return self._load_cached_market_data(symbol=symbol, limit=limit, replay=False, cycle_id=cycle_id)
+        if mode == "replay":
+            return self._load_cached_market_data(symbol=symbol, limit=limit, replay=True, cycle_id=cycle_id)
+        try:
+            df = await self._fetch_live_market_data(symbol=symbol, limit=limit)
+            self.broker.emit(
+                "MARKET_DATA_LIVE_USED",
+                cycle_id=cycle_id,
+                symbol=symbol,
+                exchange_id=Config.EXCHANGE_ID,
+                timeframe=self.settings.timeframe,
+                rows_returned=0 if df is None else int(getattr(df, "shape", [0])[0] or 0),
+            )
+            return df
+        except Exception as exc:
+            if mode != "auto":
+                raise
+            self.broker.emit(
+                "MARKET_DATA_LIVE_FAILED_FALLBACK",
+                cycle_id=cycle_id,
+                symbol=symbol,
+                exchange_id=Config.EXCHANGE_ID,
+                timeframe=self.settings.timeframe,
+                error=str(exc),
+                error_type=exc.__class__.__name__,
+                fallback="local_replay_cache",
+            )
+            try:
+                return self._load_cached_market_data(symbol=symbol, limit=limit, replay=True, cycle_id=cycle_id)
+            except CachedMarketDataNotFound:
+                raise
+
     def _position_qty(self, *, last_price: float, stop_loss: float) -> float:
         risk_capital = max(0.0, self.broker.balance * self.settings.risk_per_trade_pct)
         per_unit_risk = abs(last_price - stop_loss)
@@ -1513,6 +1775,11 @@ class PaperTradingEngine:
             "symbols": self.settings.symbols,
             "timeframe": self.settings.timeframe,
             "cost_model": self.settings.cost_model,
+            "market_data_mode": self.settings.market_data_mode,
+            "market_data_cache_dir": self.settings.market_data_cache_dir,
+            "market_data_replay_start_offset": self.settings.market_data_replay_start_offset,
+            "market_data_replay_offsets": dict(self._market_data_replay_offsets),
+            "cycle_artifacts_enabled": bool(self.settings.cycle_artifacts_enabled),
             "active_cycle_id": self._active_cycle_id,
             "cycle_seq": self._cycle_seq,
             "shutdown_requested": self._shutdown_requested,
@@ -1635,6 +1902,10 @@ class PaperTradingEngine:
             "paper_unlock_supervised_execution_report_path": str(self.data_dir / "paper_unlock_supervised_execution_report.json"),
             "paper_unlock_supervised_execution_operator_enable": bool(self.settings.paper_unlock_supervised_execution_operator_enable),
             "paper_unlock_supervised_execution_operator_confirmation_ok": bool(self.supervised_execution_settings.confirmation_ok),
+            "lsr_v2_paper_supervised_bridge_enabled": bool(self.settings.lsr_v2_paper_supervised_bridge_enabled),
+            "lsr_v2_paper_supervised_bridge_report_path": str(self.data_dir / "lsr_v2_paper_supervised_bridge_report.json"),
+            "lsr_v2_paper_supervised_bridge_operator_enable": bool(self.settings.lsr_v2_paper_supervised_bridge_operator_enable),
+            "lsr_v2_paper_supervised_bridge_operator_confirmation_ok": bool(self.lsr_v2_bridge_settings.operator_confirmation_ok),
             "paper_unlock": {
                 "enabled": bool(self.unlock_settings.enabled),
                 "profile": self.unlock_settings.profile,
@@ -2437,6 +2708,58 @@ class PaperTradingEngine:
             return {}
         return write_paper_order_leakage_guard_report(self.data_dir, self.order_leakage_guard_settings)
 
+    def write_edge_strategy_runtime_pruning_report(self) -> dict[str, Any]:
+        if not self.settings.edge_strategy_pruning_audit_enabled:
+            return {}
+        return write_edge_strategy_runtime_pruning_report(self.data_dir, self.edge_strategy_pruning_settings)
+
+    def write_lsr_v2_paper_supervised_bridge_report(self) -> dict[str, Any]:
+        if not self.settings.lsr_v2_paper_supervised_bridge_enabled:
+            return {}
+        # s-10d keeps the historical/standalone bridge report available, but it
+        # no longer mirrors historical candidate events into paper_events.jsonl.
+        # Runtime visibility is handled by the cycle-scoped bridge below.
+        return write_lsr_v2_paper_supervised_bridge_report(self.data_dir, self.lsr_v2_bridge_settings)
+
+    def write_lsr_v2_runtime_bridge_report(self) -> dict[str, Any]:
+        if not self.settings.lsr_v2_paper_supervised_bridge_enabled:
+            return {}
+        cycle_id = str((self._last_completed_cycle_summary or {}).get("cycle_id") or self._active_cycle_id or "")
+        standalone = {}
+        standalone_path = self.data_dir / "lsr_v2_paper_supervised_bridge_report.json"
+        if standalone_path.exists():
+            try:
+                standalone = json.loads(standalone_path.read_text(encoding="utf-8"))
+                if not isinstance(standalone, dict):
+                    standalone = {}
+            except Exception:
+                standalone = {}
+        promotion = {}
+        promotion_path = self.data_dir / "lsr_v2_promotion_gate_report.json"
+        if promotion_path.exists():
+            try:
+                promotion = json.loads(promotion_path.read_text(encoding="utf-8"))
+                if not isinstance(promotion, dict):
+                    promotion = {}
+            except Exception:
+                promotion = {}
+        return write_lsr_v2_runtime_bridge_artifacts(
+            data_dir=self.data_dir,
+            cycle_id=cycle_id,
+            events=list(self._lsr_v2_runtime_cycle_events),
+            settings=self.lsr_v2_runtime_bridge_settings,
+            standalone_report=standalone,
+            promotion_gate_report=promotion,
+        )
+
+    def write_lsr_v2_engine_read_only_artifact_hook_report(self) -> dict[str, Any]:
+        if not self.settings.lsr_v2_engine_read_only_artifact_hook_enabled:
+            return {}
+        return write_lsr_v2_engine_read_only_artifact_hook_report(
+            self.data_dir,
+            self.lsr_v2_engine_read_only_artifact_hook_settings,
+        )
+
     def write_paper_unlock_supervised_execution_report(self) -> dict[str, Any]:
         if not self.settings.paper_unlock_supervised_execution_enabled:
             return {}
@@ -2484,6 +2807,10 @@ class PaperTradingEngine:
         paper_unlock_handoff_dry_run = self.write_paper_unlock_handoff_dry_run_report()
         paper_unlock_supervised_execution = self.write_paper_unlock_supervised_execution_report()
         paper_order_leakage_guard = self.write_paper_order_leakage_guard_report()
+        edge_strategy_runtime_pruning = self.write_edge_strategy_runtime_pruning_report()
+        lsr_v2_paper_supervised_bridge = self.write_lsr_v2_paper_supervised_bridge_report()
+        lsr_v2_runtime_bridge = self.write_lsr_v2_runtime_bridge_report()
+        lsr_v2_engine_artifact_hook = self.write_lsr_v2_engine_read_only_artifact_hook_report()
         artifacts = write_performance_artifacts(self.data_dir)
         if diagnostics:
             artifacts["signal_diagnostics"] = diagnostics
@@ -2547,6 +2874,14 @@ class PaperTradingEngine:
             artifacts["paper_unlock_supervised_execution"] = paper_unlock_supervised_execution
         if paper_order_leakage_guard:
             artifacts["paper_order_leakage_guard"] = paper_order_leakage_guard
+        if edge_strategy_runtime_pruning:
+            artifacts["edge_strategy_runtime_pruning"] = edge_strategy_runtime_pruning
+        if lsr_v2_paper_supervised_bridge:
+            artifacts["lsr_v2_paper_supervised_bridge"] = lsr_v2_paper_supervised_bridge
+        if lsr_v2_runtime_bridge:
+            artifacts["lsr_v2_runtime_bridge"] = lsr_v2_runtime_bridge
+        if lsr_v2_engine_artifact_hook:
+            artifacts["lsr_v2_engine_read_only_artifact_hook"] = lsr_v2_engine_artifact_hook
         return artifacts
 
     def format_status(self) -> str:
@@ -2716,10 +3051,20 @@ def settings_from_args(args: Any) -> PaperEngineSettings:
         balance=float(args.balance),
         poll_seconds=float(args.poll_seconds),
         dry_run_once=bool(args.once),
+        max_cycles=max(0, int(_arg_or_config(args, "max_cycles", "PAPER_MAX_CYCLES", 0) or 0)),
         max_positions=int(args.max_positions),
         risk_per_trade_pct=float(args.risk_per_trade_pct),
         rr=float(args.rr),
         mode=args.mode,
+        market_data_mode=str(_arg_or_config(args, "market_data_mode", "PAPER_MARKET_DATA_MODE", "live") or "live").lower(),
+        market_data_cache_dir=str(_arg_or_config(args, "market_data_cache_dir", "PAPER_MARKET_DATA_CACHE_DIR", "data") or "data"),
+        market_data_replay_step=max(1, int(_arg_or_config(args, "market_data_replay_step", "PAPER_MARKET_DATA_REPLAY_STEP", 1) or 1)),
+        market_data_replay_start_offset=max(0, int(_arg_or_config(args, "market_data_replay_start_offset", "PAPER_MARKET_DATA_REPLAY_START_OFFSET", 0) or 0)),
+        cycle_artifacts_enabled=bool(
+            getattr(args, "cycle_artifacts", None)
+            if getattr(args, "cycle_artifacts", None) is not None
+            else getattr(Config, "PAPER_CYCLE_ARTIFACTS_ENABLED", bool(args.once))
+        ),
         console_verbose=bool(_arg_or_config(args, "console_verbose", "PAPER_CONSOLE_VERBOSE", False)),
         ai_debug=bool(_arg_or_config(args, "verbose_ai", "PAPER_AI_DEBUG", False)),
         console_header_every_n_cycles=int(getattr(Config, "PAPER_CONSOLE_HEADER_EVERY_N_CYCLES", 12)),
@@ -2775,6 +3120,12 @@ def settings_from_args(args: Any) -> PaperEngineSettings:
         paper_unlock_supervised_execution_operator_enable=(bool(getattr(args, "paper_unlock_supervised_execution", False)) or bool(getattr(Config, "PAPER_UNLOCK_SUPERVISED_EXECUTION_OPERATOR_ENABLE", False))),
         paper_unlock_supervised_execution_confirm=str(getattr(args, "paper_unlock_supervised_confirm", "") or getattr(Config, "PAPER_UNLOCK_SUPERVISED_EXECUTION_CONFIRM", "") or ""),
         paper_order_leakage_guard_enabled=(False if bool(getattr(args, "no_paper_order_leakage_guard", False)) else bool(getattr(Config, "PAPER_ORDER_LEAKAGE_GUARD_ENABLED", True))),
+        edge_strategy_pruning_enabled=bool(getattr(Config, "EDGE_STRATEGY_PRUNING_ENABLED", False)),
+        edge_strategy_pruning_audit_enabled=bool(getattr(Config, "EDGE_STRATEGY_PRUNING_AUDIT_ENABLED", True)),
+        lsr_v2_paper_supervised_bridge_enabled=(False if bool(getattr(args, "no_lsr_v2_paper_supervised_bridge", False)) else bool(getattr(Config, "LSR_V2_PAPER_SUPERVISED_BRIDGE_ENABLED", True))),
+        lsr_v2_paper_supervised_bridge_operator_enable=(bool(getattr(args, "lsr_v2_bridge_operator_enable", False)) or bool(getattr(Config, "LSR_V2_PAPER_SUPERVISED_BRIDGE_OPERATOR_ENABLE", False))),
+        lsr_v2_paper_supervised_bridge_confirm=str(getattr(args, "lsr_v2_bridge_confirm", "") or getattr(Config, "LSR_V2_PAPER_SUPERVISED_BRIDGE_CONFIRM", "") or ""),
+        lsr_v2_engine_read_only_artifact_hook_enabled=(False if bool(getattr(args, "no_lsr_v2_engine_read_only_artifact_hook", False)) else bool(getattr(Config, "LSR_V2_ENGINE_READ_ONLY_ARTIFACT_HOOK_ENABLED", True))),
         shadow_simulation_enabled=(False if bool(getattr(args, "no_shadow_simulation", False)) else bool(getattr(Config, "PAPER_SHADOW_SIMULATION_ENABLED", True))),
         paper_unlock_profile=str(getattr(args, "paper_unlock_profile", "") or getattr(Config, "PAPER_UNLOCK_PROFILE", "BTC_ONLY_40_Q60")),
         paper_unlock_allowed_symbols=[x.strip() for x in str(getattr(Config, "PAPER_UNLOCK_ALLOWED_SYMBOLS", "BTC/USDT")).replace(";", ",").split(",") if x.strip()],

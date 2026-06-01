@@ -573,6 +573,9 @@ class BinanceFuturesHistoricalDownloader:
 
     async def fetch_asset(self, asset: str, years: float = 2.0, limit: int = 1000) -> pd.DataFrame:
         try:
+            from .aiohttp_compat import install_aiohttp_windows_ssl_context_compat
+
+            install_aiohttp_windows_ssl_context_compat()
             import ccxt.async_support as ccxt_async  # type: ignore
         except Exception as exc:  # pragma: no cover - optional runtime dependency
             raise RuntimeError("ccxt is required for live downloading. Install requirements first.") from exc

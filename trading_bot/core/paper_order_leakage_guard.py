@@ -14,6 +14,7 @@ from typing import Any, Iterable, Mapping, Sequence
 import json
 
 from config import Config
+from core.jsonl_utils import iter_jsonl_tail
 
 PROMPT_ID = "29.4.4r-1"
 LEAKAGE_EVENT_TYPE = "LEGACY_PAPER_ORDER_LEAKAGE_AUDIT"
@@ -57,27 +58,8 @@ def _safe_bool(value: Any) -> bool:
 
 
 def _iter_jsonl_events(path: str | Path, *, max_lines: int = 50000) -> list[dict[str, Any]]:
-    p = Path(path)
-    if not p.exists():
-        return []
-    try:
-        lines = p.read_text(encoding="utf-8").splitlines()
-    except Exception:
-        return []
-    if max_lines > 0 and len(lines) > max_lines:
-        lines = lines[-max_lines:]
-    out: list[dict[str, Any]] = []
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            item = json.loads(line)
-        except Exception:
-            continue
-        if isinstance(item, dict) and item.get("event_type"):
-            out.append(item)
-    return out
+    return iter_jsonl_tail(path, max_lines=max_lines, require_event_type=True)
+
 
 
 def _counts(values: Iterable[Any]) -> dict[str, int]:

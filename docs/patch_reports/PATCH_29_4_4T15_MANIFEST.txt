@@ -1,0 +1,17 @@
+PATCH 29.4.4t-15 — LSR-v2 fourth-trade handoff dry-run
+
+Files:
+- trading_bot/core/lsr_v2_fourth_trade_handoff_dry_run.py
+- trading_bot/run_lsr_v2_fourth_trade_handoff_dry_run.py
+- trading_bot/tests/test_lsr_v2_fourth_trade_handoff_dry_run.py
+- trading_bot/docs/PROMPT_29_4_4T15_FOURTH_TRADE_HANDOFF_DRY_RUN_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T15_MANIFEST.txt
+
+Safety:
+- Diagnostic-only/read-only/fail-closed
+- No route execution
+- No broker submit/close
+- No paper_state/paper_status mutation
+- No Telegram network/send
+- No scheduler
+- No live/testnet/exchange broker

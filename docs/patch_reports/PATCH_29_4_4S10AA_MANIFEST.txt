@@ -1,0 +1,10 @@
+PROMPT 29.4.4s-10aa — LSR-v2 second open position monitor / SL-TP tracking audit
+
+Files:
+trading_bot/core/lsr_v2_second_open_position_monitor.py
+trading_bot/run_lsr_v2_second_open_position_monitor.py
+trading_bot/tests/test_lsr_v2_second_open_position_monitor.py
+trading_bot/docs/PROMPT_29_4_4S10AA_SECOND_OPEN_POSITION_MONITOR_PATCH_REPORT.md
+
+Safety:
+no order, no position, no close, no broker submit, no broker close, no state mutation, no status mutation, no live/testnet/exchange broker.

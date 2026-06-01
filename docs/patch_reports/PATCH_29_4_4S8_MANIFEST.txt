@@ -1,0 +1,18 @@
+PATCH 29.4.4s-8 — LSR-v2 walk-forward / OOS / bootstrap validation suite
+
+Files:
+trading_bot/core/lsr_v2_robustness_validation.py
+trading_bot/run_lsr_v2_robustness_validation.py
+trading_bot/tests/test_lsr_v2_robustness_validation.py
+trading_bot/docs/PROMPT_29_4_4S8_LSR_V2_ROBUSTNESS_VALIDATION_PATCH_REPORT.md
+
+Diagnostic-only safety:
+- no live
+- no testnet
+- no exchange broker
+- no broker call
+- no order submission
+- no position opening
+- no paper state mutation
+- no threshold lowering
+- promotion_ready=false

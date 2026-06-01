@@ -199,6 +199,9 @@ async def download_ohlcv_cache(
 ) -> CacheCandidate:
     """Download paginated OHLCV history and write a parquet cache."""
     try:
+        from .aiohttp_compat import install_aiohttp_windows_ssl_context_compat
+
+        install_aiohttp_windows_ssl_context_compat()
         import ccxt.async_support as ccxt_async  # type: ignore
     except Exception as exc:  # pragma: no cover
         raise RuntimeError("ccxt is required to download a larger historical cache.") from exc

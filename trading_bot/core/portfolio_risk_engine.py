@@ -238,7 +238,7 @@ class PortfolioRiskEngine:
             [v.get("weight_pct", 0.0) for k, v in exposures.items() if k != "GLOBAL"],
             default=0.0,
         )
-        flags = self._concentration_flags(exposures, corr_matrix)
+        flags = self._concentration_flags(exposures, corr_matrix, portfolio_var)
         snapshot = PortfolioRiskSnapshot(
             timestamp=timestamp,
             balance=self.balance,
@@ -322,7 +322,7 @@ class PortfolioRiskEngine:
                     vals.append(abs(float(corr_matrix.loc[a, b])))
         return max(vals) if vals else 0.0
 
-    def _concentration_flags(self, exposures: Dict[str, dict], corr_matrix: pd.DataFrame) -> List[str]:
+    def _concentration_flags(self, exposures: Dict[str, dict], corr_matrix: pd.DataFrame, portfolio_var: float = 0.0) -> List[str]:
         flags: List[str] = []
         if exposures["GLOBAL"].get("aggregate_leverage", 0.0) > self.manager.max_aggregate_leverage:
             flags.append("AGGREGATE_LEVERAGE_LIMIT_EXCEEDED")
@@ -331,8 +331,7 @@ class PortfolioRiskEngine:
                 flags.append(f"HIGH_SINGLE_ASSET_WEIGHT:{asset}")
         if self._max_pairwise_correlation(corr_matrix) > 0.85 and len(self.positions) >= 2:
             flags.append("HIGH_CORRELATION_CLUSTER")
-        latest_var = self.snapshots[-1].portfolio_var if self.snapshots else 0.0
-        if latest_var > self.balance * self.manager.var_limit_pct:
+        if float(portfolio_var or 0.0) > self.balance * self.manager.var_limit_pct:
             flags.append("VAR_LIMIT_EXCEEDED")
         return flags
 

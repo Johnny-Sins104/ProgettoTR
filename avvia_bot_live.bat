@@ -25,6 +25,9 @@ if "%TELEGRAM_TOKEN%"=="" echo [WARN] TELEGRAM_TOKEN is not set. Telegram alerts
 if "%TELEGRAM_CHAT_ID%"=="" echo [WARN] TELEGRAM_CHAT_ID is not set. Telegram alerts disabled.
 
 echo.
+echo [INFO] LSR-v2 read-only dashboard banner will be printed by avvia_bot_live.py when artifacts are ready.
+echo [INFO] Launcher visibility is read-only: no Telegram send, no scheduler, no submit/close.
+echo.
 echo [INFO] Starting bot. Press CTRL+C to stop.
 echo.
 

@@ -1,0 +1,20 @@
+PATCH 29.4.4s-10ad — LSR-v2 second closed paper trade final audit / realized outcome report
+
+Files:
+trading_bot/core/lsr_v2_second_closed_trade_final_audit.py
+trading_bot/run_lsr_v2_second_closed_trade_final_audit.py
+trading_bot/tests/test_lsr_v2_second_closed_trade_final_audit.py
+trading_bot/docs/PROMPT_29_4_4S10AD_SECOND_CLOSED_TRADE_FINAL_AUDIT_PATCH_REPORT.md
+
+Outputs created at runtime:
+data/lsr_v2_second_closed_trade_final_audit_report.json
+data/lsr_v2_second_closed_trade_final_audit.jsonl
+
+Safety:
+- no order submission
+- no position opening
+- no position closing
+- no broker submit/close
+- no paper state/status mutation
+- no live/testnet/exchange broker
+- no re-entry

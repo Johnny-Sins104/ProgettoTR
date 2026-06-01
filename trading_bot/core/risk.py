@@ -523,7 +523,7 @@ class DynamicRiskEngine:
         """
         self._trade_num += 1
         self._current_balance = balance
-        commission = commission if commission is not None else Config.COMMISSION_RATE
+        commission = commission if commission is not None else Config.COMMISSION_RATE * 2.0
 
         # ── 0. Update equity state ────────────────────────────────────────────
         if balance > self._peak_balance:
@@ -570,47 +570,17 @@ class DynamicRiskEngine:
             raw_kelly, capped_kelly, kf_used = self._compute_kelly(
                 ai_prob, rr_ratio, regime, dd_tier
             )
-            if Config.USE_KELLY_SIZING:
-                if capped_kelly > 0:
-                    final_base = capped_kelly
-                else:
-                    # Edge nullo o negativo! Impediamo l'esposizione impostando a 0
-                    snap = RiskSnapshot(
-                        timestamp=datetime.now().isoformat(timespec="seconds"),
-                        trade_num=self._trade_num,
-                        balance=round(balance, 4),
-                        peak_balance=round(self._peak_balance, 4),
-                        drawdown_pct=round(dd_pct, 3),
-                        atr_val=round(atr_val, 6),
-                        atr_ratio=round(atr_ratio, 4),
-                        ai_prob=round(ai_prob, 2),
-                        rr_ratio=round(rr_ratio, 2),
-                        regime=regime,
-                        vol_regime=vol_regime,
-                        dd_tier=dd_tier,
-                        vol_multiplier=round(vol_mult, 3),
-                        dd_multiplier=round(dd_mult, 3),
-                        kelly_fraction=round(kf_used, 4),
-                        raw_kelly=round(raw_kelly, 4),
-                        capped_kelly=round(capped_kelly, 4),
-                        base_risk_pct=0.0,
-                        final_risk_pct=0.0,
-                        max_leverage=round(max_lev, 2),
-                        risk_capital=0.0,
-                        position_size=0.0,
-                        notional_value=0.0,
-                        effective_leverage=0.0,
-                        daily_loss_blocked=daily_blocked,
-                        profit_lock_active=profit_lock_on,
-                    )
-                    self._risk_log.append(snap)
-                    return 0.0, snap
-            else:
-                # Kelly returned 0 or is disabled — use default profile risk
+            if capped_kelly > 0:
+                final_base = capped_kelly
+            elif not Config.USE_KELLY_SIZING:
+                # Operator explicitly disabled Kelly: use default profile risk.
                 profile_defaults = {"LOW": 0.03, "MEDIUM": 0.07, "HIGH": 0.15, "DYNAMIC": 0.05}
                 final_base = profile_defaults.get(
                     getattr(Config, "RISK_CLASS", "MEDIUM"), 0.05
                 )
+            else:
+                # Kelly is active and found no positive edge. Fail closed: no size.
+                final_base = 0.0
 
         # ── 3. Apply regime multipliers ───────────────────────────────────────
         adjusted = final_base * vol_mult * dd_mult
@@ -619,11 +589,14 @@ class DynamicRiskEngine:
         if profit_lock_on:
             adjusted = max(adjusted, final_base * 0.5)
 
-        # Hard clip
-        final_risk = max(
-            self._HARD_MIN_RISK_PCT,
-            min(adjusted, self._HARD_MAX_RISK_PCT)
-        )
+        # Hard clip. Preserve zero-risk decisions from Kelly/no-edge and blocks.
+        if adjusted <= 0:
+            final_risk = 0.0
+        else:
+            final_risk = max(
+                self._HARD_MIN_RISK_PCT,
+                min(adjusted, self._HARD_MAX_RISK_PCT)
+            )
 
         # ── 4. Position sizing ────────────────────────────────────────────────
         risk_capital = balance * final_risk

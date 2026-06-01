@@ -1,0 +1,41 @@
+PATCH_ID=29.4.4s-10au
+PATCH_NAME=LSR-v2 three-trade postmortem / stability lock
+PATCH_TYPE=audit-only
+BASELINE=29.4.4s-10at-1 validated third closed trade final audit hotfix
+
+FILES_ADDED=
+trading_bot/core/lsr_v2_three_trade_postmortem_stability_lock.py
+trading_bot/run_lsr_v2_three_trade_postmortem_stability_lock.py
+trading_bot/tests/test_lsr_v2_three_trade_postmortem_stability_lock.py
+trading_bot/docs/PROMPT_29_4_4S10AU_THREE_TRADE_POSTMORTEM_STABILITY_LOCK_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4S10AU_MANIFEST.txt
+
+FILES_MODIFIED=
+none
+
+DATA_OUTPUTS_WRITTEN_BY_RUNNER=
+data/lsr_v2_three_trade_postmortem_stability_lock_report.json
+data/lsr_v2_three_trade_postmortem_stability_lock.jsonl
+
+SAFETY_CONTRACT=
+no_live
+no_testnet
+no_exchange_broker
+no_order_submit
+no_position_open
+no_position_close
+no_reentry
+no_paper_state_mutation
+no_paper_status_mutation
+fourth_trade_locked
+promotion_ready_false
+
+VALIDATION_SANDBOX=
+python -m compileall -q trading_bot
+PYTHONPATH=.:trading_bot python -m pytest -q trading_bot/tests/test_lsr_v2_three_trade_postmortem_stability_lock.py trading_bot/tests/test_lsr_v2_third_closed_trade_final_audit.py trading_bot/tests/test_lsr_v2_third_trade_close_execution.py trading_bot/tests/test_lsr_v2_third_trade_close_preflight.py trading_bot/tests/test_lsr_v2_third_open_position_monitor.py trading_bot/tests/test_lsr_v2_third_trade_submit_execution.py trading_bot/test_paper_order_leakage_guard.py
+RESULT=42 passed
+
+EXPECTED_RUNNER=
+python trading_bot/run_lsr_v2_three_trade_postmortem_stability_lock.py
+EXPECTED_STATUS=PASS
+EXPECTED_DECISION=LSR_V2_THREE_TRADE_POSTMORTEM_STABILITY_LOCK_READY

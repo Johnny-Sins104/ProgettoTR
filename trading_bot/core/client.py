@@ -1,5 +1,13 @@
 import asyncio
 import contextlib
+
+try:
+    from .aiohttp_compat import install_aiohttp_windows_ssl_context_compat
+except Exception:  # pragma: no cover - script-style fallback
+    from aiohttp_compat import install_aiohttp_windows_ssl_context_compat  # type: ignore
+
+install_aiohttp_windows_ssl_context_compat()
+
 import ccxt
 import ccxt.async_support as ccxt_async
 import pandas as pd

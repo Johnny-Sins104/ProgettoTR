@@ -1,0 +1,25 @@
+PATCH 29.4.4s-10f — LSR-v2 operator-controlled would-route audit / submit still blocked
+
+Files included:
+trading_bot/core/lsr_v2_paper_supervised_bridge.py
+trading_bot/core/lsr_v2_runtime_bridge.py
+trading_bot/core/paper_engine.py
+trading_bot/core/paper_once_console_summary.py
+trading_bot/core/paper_once_runner_footer.py
+trading_bot/run_lsr_v2_operator_route_audit.py
+trading_bot/tests/test_lsr_v2_runtime_bridge_cycle_scoped.py
+trading_bot/tests/test_paper_once_runner_footer_lsr_v2.py
+trading_bot/tests/test_lsr_v2_paper_runtime_bridge_integration.py
+trading_bot/docs/PROMPT_29_4_4S10F_LSR_V2_OPERATOR_ROUTE_AUDIT_PATCH_REPORT.md
+PATCH_29_4_4S10F_MANIFEST.txt
+
+Safety:
+- no live
+- no testnet
+- no exchange broker
+- no broker submit
+- no paper order submission
+- no position opening
+- no paper state mutation
+- would_submit=false always
+- operator controls can only produce would_route=true

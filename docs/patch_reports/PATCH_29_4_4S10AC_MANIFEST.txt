@@ -1,0 +1,16 @@
+PATCH 29.4.4s-10ac — LSR-v2 second supervised paper close execution / single-position TP close
+
+Files:
+trading_bot/core/lsr_v2_second_trade_close_execution.py
+trading_bot/run_lsr_v2_second_trade_close_execution.py
+trading_bot/tests/test_lsr_v2_second_trade_close_execution.py
+trading_bot/docs/PROMPT_29_4_4S10AC_SECOND_TRADE_CLOSE_EXECUTION_PATCH_REPORT.md
+PATCH_29_4_4S10AC_MANIFEST.txt
+
+Safety:
+- Paper-only close of at most one second LSR-v2 position.
+- Requires manual close env and confirmation.
+- No new order.
+- No re-entry.
+- No live/testnet/exchange broker.
+- Backup before paper_state/paper_status mutation.

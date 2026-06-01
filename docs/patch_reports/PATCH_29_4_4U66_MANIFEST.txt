@@ -1,0 +1,47 @@
+PATCH: 29.4.4u-66
+TITLE: Generic LSR-v2 supervised paper runtime arming bundle
+BASELINE: 29.4.4u-65 validated
+TYPE: macro-patch / bundle / read-only-by-default / fail-closed
+
+FILES:
+- trading_bot/core/lsr_v2_generic_supervised_paper_runtime_arming_bundle.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_runtime_arming_preflight.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_runtime_arming_execution_scaffold.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_runtime_arming_execution.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_runtime_arming_bundle.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_runtime_arming_bundle.py
+- trading_bot/docs/PROMPT_29_4_4U66_GENERIC_LSR_V2_SUPERVISED_PAPER_RUNTIME_ARMING_BUNDLE_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U66_MANIFEST.txt
+
+BUNDLE STEPS:
+- runtime arming preflight
+- runtime arming execution scaffold
+- runtime arming execution
+
+UPSTREAM REQUIRED:
+- data/lsr_v2_generic_supervised_paper_runtime_activation_terminal_audit_bundle_report.json
+- decision: LSR_V2_GENERIC_SUPERVISED_PAPER_RUNTIME_ACTIVATION_TERMINAL_AUDIT_BUNDLE_READY
+
+SAFETY:
+- no paper runtime arming
+- no submit
+- no close
+- no broker call
+- no scheduler
+- no Telegram/network send
+- no paper_state mutation
+- no paper_status mutation
+- no live/testnet/exchange enablement
+- no ordinal expansion
+
+EXPECTED DECISION:
+- LSR_V2_GENERIC_SUPERVISED_PAPER_RUNTIME_ARMING_BUNDLE_READY
+
+SANDBOX VALIDATION:
+- compileall PASS
+- focused pytest PASS, 6 passed
+- available generic LSR-v2 pytest PASS, 165 passed
+- bundle runner PASS
+
+NEXT:
+- 29.4.4u-67 — Generic LSR-v2 supervised paper integrated dry-run runtime bundle

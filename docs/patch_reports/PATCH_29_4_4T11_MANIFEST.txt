@@ -1,0 +1,29 @@
+PATCH 29.4.4t-11 — LSR-v2 guarded paper-only fourth-trade operator unlock activation preflight
+
+FILES:
+- trading_bot/core/lsr_v2_fourth_trade_operator_unlock_activation_preflight.py
+- trading_bot/run_lsr_v2_fourth_trade_operator_unlock_activation_preflight.py
+- trading_bot/tests/test_lsr_v2_fourth_trade_operator_unlock_activation_preflight.py
+- trading_bot/docs/PROMPT_29_4_4T11_FOURTH_TRADE_OPERATOR_UNLOCK_ACTIVATION_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T11_MANIFEST.txt
+
+SCOPE:
+- Preflight-only/read-only/fail-closed.
+- Validates t-10 unlock draft and operator activation controls.
+- Models future fourth-trade paper-only re-arm activation without granting runtime permissions.
+
+SAFETY:
+- No submit.
+- No open.
+- No close.
+- No broker call.
+- No scheduler.
+- No Telegram network send.
+- No paper_state mutation.
+- No paper_status mutation.
+- No re-entry.
+- No fourth-trade unlock.
+- No live/testnet/exchange broker.
+
+EXPECTED DEFAULT DECISION:
+- LSR_V2_FOURTH_TRADE_OPERATOR_UNLOCK_ACTIVATION_PREFLIGHT_READY

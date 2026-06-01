@@ -1,0 +1,21 @@
+Prompt 29.4.4s-10b — LSR-v2 paper once runtime bridge integration / fail-closed audit
+
+Files included:
+trading_bot/core/lsr_v2_paper_supervised_bridge.py
+trading_bot/core/paper_engine.py
+trading_bot/core/paper_once_console_summary.py
+trading_bot/run_paper_trading.py
+trading_bot/tests/test_lsr_v2_paper_runtime_bridge_integration.py
+trading_bot/docs/PROMPT_29_4_4S10B_LSR_V2_RUNTIME_BRIDGE_PATCH_REPORT.md
+
+Safety:
+- diagnostic/runtime audit only
+- no live
+- no testnet
+- no exchange broker
+- no broker call
+- no order submission
+- no position opening
+- no paper state mutation by bridge
+- no threshold lowering
+- would_submit=false forced in runtime bridge event copy

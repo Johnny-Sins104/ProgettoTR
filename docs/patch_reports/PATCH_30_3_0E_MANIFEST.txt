@@ -1,0 +1,61 @@
+Patch: 30.3.0E
+Title: Paper final runtime audit and lifecycle reconciliation after first supervised trade
+
+Scope:
+- Add a read-only final runtime audit for the first supervised LSR-v2 paper trade.
+- Reconstruct order and position lifecycle from paper_state.json, paper_status.json,
+  paper_events.jsonl, paper_lifecycle_report.json, and relevant LSR-v2 reports.
+- Classify missing fill/close events from the paper event tail as non-blocking when
+  the persisted state is complete and coherent.
+- Keep live, testnet, and exchange broker paths disabled.
+
+Files added:
+- trading_bot/core/lsr_v2_paper_final_runtime_audit.py
+- trading_bot/run_lsr_v2_paper_final_runtime_audit.py
+- trading_bot/tests/test_lsr_v2_paper_final_runtime_audit.py
+- docs/patch_reports/PATCH_30_3_0E_MANIFEST.txt
+- trading_bot/docs/PROMPT_30_3_0E_PAPER_FINAL_RUNTIME_AUDIT_PATCH_REPORT.md
+
+Runtime artifacts produced:
+- data/lsr_v2_paper_final_runtime_audit_report.json
+- data/lsr_v2_paper_final_runtime_audit.jsonl
+
+Runtime result:
+- status: WARN
+- decision: LSR_V2_PAPER_FINAL_RUNTIME_AUDIT_WARN_NON_BLOCKING
+- final_state: FLAT
+- recommendation: proceed_to_pnl_reconciliation
+- order_id: po_a8407626023b47cf
+- position_id: pp_e8777c510d2f4031
+
+Warning classification:
+- closed_position_missing_close_event: state_derived_close_accepted, tail_window_incomplete
+- filled_order_missing_fill_event: state_derived_fill_accepted, tail_window_incomplete
+- true_missing_event: none
+
+Safety:
+- Read-only audit only.
+- No order submit.
+- No position close.
+- No broker call.
+- No scheduler start.
+- No paper_state.json mutation.
+- No paper_status.json mutation.
+- live_mode_enabled: false.
+- testnet_mode_enabled: false.
+- exchange_broker_enabled: false.
+- broker_submit_real_called: false.
+- broker_close_real_called: false.
+
+Validation:
+- python -m compileall -q trading_bot/core/lsr_v2_paper_final_runtime_audit.py trading_bot/run_lsr_v2_paper_final_runtime_audit.py
+- pytest trading_bot/tests/test_lsr_v2_paper_final_runtime_audit.py -q
+- python -m compileall -q trading_bot
+- python tools/run_checks.py --no-pytest
+- python tools/run_checks.py --require-deps
+- pytest trading_bot/tests -q
+
+Validation result:
+- PASS, targeted pytest 6 passed.
+- PASS, smoke pytest 30 passed.
+- PASS, full trading_bot/tests pytest 844 passed.

@@ -1,0 +1,19 @@
+29.4.4s-10f-1 — LSR-v2 operator route audit strict cycle-scope hotfix
+
+Files included:
+- trading_bot/core/lsr_v2_runtime_bridge.py
+- trading_bot/core/paper_once_runner_footer.py
+- trading_bot/core/paper_once_console_summary.py
+- trading_bot/core/paper_engine.py
+- trading_bot/run_lsr_v2_operator_route_audit.py
+- trading_bot/tests/test_lsr_v2_runtime_bridge_cycle_scoped.py
+- trading_bot/tests/test_paper_once_runner_footer_lsr_v2.py
+- trading_bot/docs/PROMPT_29_4_4S10F1_OPERATOR_ROUTE_STRICT_CYCLE_SCOPE_PATCH_REPORT.md
+
+Safety:
+- diagnostic-only
+- fail-closed
+- no broker call
+- no order submission
+- no position opening
+- no live/testnet/exchange broker enablement

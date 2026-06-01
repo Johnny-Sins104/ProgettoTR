@@ -1,0 +1,27 @@
+PATCH 29.4.4u-24 — Generic LSR-v2 paper-only submit readiness preflight
+
+Included files:
+- trading_bot/core/lsr_v2_generic_paper_only_submit_readiness_preflight.py
+- trading_bot/run_lsr_v2_generic_paper_only_submit_readiness_preflight.py
+- trading_bot/tests/test_lsr_v2_generic_paper_only_submit_readiness_preflight.py
+- trading_bot/docs/PROMPT_29_4_4U24_GENERIC_LSR_V2_PAPER_ONLY_SUBMIT_READINESS_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U24_MANIFEST.txt
+
+Safety:
+- preflight-only
+- read-only
+- fail-closed
+- no real order-intent creation
+- no order-intent persistence
+- no submit
+- no close
+- no broker call
+- no scheduler
+- no Telegram network send
+- no paper_state mutation
+- no paper_status mutation
+- no live/testnet/exchange
+- no ordinal expansion
+
+Next expected patch:
+29.4.4u-25 — Generic LSR-v2 paper-only submit candidate audit

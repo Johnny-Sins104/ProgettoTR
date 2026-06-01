@@ -1,0 +1,16 @@
+Prompt 29.4.4s-8d — LSR-v2 combined risk overlay / operational viability preflight
+
+Files added:
+trading_bot/core/lsr_v2_combined_risk_overlay.py
+trading_bot/run_lsr_v2_combined_risk_overlay.py
+trading_bot/tests/test_lsr_v2_combined_risk_overlay.py
+trading_bot/docs/PROMPT_29_4_4S8D_LSR_V2_COMBINED_RISK_OVERLAY_PATCH_REPORT.md
+
+Diagnostic reports produced by runner:
+data/lsr_v2_combined_risk_overlay_report.json
+data/lsr_v2_combined_risk_overlay_variants.json
+data/lsr_v2_combined_risk_overlay_trades.jsonl
+data/lsr_v2_operational_viability_preflight_report.json
+
+Safety:
+no live, no testnet, no exchange broker, no broker call, no order submission, no position opening, no paper state mutation, no threshold lowering, promotion_ready=false.

@@ -25,26 +25,6 @@ MAGENTA = "\033[95m"
 WHITE   = "\033[97m"
 
 
-def append_to_log_with_rotation(log_path_str: str, text: str, max_bytes: int = 10 * 1024 * 1024) -> None:
-    import os
-    try:
-        if os.path.exists(log_path_str) and os.path.getsize(log_path_str) > max_bytes:
-            rotated = log_path_str + ".1"
-            if os.path.exists(rotated):
-                os.remove(rotated)
-            os.rename(log_path_str, rotated)
-    except Exception:
-        pass
-    try:
-        log_dir = os.path.dirname(log_path_str)
-        if log_dir and not os.path.exists(log_dir):
-            os.makedirs(log_dir, exist_ok=True)
-        with open(log_path_str, "a", encoding="utf-8") as f:
-            f.write(text)
-    except Exception:
-        pass
-
-
 import urllib.request
 import signal
 import atexit
@@ -58,6 +38,7 @@ from core.engine import DecisionEngine
 from core.risk import RiskManager
 from core.database import DatabaseManager
 from core.notifier import Notifier
+from core.commission_model import round_trip_commission
 
 LIMIT     = 500
 SLEEP_SEC = 60
@@ -70,6 +51,31 @@ notifier = Notifier(
 )
 
 _closed_on_shutdown = False
+
+
+def append_to_log_with_rotation(log_file: str, line: str, *, max_bytes: int = 2_000_000, backup_count: int = 5) -> None:
+    """Append a line to a log file while keeping bounded rotated backups.
+
+    This protects long-running live sessions from unbounded data/bot_live.log
+    growth.  Rotation is best-effort and fail-closed to the caller: logging
+    failures never affect trading flow.
+    """
+    try:
+        os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
+        if os.path.exists(log_file) and os.path.getsize(log_file) >= max_bytes:
+            for idx in range(max(backup_count, 1) - 1, 0, -1):
+                src = f"{log_file}.{idx}"
+                dst = f"{log_file}.{idx + 1}"
+                if os.path.exists(src):
+                    if idx + 1 > backup_count:
+                        os.remove(src)
+                    else:
+                        os.replace(src, dst)
+            os.replace(log_file, f"{log_file}.1")
+        with open(log_file, "a", encoding="utf-8") as lf:
+            lf.write(line)
+    except Exception:
+        pass
 
 def get_btc_price_sync() -> float | None:
     try:
@@ -306,7 +312,7 @@ async def monitor_active_trade(active_trade: dict) -> None:
                     active_trade["tp1_hit"] = True
                     
                     pnl_1 = (size / 2) * (tp1 - entry) if verdict == "BUY" else (size / 2) * (entry - tp1)
-                    comm_1 = (size / 2) * entry * COMMISSION_RATE * 2
+                    comm_1 = round_trip_commission(size / 2, entry, tp1, COMMISSION_RATE)
                     net_pnl_1 = pnl_1 - comm_1
                     
                     balance_file = "data/balance_live.txt"
@@ -363,7 +369,7 @@ async def monitor_active_trade(active_trade: dict) -> None:
                 elif hit_sl:
                     # SL colpito prima di TP1: perdita totale intera size
                     pnl = size * (sl - entry) if verdict == "BUY" else size * (entry - sl)
-                    commission = size * entry * COMMISSION_RATE * 2
+                    commission = round_trip_commission(size, entry, sl, COMMISSION_RATE)
                     net_pnl = pnl - commission
                     
                     balance_file = "data/balance_live.txt"
@@ -427,7 +433,7 @@ async def monitor_active_trade(active_trade: dict) -> None:
                         close_verdict = "WIN_PARTIAL"
                         
                     pnl_2 = (size / 2) * (exit_price_2 - entry) if verdict == "BUY" else (size / 2) * (entry - exit_price_2)
-                    comm_2 = (size / 2) * entry * COMMISSION_RATE * 2
+                    comm_2 = round_trip_commission(size / 2, entry, exit_price_2, COMMISSION_RATE)
                     net_pnl_2 = pnl_2 - comm_2
                     
                     balance_file = "data/balance_live.txt"
@@ -595,12 +601,12 @@ async def monitor_active_trade(active_trade: dict) -> None:
             if manual_close:
                 if not tp1_hit:
                     pnl_total = size * (current_price - entry) if verdict == "BUY" else size * (entry - current_price)
-                    comm = size * entry * COMMISSION_RATE * 2
+                    comm = round_trip_commission(size, entry, current_price, COMMISSION_RATE)
                     net_pnl_total = pnl_total - comm
                     pnl_to_add = net_pnl_total
                 else:
                     pnl_2 = (size / 2) * (current_price - entry) if verdict == "BUY" else (size / 2) * (entry - current_price)
-                    comm_2 = (size / 2) * entry * COMMISSION_RATE * 2
+                    comm_2 = round_trip_commission(size / 2, entry, current_price, COMMISSION_RATE)
                     net_pnl_2 = pnl_2 - comm_2
                     net_pnl_total = pnl_tp1_net + net_pnl_2
                     pnl_to_add = net_pnl_2
@@ -1217,7 +1223,7 @@ async def main() -> None:
                             pnl = t["size"] * (current_price - t["entry"])
                         else:
                             pnl = t["size"] * (t["entry"] - current_price)
-                        comm = t["size"] * t["entry"] * COMMISSION_RATE * 2
+                        comm = round_trip_commission(t["size"], t["entry"], current_price, COMMISSION_RATE)
                         net = pnl - comm
                         pnl_color = GREEN if net >= 0 else RED
                         print(f"    📈 {t['verdict']} @ {t['entry']:.2f} | SL: {t['sl']:.2f} | TP: {t['tp']:.2f} | PnL: {pnl_color}{net:+.2f}{RESET}")
@@ -1336,4 +1342,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
-

@@ -1,0 +1,22 @@
+PATCH 29.4.4t — LSR-v2 Paper Engine integration planning / runner consolidation preflight
+
+Files:
+- trading_bot/core/lsr_v2_paper_engine_integration_preflight.py
+- trading_bot/run_lsr_v2_paper_engine_integration_preflight.py
+- trading_bot/tests/test_lsr_v2_paper_engine_integration_preflight.py
+- trading_bot/docs/PROMPT_29_4_4T_PAPER_ENGINE_INTEGRATION_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T_MANIFEST.txt
+
+Safety:
+- audit-only / planning-only
+- no paper_state or paper_status mutation
+- no order submission
+- no position opening or closing
+- no broker calls
+- no Telegram network calls
+- no scheduler start
+- no fourth trade or re-entry
+- no live/testnet/exchange broker
+
+Expected decision:
+- LSR_V2_PAPER_ENGINE_INTEGRATION_PREFLIGHT_READY

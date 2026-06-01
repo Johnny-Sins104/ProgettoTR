@@ -1,0 +1,17 @@
+PATCH 29.4.4u-8 — Generic LSR-v2 paper cycle read-only runtime snapshot hook
+
+Included files:
+- trading_bot/core/lsr_v2_generic_paper_cycle_runtime_snapshot_hook.py
+- trading_bot/run_lsr_v2_generic_paper_cycle_runtime_snapshot_hook.py
+- trading_bot/tests/test_lsr_v2_generic_paper_cycle_runtime_snapshot_hook.py
+- trading_bot/docs/PROMPT_29_4_4U8_GENERIC_LSR_V2_PAPER_CYCLE_RUNTIME_SNAPSHOT_HOOK_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U8_MANIFEST.txt
+
+Safety:
+- read-only / runtime-snapshot-only / fail-closed
+- no submit / no close / no broker call
+- no runner/launcher/engine mutation
+- no paper_state or paper_status mutation
+- no scheduler / no Telegram network send
+- no live / no testnet / no exchange broker
+- no ordinal expansion

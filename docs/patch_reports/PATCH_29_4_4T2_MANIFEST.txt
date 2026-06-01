@@ -1,0 +1,20 @@
+PATCH 29.4.4t-2 — Paper runner footer / console visibility consolidation
+
+FILES:
+trading_bot/core/paper_once_console_summary.py
+trading_bot/core/paper_once_runner_footer.py
+trading_bot/core/paper_engine.py
+trading_bot/test_paper_once_console_summary.py
+trading_bot/tests/test_paper_once_runner_footer_lsr_v2.py
+trading_bot/docs/PROMPT_29_4_4T2_PAPER_RUNNER_FOOTER_CONSOLE_VISIBILITY_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4T2_MANIFEST.txt
+
+SCOPE:
+Console/read-only footer visibility consolidation for validated LSR-v2 dashboard/lifecycle artifacts.
+
+SAFETY:
+No submit, no open, no close, no broker call, no scheduler, no Telegram network send, no paper_state mutation, no paper_status mutation, no live/testnet/exchange broker.
+
+VALIDATION:
+python -m compileall -q trading_bot
+PYTHONPATH=.;trading_bot python -m pytest -q trading_bot/test_paper_once_console_summary.py trading_bot/tests/test_paper_once_runner_footer_lsr_v2.py trading_bot/tests/test_lsr_v2_engine_read_only_artifact_hook.py trading_bot/tests/test_lsr_v2_paper_engine_integration_preflight.py trading_bot/tests/test_lsr_v2_trade_lifecycle_auto_monitor.py trading_bot/tests/test_lsr_v2_telegram_trade_dashboard.py trading_bot/tests/test_lsr_v2_three_trade_postmortem_stability_lock.py trading_bot/tests/test_lsr_v2_third_closed_trade_final_audit.py trading_bot/tests/test_lsr_v2_third_trade_close_execution.py trading_bot/tests/test_lsr_v2_third_trade_close_preflight.py trading_bot/tests/test_lsr_v2_third_open_position_monitor.py trading_bot/tests/test_lsr_v2_third_trade_submit_execution.py trading_bot/test_paper_order_leakage_guard.py

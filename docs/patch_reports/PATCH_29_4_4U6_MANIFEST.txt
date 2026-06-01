@@ -1,0 +1,20 @@
+PATCH 29.4.4u-6 — Generic LSR-v2 paper cycle engine hook preflight
+
+FILES:
+trading_bot/core/lsr_v2_generic_paper_cycle_engine_hook_preflight.py
+trading_bot/run_lsr_v2_generic_paper_cycle_engine_hook_preflight.py
+trading_bot/tests/test_lsr_v2_generic_paper_cycle_engine_hook_preflight.py
+trading_bot/docs/PROMPT_29_4_4U6_GENERIC_LSR_V2_PAPER_CYCLE_ENGINE_HOOK_PREFLIGHT_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U6_MANIFEST.txt
+
+SAFETY:
+- preflight-only
+- read-only
+- fail-closed
+- no submit/open/close
+- no broker calls
+- no Telegram network send
+- no scheduler
+- no paper_state/paper_status mutation
+- no live/testnet/exchange broker
+- no ordinal expansion

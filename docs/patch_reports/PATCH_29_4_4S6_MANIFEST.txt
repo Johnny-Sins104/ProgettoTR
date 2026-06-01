@@ -1,0 +1,26 @@
+Prompt 29.4.4s-6 — LSR-v2 audit-only candidate detector
+
+Files:
+- trading_bot/core/liquidity_sweep_reversal_v2.py
+- trading_bot/run_lsr_v2_candidate_audit.py
+- trading_bot/tests/test_liquidity_sweep_reversal_v2.py
+- trading_bot/docs/PROMPT_29_4_4S6_LSR_V2_CANDIDATE_AUDIT_PATCH_REPORT.md
+
+Safety:
+- audit-only
+- no live
+- no testnet
+- no exchange broker
+- no broker call
+- no order submission
+- no position opening
+- no gate/risk threshold lowering
+
+Outputs:
+- data/lsr_v2_candidate_audit.jsonl
+- data/lsr_v2_candidate_audit_report.json
+
+Validation:
+- python -m pytest -q trading_bot\tests\test_liquidity_sweep_reversal_v2.py
+- python -m compileall -q trading_bot
+- python trading_bot\run_lsr_v2_candidate_audit.py --data-dir data --timeframe 5m

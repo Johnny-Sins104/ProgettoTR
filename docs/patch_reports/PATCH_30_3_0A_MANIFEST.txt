@@ -1,0 +1,36 @@
+PATCH 30.3.0A - Paper runtime smoke and optimization recertification
+
+Scope:
+- Install and pin runtime dependencies needed by paper/backtest validation.
+- Add Windows bundled-runtime SSL compatibility before aiohttp/ccxt async imports.
+- Harden paper --once watchdog so completed-cycle hangs exit reliably.
+- Fix candlestick pattern strictness regressions found by full pytest.
+- Run paper smoke, full pytest, offline backtest, LSR-v2 matrix, robustness, and edge discovery.
+
+Files:
+- trading_bot/core/aiohttp_compat.py
+- trading_bot/core/notifier.py
+- trading_bot/core/telegram_control.py
+- trading_bot/core/client.py
+- trading_bot/core/historical_cache.py
+- trading_bot/core/multi_asset_dataset.py
+- trading_bot/core/candlestick_patterns.py
+- trading_bot/run_paper_trading.py
+- trading_bot/requirements.txt
+- tools/run_checks.py
+- docs/patch_reports/PATCH_30_3_0A_MANIFEST.txt
+- trading_bot/docs/PROMPT_30_3_0A_PAPER_RUNTIME_AND_OPTIMIZATION_RECERTIFICATION_PATCH_REPORT.md
+
+Validation:
+- `python tools\run_checks.py --require-deps` -> PASS, 26 smoke tests passed, missing_dependencies=none.
+- `python -m pytest -q` -> PASS, 1006 passed, 2 warnings.
+- `run_paper_trading.py --mode paper --once ...` -> exits cleanly via watchdog after CYCLE_COMPLETED.
+- Offline `run_custom_backtest.py --fast --risk-profile DYNAMIC --cost-model conservative --no-download-cache` -> PASS, but paper readiness NOT_READY.
+- `run_lsr_v2_backtest_matrix.py` -> PASS diagnostic, promotion_ready=false.
+- `run_lsr_v2_robustness_validation.py` -> PASS diagnostic, promotion_ready=false.
+- `run_edge_strategy_discovery.py` -> WARN diagnostic, valid_strategy_count=0.
+
+Operational blockers:
+- Live market fetch from this runtime returned ExchangeNotAvailable for binanceusdm/binance/okx/bybit.
+- Paper continuous operation needs an accessible exchange endpoint or alternate market data feed.
+- Optimization/backtest outputs do not currently justify enabling autonomous paper order submission.

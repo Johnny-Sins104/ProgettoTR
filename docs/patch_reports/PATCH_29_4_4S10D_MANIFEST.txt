@@ -1,0 +1,20 @@
+PROMPT 29.4.4s-10d — LSR-v2 runtime cycle-scoped candidate bridge audit
+
+Files included:
+trading_bot/core/lsr_v2_runtime_bridge.py
+trading_bot/core/lsr_v2_paper_supervised_bridge.py
+trading_bot/core/paper_engine.py
+trading_bot/core/paper_once_console_summary.py
+trading_bot/core/paper_once_runner_footer.py
+trading_bot/tests/test_lsr_v2_runtime_bridge_cycle_scoped.py
+trading_bot/tests/test_paper_once_runner_footer_lsr_v2.py
+trading_bot/docs/PROMPT_29_4_4S10D_LSR_V2_RUNTIME_CYCLE_BRIDGE_PATCH_REPORT.md
+
+Safety:
+- fail-closed runtime audit only
+- would_submit=false always
+- broker_submit_called=false
+- orders_submitted_by_lsr_v2_runtime_bridge=0
+- positions_opened_by_lsr_v2_runtime_bridge=0
+- no live/testnet/exchange broker
+- no paper state mutation

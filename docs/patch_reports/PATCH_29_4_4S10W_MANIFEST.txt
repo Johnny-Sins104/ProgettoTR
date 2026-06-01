@@ -1,0 +1,17 @@
+PROMPT 29.4.4s-10w — LSR-v2 second trade supervised submit preflight / disabled-by-default boundary
+
+Files:
+trading_bot/core/lsr_v2_second_trade_submit_preflight.py
+trading_bot/run_lsr_v2_second_trade_submit_preflight.py
+trading_bot/tests/test_lsr_v2_second_trade_submit_preflight.py
+trading_bot/docs/PROMPT_29_4_4S10W_SECOND_TRADE_SUBMIT_PREFLIGHT_PATCH_REPORT.md
+
+Safety:
+- no broker submit
+- no paper order submission
+- no position opening
+- no close
+- no paper state/status mutation
+- no live/testnet/exchange broker
+- second_trade_execute_enabled=false
+- second_trade_submit_enabled=false

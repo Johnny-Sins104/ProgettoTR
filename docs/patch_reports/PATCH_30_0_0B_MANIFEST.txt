@@ -1,0 +1,24 @@
+PATCH 30.0.0B - Test environment baseline
+
+Scope:
+- Add a development requirements file for repeatable pytest setup.
+- Add a dependency-aware local check runner.
+- Keep checks usable even before dev dependencies are installed.
+
+Files:
+- trading_bot/requirements-dev.txt
+- tools/run_checks.py
+- docs/patch_reports/PATCH_30_0_0B_MANIFEST.txt
+- trading_bot/docs/PROMPT_30_0_0B_TEST_ENVIRONMENT_BASELINE_PATCH_REPORT.md
+
+Safety:
+- No runtime state mutation.
+- No broker calls.
+- No network calls.
+- No order submit or close.
+- No live/testnet/exchange enablement.
+
+Validation:
+- Run: python -m py_compile tools/run_checks.py
+- Run: python tools/run_checks.py --no-pytest
+- Run: python tools/run_checks.py --json --no-pytest

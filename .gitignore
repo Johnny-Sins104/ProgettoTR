@@ -1,6 +1,8 @@
 # Python/cache artifacts
 venv/
 .venv/
+.pytest_cache/
+trading_bot/.pytest_cache/
 __pycache__/
 *.py[cod]
 *.pyo
@@ -27,3 +29,8 @@ trading_bot/data/*.json
 trading_bot/data/*.parquet
 trading_bot/data/*.csv
 trading_bot/reports/
+
+# Local run artifacts
+console_once*.txt
+patch_reports.zip
+trading_bot/scratch/

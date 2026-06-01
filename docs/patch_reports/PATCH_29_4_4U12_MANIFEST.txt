@@ -1,0 +1,25 @@
+PATCH: 29.4.4u-12 — Generic LSR-v2 runtime snapshot footer/banner engine-runner adapter preflight
+
+FILES:
+trading_bot/core/lsr_v2_generic_runtime_snapshot_footer_banner_engine_runner_adapter_preflight.py
+trading_bot/run_lsr_v2_generic_runtime_snapshot_footer_banner_engine_runner_adapter_preflight.py
+trading_bot/tests/test_lsr_v2_generic_runtime_snapshot_footer_banner_engine_runner_adapter_preflight.py
+trading_bot/docs/PROMPT_29_4_4U12_GENERIC_LSR_V2_RUNTIME_SNAPSHOT_FOOTER_BANNER_ENGINE_RUNNER_ADAPTER_PREFLIGHT_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U12_MANIFEST.txt
+
+EXPECTED_DECISION:
+LSR_V2_GENERIC_RUNTIME_SNAPSHOT_FOOTER_BANNER_ENGINE_RUNNER_ADAPTER_PREFLIGHT_READY
+
+SAFETY:
+preflight-only
+read-only
+fail-closed
+no submit
+no close
+no broker calls
+no scheduler
+no Telegram network send
+no paper_state mutation
+no paper_status mutation
+no live/testnet/exchange broker
+no ordinal expansion

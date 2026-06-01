@@ -1,0 +1,18 @@
+PROMPT 29.4.4s-10o — LSR-v2 supervised paper close execution / single-position TP close
+
+Files:
+trading_bot/core/lsr_v2_supervised_paper_close_execution.py
+trading_bot/run_lsr_v2_supervised_paper_close_execution.py
+trading_bot/tests/test_lsr_v2_supervised_paper_close_execution.py
+trading_bot/docs/PROMPT_29_4_4S10O_LSR_V2_SUPERVISED_PAPER_CLOSE_EXECUTION_PATCH_REPORT.md
+
+Safety:
+- paper-only close boundary
+- disabled by default
+- requires LSR_V2_PAPER_CLOSE_ENABLE=1
+- requires LSR_V2_PAPER_CLOSE_CONFIRMATION=I_UNDERSTAND_CLOSE_ONE_PAPER_POSITION_ONLY
+- max one position closed
+- no new order
+- no re-entry
+- no live/testnet/exchange broker
+- backup before paper_state/paper_status mutation

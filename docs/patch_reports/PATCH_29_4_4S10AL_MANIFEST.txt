@@ -1,0 +1,11 @@
+PATCH 29.4.4s-10al — LSR-v2 third paper trade handoff dry-run
+
+FILES:
+trading_bot/core/lsr_v2_third_trade_handoff_dry_run.py
+trading_bot/run_lsr_v2_third_trade_handoff_dry_run.py
+trading_bot/tests/test_lsr_v2_third_trade_handoff_dry_run.py
+trading_bot/docs/PROMPT_29_4_4S10AL_THIRD_TRADE_HANDOFF_DRY_RUN_PATCH_REPORT.md
+
+SAFETY:
+No submit, no close, no broker call, no paper_state mutation, no paper_status mutation,
+no live, no testnet, no exchange broker.

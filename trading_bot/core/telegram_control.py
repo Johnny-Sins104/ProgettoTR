@@ -22,6 +22,12 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Iterable
 
 try:
+    from .aiohttp_compat import install_aiohttp_windows_ssl_context_compat
+except Exception:  # pragma: no cover - script-style fallback
+    from aiohttp_compat import install_aiohttp_windows_ssl_context_compat  # type: ignore
+
+try:
+    install_aiohttp_windows_ssl_context_compat()
     import aiohttp
 except Exception:  # pragma: no cover - aiohttp is optional in smoke-test envs
     aiohttp = None

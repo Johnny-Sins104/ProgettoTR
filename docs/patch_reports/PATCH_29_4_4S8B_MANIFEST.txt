@@ -1,0 +1,18 @@
+PATCH 29.4.4s-8b — LSR-v2 cost degradation and drawdown attribution audit
+
+Files:
+trading_bot/core/lsr_v2_cost_drawdown_attribution.py
+trading_bot/run_lsr_v2_cost_drawdown_attribution.py
+trading_bot/tests/test_lsr_v2_cost_drawdown_attribution.py
+trading_bot/docs/PROMPT_29_4_4S8B_LSR_V2_COST_DRAWDOWN_ATTRIBUTION_PATCH_REPORT.md
+
+Diagnostic-only safety:
+- no live
+- no testnet
+- no exchange broker
+- no broker call
+- no order submission
+- no position opening
+- no paper state mutation
+- no threshold lowering
+- promotion_ready=false

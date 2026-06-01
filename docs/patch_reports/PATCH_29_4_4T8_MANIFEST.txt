@@ -1,0 +1,18 @@
+PATCH 29.4.4t-8 — LSR-v2 paper-only fourth-trade re-arm readiness preflight
+
+Files:
+- trading_bot/core/lsr_v2_fourth_trade_rearm_readiness_preflight.py
+- trading_bot/run_lsr_v2_fourth_trade_rearm_readiness_preflight.py
+- trading_bot/tests/test_lsr_v2_fourth_trade_rearm_readiness_preflight.py
+- trading_bot/docs/PROMPT_29_4_4T8_FOURTH_TRADE_REARM_READINESS_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T8_MANIFEST.txt
+
+Safety:
+- Read-only / preflight-only.
+- No submit/open/close.
+- No broker call.
+- No scheduler.
+- No Telegram network send.
+- No paper_state/paper_status mutation.
+- No fourth-trade unlock.
+- No live/testnet/exchange broker.

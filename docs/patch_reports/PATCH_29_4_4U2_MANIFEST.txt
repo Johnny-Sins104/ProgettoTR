@@ -1,0 +1,20 @@
+PATCH 29.4.4u-2 — Generic LSR-v2 paper cycle controller draft
+
+Files:
+- trading_bot/core/lsr_v2_paper_cycle_controller.py
+- trading_bot/run_lsr_v2_paper_cycle_controller.py
+- trading_bot/tests/test_lsr_v2_paper_cycle_controller.py
+- trading_bot/docs/PROMPT_29_4_4U2_GENERIC_LSR_V2_PAPER_CYCLE_CONTROLLER_DRAFT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U2_MANIFEST.txt
+
+Safety:
+- read-only
+- draft-only
+- fail-closed
+- no submit/open/close
+- no broker calls
+- no scheduler
+- no Telegram network send
+- no paper_state/status mutation
+- no live/testnet/exchange broker
+- no fifth/sixth/seventh ordinal expansion

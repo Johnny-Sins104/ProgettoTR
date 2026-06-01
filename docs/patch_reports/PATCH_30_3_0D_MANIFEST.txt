@@ -1,0 +1,54 @@
+PATCH 30.3.0D - First supervised LSR-v2 paper submit execution
+
+Scope:
+- Execute the already-ready supervised LSR-v2 paper submit boundary for one paper-only order.
+- Use both required operator confirmations:
+  - `LSR_V2_PAPER_SUBMIT_ARM=1`
+  - `LSR_V2_PAPER_SUBMIT_CONFIRMATION=I_UNDERSTAND_SINGLE_PAPER_ORDER`
+  - `LSR_V2_PAPER_SUBMIT_EXECUTE=1`
+  - `LSR_V2_PAPER_SUBMIT_EXECUTE_CONFIRMATION=I_UNDERSTAND_EXECUTE_ONE_PAPER_ORDER_ONLY`
+  - `LSR_V2_PAPER_SUBMIT_MAX_ORDERS=1`
+- Reconcile paper_status.json to the newly opened paper position.
+- Run the open-position monitor.
+
+Runtime artifacts:
+- data/lsr_v2_supervised_paper_submit_execution_report.json
+- data/lsr_v2_supervised_paper_submit_execution.jsonl
+- data/lsr_v2_paper_status_reconciliation_report.json
+- data/lsr_v2_paper_status_reconciliation.jsonl
+- data/lsr_v2_open_position_monitor_report.json
+- data/lsr_v2_open_position_monitor.jsonl
+- data/paper_state.json
+- data/paper_status.json
+
+Execution result:
+- Decision: `LSR_V2_SINGLE_PAPER_ORDER_EXECUTED`
+- Cycle: `pc_000517_99a0e0a7`
+- Symbol: `BTC/USDT`
+- Side: `SELL`
+- Order id: `po_a8407626023b47cf`
+- Position id: `pp_e8777c510d2f4031`
+- Entry: `99076.7`
+- Stop loss: `99367.46952`
+- Take profit: `98495.16096`
+- Quantity: `0.008597875`
+- Total notional: `851.8490865205`
+- Total risk amount: `2.5`
+
+Safety:
+- Paper order submission enabled only inside the supervised execution boundary.
+- Live enabled: false.
+- Testnet enabled: false.
+- Exchange broker enabled: false.
+- Orders submitted by execution: 1.
+- Positions opened by execution: 1.
+- Status reconciliation submitted/opened no orders or positions.
+- Open-position monitor submitted/opened no orders or positions.
+
+Validation:
+- Default execution runner before arming -> `KEEP_DIAGNOSTIC_LSR_V2_EXECUTION_NOT_ARMED`.
+- Armed execution runner -> PASS, `LSR_V2_SINGLE_PAPER_ORDER_EXECUTED`.
+- Status reconciliation audit -> `KEEP_DIAGNOSTIC_LSR_V2_STATUS_SYNC_AVAILABLE`.
+- Status reconciliation with explicit sync confirmation -> PASS, `LSR_V2_PAPER_STATUS_SYNC_APPLIED`.
+- Open-position monitor -> PASS, `LSR_V2_OPEN_POSITION_MONITOR_READY`.
+- `python tools\run_checks.py --require-deps` -> PASS, 30 smoke tests passed.

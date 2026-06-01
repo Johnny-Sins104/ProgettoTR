@@ -1,0 +1,31 @@
+PATCH 29.4.4u-41 — Generic LSR-v2 supervised paper lifecycle completion audit preflight
+
+Files:
+- trading_bot/core/lsr_v2_generic_supervised_paper_lifecycle_completion_audit_preflight.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_lifecycle_completion_audit_preflight.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_lifecycle_completion_audit_preflight.py
+- trading_bot/docs/PROMPT_29_4_4U41_GENERIC_LSR_V2_SUPERVISED_PAPER_LIFECYCLE_COMPLETION_AUDIT_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U41_MANIFEST.txt
+
+Upstream:
+- 29.4.4u-40 — Generic LSR-v2 supervised paper postmortem execution
+
+Safety:
+- preflight-only
+- read-only by default
+- fail-closed
+- no submit
+- no close
+- no realized-PnL reconciliation
+- no final audit runtime execution
+- no postmortem runtime execution
+- no lifecycle completion runtime audit
+- no paper_state mutation
+- no paper_status mutation
+- no Telegram network send
+- no scheduler start
+- no live/testnet/exchange broker access
+- no ordinal expansion
+
+Expected next patch:
+- 29.4.4u-42 — Generic LSR-v2 supervised paper lifecycle completion audit execution scaffold

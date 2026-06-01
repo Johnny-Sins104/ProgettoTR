@@ -886,6 +886,15 @@ class Config:
 
     # Prompt 29.4.4r-1 - legacy paper order leakage audit + fail-closed guard
     PAPER_ORDER_LEAKAGE_GUARD_ENABLED: bool = os.getenv("PAPER_ORDER_LEAKAGE_GUARD_ENABLED", "1") == "1"
+
+    # Prompt 29.4.4s-4 — diagnostic archetype pruning / runtime gate.
+    # Default is audit-only. Blocking requires explicit operator enable.
+    EDGE_STRATEGY_PRUNING_ENABLED: bool = os.getenv("EDGE_STRATEGY_PRUNING_ENABLED", "0") == "1"
+    EDGE_STRATEGY_PRUNING_AUDIT_ENABLED: bool = os.getenv("EDGE_STRATEGY_PRUNING_AUDIT_ENABLED", "1") == "1"
+    EDGE_STRATEGY_PRUNING_FAIL_CLOSED: bool = os.getenv("EDGE_STRATEGY_PRUNING_FAIL_CLOSED", "1") == "1"
+    EDGE_STRATEGY_BLOCKED_ARCHETYPES: str = os.getenv("EDGE_STRATEGY_BLOCKED_ARCHETYPES", "RANGING_MEAN_REVERSION")
+    EDGE_STRATEGY_WATCHLIST_ARCHETYPES: str = os.getenv("EDGE_STRATEGY_WATCHLIST_ARCHETYPES", "LIQUIDITY_SWEEP_REVERSAL")
+    EDGE_STRATEGY_RUNTIME_PRUNING_REPORT: str = os.getenv("EDGE_STRATEGY_RUNTIME_PRUNING_REPORT", "edge_strategy_runtime_pruning_report.json")
     PAPER_ORDER_LEAKAGE_GUARD_FAIL_CLOSED: bool = os.getenv("PAPER_ORDER_LEAKAGE_GUARD_FAIL_CLOSED", "1") == "1"
     # Prompt 29.4.4s allows only metadata-marked guarded supervised paper orders.
     # Legacy ScoreOnly/Meta_OK events still lack guarded_supervised_execution and remain blocked.

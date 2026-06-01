@@ -18,6 +18,7 @@ import sys
 import time
 
 from config import Config
+from core.jsonl_utils import iter_jsonl_tail
 from core.paper_order_leakage_guard import (
     PaperOrderLeakageGuardSettings,
     summarize_order_leakage_events,
@@ -71,27 +72,8 @@ def _read_json(path: str | Path) -> dict[str, Any]:
 
 
 def _iter_jsonl_events(path: str | Path, *, max_lines: int = 50000) -> Iterable[dict[str, Any]]:
-    p = Path(path)
-    if not p.exists():
-        return []
-    try:
-        lines = p.read_text(encoding="utf-8").splitlines()
-    except Exception:
-        return []
-    if max_lines > 0 and len(lines) > max_lines:
-        lines = lines[-max_lines:]
-    out: list[dict[str, Any]] = []
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            item = json.loads(line)
-        except Exception:
-            continue
-        if isinstance(item, dict) and item.get("event_type"):
-            out.append(item)
-    return out
+    return iter_jsonl_tail(path, max_lines=max_lines, require_event_type=False)
+
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
@@ -455,7 +437,7 @@ def build_paper_unlock_observation_report(
         "live_allowed": False,
         "testnet_allowed": False,
         "exchange_broker_allowed": False,
-        "next_patch": "29.4.4t position lifecycle monitoring / supervised paper lifecycle audit after controlled 29.4.4s validation.",
+        "next_patch": "29.4.4s first real paper-only order execution, supervised, only after sufficient dry-run observation review.",
     }
 
 

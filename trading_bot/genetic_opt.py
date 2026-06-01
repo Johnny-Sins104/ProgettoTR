@@ -5,6 +5,7 @@ import numpy as np
 import random
 import time
 from config import Config
+from core.commission_model import round_trip_commission
 
 INITIAL_BALANCE  = 1000.0
 COMMISSION_RATE  = 0.001
@@ -219,7 +220,7 @@ def run_backtest_dict(
                     open_trade["tp1_hit"] = True
                     tp1_hit = True
                     pnl_1 = (size / 2) * (tp1 - entry) if side == "BUY" else (size / 2) * (entry - tp1)
-                    comm_1 = (size / 2) * entry * COMMISSION_RATE * 2
+                    comm_1 = round_trip_commission(size / 2, entry, tp1, COMMISSION_RATE)
                     net_pnl_1 = pnl_1 - comm_1
                     balance += net_pnl_1
                     open_trade["pnl_tp1_net"] = net_pnl_1
@@ -232,7 +233,7 @@ def run_backtest_dict(
                         open_trade["be_triggered"] = True
                 elif hit_sl:
                     pnl = size * (sl - entry) if side == "BUY" else size * (entry - sl)
-                    commission = size * entry * COMMISSION_RATE * 2
+                    commission = round_trip_commission(size, entry, sl, COMMISSION_RATE)
                     net_pnl = pnl - commission
                     balance += net_pnl
 
@@ -270,7 +271,7 @@ def run_backtest_dict(
                         result = "WIN_PARTIAL"
 
                     pnl_2 = (size / 2) * (exit_price_2 - entry) if side == "BUY" else (size / 2) * (entry - exit_price_2)
-                    comm_2 = (size / 2) * entry * COMMISSION_RATE * 2
+                    comm_2 = round_trip_commission(size / 2, entry, exit_price_2, COMMISSION_RATE)
                     net_pnl_2 = pnl_2 - comm_2
                     balance += net_pnl_2
 

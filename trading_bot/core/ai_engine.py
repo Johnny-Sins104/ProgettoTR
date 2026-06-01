@@ -28,14 +28,12 @@ class TradingAI(MetaLabelingEngine):
         try:
             import polars as pl
             lines = pl.scan_parquet(csv_path).select(pl.len()).collect().item()
-            
-            if not hasattr(self, "_last_trained_samples") or self._last_trained_samples == 0:
-                self._last_trained_samples = lines
                 
-            samples_since_train = lines - self._last_trained_samples
-            if lines >= Config.AI_MIN_SAMPLES and (samples_since_train >= Config.AI_RETRAIN_EVERY or samples_since_train < 0):
-                print(f"♻️ Riaddestramento automatico AI avviato (Nuovi campioni: {samples_since_train}, Totale: {lines})...")
+            last = int(getattr(self, "_last_auto_retrain_samples", 0) or 0)
+            retrain_every = max(1, int(getattr(Config, "AI_RETRAIN_EVERY", 500) or 500))
+            if lines >= Config.AI_MIN_SAMPLES and (last <= 0 or lines - last >= retrain_every):
+                print(f"♻️ Riaddestramento automatico AI avviato (Campioni: {lines}, ultimo={last})...")
                 self.train(csv_path)
-                self._last_trained_samples = lines
+                self._last_auto_retrain_samples = int(lines)
         except Exception:
             pass

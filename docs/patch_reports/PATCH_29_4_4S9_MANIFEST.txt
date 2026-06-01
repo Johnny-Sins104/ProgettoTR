@@ -1,0 +1,24 @@
+PROMPT 29.4.4s-9 — LSR-v2 promotion gate / paper-supervised readiness preflight
+
+PATCH-ONLY FILES:
+trading_bot/core/lsr_v2_promotion_gate.py
+trading_bot/run_lsr_v2_promotion_gate.py
+trading_bot/tests/test_lsr_v2_promotion_gate.py
+trading_bot/docs/PROMPT_29_4_4S9_LSR_V2_PROMOTION_GATE_PATCH_REPORT.md
+
+OUTPUT REPORT:
+data/lsr_v2_promotion_gate_report.json
+
+SAFETY:
+- diagnostic-only
+- no live
+- no testnet
+- no exchange broker
+- no broker call
+- no order submission
+- no position opening
+- no paper state mutation
+- no runtime routing
+- no threshold lowering
+- promotion_ready=false
+- paper_supervised_candidate may be true only as a readiness label

@@ -1,0 +1,17 @@
+PROMPT 29.4.4s-7e — LSR-v2 sample expansion / data horizon robustness audit
+
+Patch-only files:
+trading_bot/core/lsr_v2_sample_expansion.py
+trading_bot/run_lsr_v2_sample_expansion.py
+trading_bot/tests/test_lsr_v2_sample_expansion.py
+trading_bot/docs/PROMPT_29_4_4S7E_LSR_V2_SAMPLE_EXPANSION_PATCH_REPORT.md
+
+Safety:
+- diagnostic-only
+- no live/testnet/exchange broker
+- no broker call
+- no order submission
+- no position opening
+- no paper state mutation
+- no threshold lowering
+- promotion_ready=false

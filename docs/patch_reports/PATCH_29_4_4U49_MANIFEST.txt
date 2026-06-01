@@ -1,0 +1,11 @@
+PATCH 29.4.4u-49 — Generic LSR-v2 supervised paper terminal lifecycle handoff execution
+
+FILES:
+trading_bot/core/lsr_v2_generic_supervised_paper_terminal_lifecycle_handoff_execution.py
+trading_bot/run_lsr_v2_generic_supervised_paper_terminal_lifecycle_handoff_execution.py
+trading_bot/tests/test_lsr_v2_generic_supervised_paper_terminal_lifecycle_handoff_execution.py
+trading_bot/docs/PROMPT_29_4_4U49_GENERIC_LSR_V2_SUPERVISED_PAPER_TERMINAL_LIFECYCLE_HANDOFF_EXECUTION_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U49_MANIFEST.txt
+
+SAFETY:
+read-only-by-default; fail-closed; no submit; no close; no broker call; no scheduler; no Telegram/network send; no paper_state/status mutation; no live/testnet/exchange; no ordinal expansion.

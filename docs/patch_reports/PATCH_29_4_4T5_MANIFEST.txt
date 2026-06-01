@@ -1,0 +1,24 @@
+PATCH 29.4.4t-5 — Launcher/runner visibility parity audit
+
+Files:
+- trading_bot/core/lsr_v2_launcher_runner_visibility_parity_audit.py
+- trading_bot/run_lsr_v2_launcher_runner_visibility_parity_audit.py
+- trading_bot/tests/test_lsr_v2_launcher_runner_visibility_parity_audit.py
+- trading_bot/docs/PROMPT_29_4_4T5_LAUNCHER_RUNNER_VISIBILITY_PARITY_AUDIT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T5_MANIFEST.txt
+
+Scope:
+- Audit-only/read-only parity check between launcher dashboard banner and runner footer visibility model.
+
+Safety:
+- No submit.
+- No open.
+- No close.
+- No broker call.
+- No scheduler.
+- No Telegram network/send.
+- No paper_state mutation.
+- No paper_status mutation.
+- No re-entry.
+- No fourth-trade unlock.
+- No live/testnet/exchange broker.

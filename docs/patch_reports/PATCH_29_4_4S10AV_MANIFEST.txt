@@ -1,0 +1,13 @@
+PATCH_ID=29.4.4s-10av
+NAME=LSR-v2 Telegram Trade Dashboard
+TYPE=patch-only
+SCOPE=dashboard-only/audit-only
+FILES=5
+trading_bot/core/lsr_v2_telegram_trade_dashboard.py
+trading_bot/run_lsr_v2_telegram_trade_dashboard.py
+trading_bot/tests/test_lsr_v2_telegram_trade_dashboard.py
+trading_bot/docs/PROMPT_29_4_4S10AV_TELEGRAM_TRADE_DASHBOARD_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4S10AV_MANIFEST.txt
+SAFETY=no live, no testnet, no exchange broker, no submit, no close, no re-entry, no Telegram network send, no paper_state/status mutation
+EXPECTED_DECISION=LSR_V2_TELEGRAM_TRADE_DASHBOARD_READY
+NEXT=29.4.4s-10aw Visual SL/TP Progress Bar

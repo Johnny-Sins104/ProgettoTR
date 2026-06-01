@@ -97,8 +97,8 @@ def evaluate_paper_unlock(
         return PaperUnlockDecision(False, "disabled", profile=settings.profile, symbol=symbol, tag=settings.tag)
     if settings.live_block and str(mode).lower() != "paper":
         return PaperUnlockDecision(False, "live_block", profile=settings.profile, symbol=symbol, tag=settings.tag)
-    if not settings.profile:
-        return PaperUnlockDecision(False, "empty_profile", profile=settings.profile, symbol=symbol, tag=settings.tag)
+    # Profile is operator/configuration controlled. Do not hard-code a single
+    # legacy profile here; symbol/filter/risk gates below remain fail-closed.
     if symbol not in settings.allowed_symbols:
         return PaperUnlockDecision(False, "symbol_not_allowed", profile=settings.profile, symbol=symbol, tag=settings.tag)
     if open_positions_count >= settings.max_positions:

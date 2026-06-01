@@ -1,0 +1,15 @@
+Prompt 29.4.4s-10x — LSR-v2 second trade supervised submit boundary / armed single-order gate
+
+Patch-only files:
+trading_bot/core/lsr_v2_second_trade_submit_boundary.py
+trading_bot/run_lsr_v2_second_trade_submit_boundary.py
+trading_bot/tests/test_lsr_v2_second_trade_submit_boundary.py
+trading_bot/docs/PROMPT_29_4_4S10X_SECOND_TRADE_SUBMIT_BOUNDARY_PATCH_REPORT.md
+PATCH_29_4_4S10X_MANIFEST.txt
+
+No live/testnet/exchange broker changes.
+No broker submit.
+No order submission.
+No position opening.
+No close.
+No paper state/status mutation.

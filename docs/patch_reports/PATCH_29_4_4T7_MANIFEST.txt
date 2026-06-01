@@ -1,0 +1,24 @@
+PATCH 29.4.4t-7 — Paper Engine LSR-v2 candidate lifecycle hook preflight
+
+Files:
+- trading_bot/core/lsr_v2_candidate_lifecycle_hook_preflight.py
+- trading_bot/run_lsr_v2_candidate_lifecycle_hook_preflight.py
+- trading_bot/tests/test_lsr_v2_candidate_lifecycle_hook_preflight.py
+- trading_bot/docs/PROMPT_29_4_4T7_CANDIDATE_LIFECYCLE_HOOK_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T7_MANIFEST.txt
+
+Mode: read-only / audit-only / preflight-only.
+
+Forbidden:
+- no live
+- no testnet
+- no exchange broker
+- no submit
+- no close
+- no position open
+- no re-entry
+- no fourth-trade unlock
+- no Telegram network send
+- no scheduler start
+- no paper_state mutation
+- no paper_status mutation

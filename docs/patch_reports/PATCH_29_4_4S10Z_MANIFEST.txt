@@ -1,0 +1,21 @@
+PATCH: 29.4.4s-10z — LSR-v2 second paper position lifecycle audit / status sync readiness
+
+FILES:
+trading_bot/core/lsr_v2_second_trade_position_lifecycle.py
+trading_bot/run_lsr_v2_second_trade_position_lifecycle.py
+trading_bot/tests/test_lsr_v2_second_trade_position_lifecycle.py
+trading_bot/docs/PROMPT_29_4_4S10Z_SECOND_TRADE_POSITION_LIFECYCLE_PATCH_REPORT.md
+
+OUTPUTS CREATED AT RUNTIME:
+data/lsr_v2_second_trade_position_lifecycle_report.json
+data/lsr_v2_second_trade_position_lifecycle.jsonl
+
+SAFETY:
+- no new order
+- no new position
+- no close
+- no broker submit
+- no broker close
+- no paper state/status mutation
+- no re-entry
+- no live/testnet/exchange broker

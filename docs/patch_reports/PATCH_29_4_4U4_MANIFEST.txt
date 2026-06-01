@@ -1,0 +1,20 @@
+PATCH 29.4.4u-4 — Generic LSR-v2 supervised re-arm policy draft
+
+Files:
+trading_bot/core/lsr_v2_supervised_rearm_policy.py
+trading_bot/run_lsr_v2_supervised_rearm_policy.py
+trading_bot/tests/test_lsr_v2_supervised_rearm_policy.py
+trading_bot/docs/PROMPT_29_4_4U4_GENERIC_LSR_V2_SUPERVISED_REARM_POLICY_DRAFT_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U4_MANIFEST.txt
+
+Safety:
+- draft-only
+- read-only
+- fail-closed
+- no ordinal expansion
+- no submit/open/close
+- no broker call
+- no scheduler
+- no Telegram network send
+- no paper_state/paper_status mutation
+- no live/testnet/exchange broker

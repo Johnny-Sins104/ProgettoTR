@@ -26,6 +26,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--balance", type=float, default=1000.0)
     parser.add_argument("--poll-seconds", type=float, default=60.0)
     parser.add_argument("--once", action="store_true", help="Run one evaluation cycle then exit. Useful for smoke tests.")
+    parser.add_argument("--max-cycles", type=int, default=None, help="Stop paper mode after N completed cycles. Default 0 runs until interrupted; --once still takes precedence.")
+    parser.add_argument("--market-data-mode", choices=["live", "auto", "cache", "replay"], default=None, help="Paper market data source. live uses the exchange, auto falls back to local replay cache, cache uses the latest local cache window, replay advances through local cached candles.")
+    parser.add_argument("--market-data-cache-dir", default=None, help="Directory containing local OHLCV parquet caches for cache/replay paper data.")
+    parser.add_argument("--market-data-replay-step", type=int, default=None, help="Number of cached candles to advance per paper cycle in replay/auto fallback mode.")
+    parser.add_argument("--market-data-replay-start-offset", type=int, default=None, help="Initial cached candle end-offset for replay/auto fallback mode. Default starts at PAPER_CANDLE_LIMIT.")
+    parser.set_defaults(cycle_artifacts=None)
+    parser.add_argument("--cycle-artifacts", dest="cycle_artifacts", action="store_true", help="Generate full paper diagnostic/performance artifacts after each cycle.")
+    parser.add_argument("--no-cycle-artifacts", dest="cycle_artifacts", action="store_false", help="Skip heavy per-cycle artifacts; useful for continuous paper/replay drills.")
     parser.add_argument("--max-positions", type=int, default=3)
     parser.add_argument("--risk-per-trade-pct", type=float, default=0.005)
     parser.add_argument("--rr", type=float, default=2.0)
@@ -68,6 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--paper-unlock-supervised-confirm", default="", help="Required confirmation phrase for 29.4.4s: I_UNDERSTAND_PAPER_ONLY.")
     parser.add_argument("--no-paper-unlock-supervised-execution", action="store_true", help="Disable Prompt 29.4.4s supervised paper-only execution audit for this run.")
     parser.add_argument("--no-paper-order-leakage-guard", action="store_true", help="Disable Prompt 29.4.4r-1 legacy paper order leakage guard for this run.")
+    parser.add_argument("--no-lsr-v2-paper-supervised-bridge", action="store_true", help="Disable Prompt 29.4.4s-10b LSR-v2 paper-supervised bridge runtime audit for this run.")
+    parser.add_argument("--no-lsr-v2-engine-read-only-artifact-hook", action="store_true", help="Disable Prompt 29.4.4t-1 read-only LSR-v2 dashboard/lifecycle artifact hook for this run.")
+    parser.add_argument("--lsr-v2-bridge-operator-enable", action="store_true", help="Operator-enable LSR-v2 bridge routing diagnostics only; submission remains fail-closed.")
+    parser.add_argument("--lsr-v2-bridge-confirm", default="", help="Optional diagnostic confirmation phrase: I_UNDERSTAND_LSR_V2_PAPER_SUPERVISED_ONLY.")
     parser.set_defaults(paper_unlock=None)
     parser.add_argument("--paper-unlock", dest="paper_unlock", action="store_true", help="Enable Prompt 29.4.4 paper-only unlock gate for this run.")
     parser.add_argument("--no-paper-unlock", dest="paper_unlock", action="store_false", help="Disable Prompt 29.4.4 paper-only unlock gate for this run.")
@@ -94,6 +106,17 @@ def _env_float(name: str, default: float) -> float:
         return float(raw)
     except Exception:
         return default
+
+
+def _exit_process(code: int) -> None:
+    if _env_bool("PAPER_ONCE_FORCE_OS_EXIT", False):
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+        os._exit(code)
+    raise SystemExit(code)
 
 
 def _start_once_footer_watchdog(
@@ -130,8 +153,7 @@ def _start_once_footer_watchdog(
         cycle_id = ""
         notice_printed = False
         while time.monotonic() < deadline:
-            if _engine_footer_printed():
-                return
+            footer_printed = _engine_footer_printed()
             cycle_event = read_latest_cycle_completed(events_path, started_at=started_at)
             if cycle_event:
                 if cycle_seen_at is None:
@@ -145,7 +167,7 @@ def _start_once_footer_watchdog(
                     )
                     notice_printed = True
                 if time.monotonic() - cycle_seen_at >= grace_seconds:
-                    if not _engine_footer_printed():
+                    if not footer_printed and _env_bool("PAPER_ONCE_WATCHDOG_PRINT_FOOTER", False):
                         print_runner_once_footer_from_events(
                             events_path,
                             started_at=started_at,
@@ -207,10 +229,7 @@ def main() -> None:
                 print("[PAPER ONCE INTERRUPTED]", flush=True)
                 print("reason=keyboard_interrupt_before_cycle_completed", flush=True)
 
-    if interrupted:
-        os._exit(130)
-    else:
-        os._exit(0)
+    _exit_process(130 if interrupted else 0)
 
 
 if __name__ == "__main__":

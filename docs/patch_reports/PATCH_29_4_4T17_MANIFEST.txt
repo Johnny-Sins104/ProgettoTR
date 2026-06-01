@@ -1,0 +1,17 @@
+PATCH 29.4.4t-17 — LSR-v2 fourth supervised paper-only submit execution scaffold
+
+FILES:
+trading_bot/core/lsr_v2_fourth_trade_submit_execution.py
+trading_bot/run_lsr_v2_fourth_trade_submit_execution.py
+trading_bot/tests/test_lsr_v2_fourth_trade_submit_execution.py
+trading_bot/docs/PROMPT_29_4_4T17_FOURTH_SUPERVISED_PAPER_SUBMIT_EXECUTION_SCAFFOLD_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4T17_MANIFEST.txt
+
+SAFETY:
+- Scaffold-only/fail-closed.
+- No broker submit without a validated paper_order_intent.
+- Current no-candidate state must submit zero orders and open zero positions.
+- No live/testnet/exchange broker.
+- No Telegram network send.
+- No scheduler.
+- No paper_state or paper_status mutation.

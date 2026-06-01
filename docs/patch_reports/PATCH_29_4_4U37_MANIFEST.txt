@@ -1,0 +1,17 @@
+PATCH 29.4.4u-37 — Generic LSR-v2 supervised paper final audit execution
+
+Files:
+trading_bot/core/lsr_v2_generic_supervised_paper_final_audit_execution.py
+trading_bot/run_lsr_v2_generic_supervised_paper_final_audit_execution.py
+trading_bot/tests/test_lsr_v2_generic_supervised_paper_final_audit_execution.py
+trading_bot/docs/PROMPT_29_4_4U37_GENERIC_LSR_V2_SUPERVISED_PAPER_FINAL_AUDIT_EXECUTION_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U37_MANIFEST.txt
+
+Properties:
+- consumes 29.4.4u-36 final-audit execution scaffold report
+- controlled/read-only-by-default/fail-closed final-audit execution gate model
+- no final audit runtime execution, no postmortem, no broker/network/scheduler/state mutation
+- paper-only, max_open_positions=1, no live/testnet/exchange, no ordinal expansion
+
+Expected next patch:
+29.4.4u-38 — Generic LSR-v2 supervised paper postmortem preflight

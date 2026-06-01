@@ -1,0 +1,23 @@
+PATCH: 29.4.4u-16 — Generic LSR-v2 paper-only candidate detection readiness preflight
+TYPE: readiness-preflight-only / read-only / fail-closed
+
+FILES:
+trading_bot/core/lsr_v2_generic_paper_only_candidate_detection_readiness_preflight.py
+trading_bot/run_lsr_v2_generic_paper_only_candidate_detection_readiness_preflight.py
+trading_bot/tests/test_lsr_v2_generic_paper_only_candidate_detection_readiness_preflight.py
+trading_bot/docs/PROMPT_29_4_4U16_GENERIC_LSR_V2_PAPER_ONLY_CANDIDATE_DETECTION_READINESS_PREFLIGHT_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U16_MANIFEST.txt
+
+SAFETY:
+- No candidate scan execution
+- No route execution
+- No handoff execution
+- No submit
+- No close
+- No broker call
+- No scheduler
+- No Telegram network send
+- No paper_state mutation
+- No paper_status mutation
+- No live/testnet/exchange broker
+- No ordinal trade patch expansion

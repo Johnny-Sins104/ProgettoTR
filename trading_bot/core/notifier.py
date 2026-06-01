@@ -1,6 +1,14 @@
-import aiohttp
 import asyncio
 import json
+
+try:
+    from .aiohttp_compat import install_aiohttp_windows_ssl_context_compat
+except Exception:  # pragma: no cover - script-style fallback
+    from aiohttp_compat import install_aiohttp_windows_ssl_context_compat  # type: ignore
+
+install_aiohttp_windows_ssl_context_compat()
+
+import aiohttp
 
 # Evento globale per segnalare la chiusura da Telegram
 telegram_close_event = asyncio.Event()
@@ -24,6 +32,15 @@ class Notifier:
         return self._session
 
     async def close(self) -> None:
+        if self._polling_task is not None:
+            self._polling_task.cancel()
+            try:
+                await self._polling_task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                pass
+            self._polling_task = None
         if self._session is not None and not self._session.closed:
             await self._session.close()
             self._session = None
@@ -136,8 +153,14 @@ class Notifier:
                                         telegram_close_event.set()
                                         cb_url = f"https://api.telegram.org/bot{self._token}/answerCallbackQuery"
                                         await session.post(cb_url, json={"callback_query_id": cb["id"], "text": "Chiusura in corso..."})
+                except asyncio.CancelledError:
+                    raise
                 except Exception:
                     pass
                 await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            pass
         except Exception:
             pass
+        finally:
+            self._polling_task = None

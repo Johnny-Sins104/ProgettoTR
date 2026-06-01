@@ -1,0 +1,18 @@
+PATCH 29.4.4s-10ax — LSR-v2 Trade Lifecycle Auto Monitoring
+
+Included files:
+- trading_bot/core/lsr_v2_trade_lifecycle_auto_monitor.py
+- trading_bot/run_lsr_v2_trade_lifecycle_auto_monitor.py
+- trading_bot/tests/test_lsr_v2_trade_lifecycle_auto_monitor.py
+- trading_bot/docs/PROMPT_29_4_4S10AX_TRADE_LIFECYCLE_AUTO_MONITORING_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4S10AX_MANIFEST.txt
+
+Scope:
+- Monitoring-only lifecycle classification.
+- Telegram-ready lifecycle update payload.
+- No scheduler start.
+- No Telegram send/network call.
+- No broker call.
+- No paper_state/paper_status mutation.
+- No order submit, no open, no close, no re-entry.
+- No live, no testnet, no exchange broker.

@@ -1,0 +1,20 @@
+PATCH 29.4.4u-68 — Generic LSR-v2 supervised paper order-intent real runtime activation bundle
+
+Files:
+- trading_bot/core/lsr_v2_generic_supervised_paper_order_intent_real_runtime_activation_bundle.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_order_intent_real_runtime_activation_preflight.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_order_intent_real_runtime_activation_execution_scaffold.py
+- trading_bot/core/lsr_v2_generic_supervised_paper_order_intent_real_runtime_activation_execution.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_order_intent_real_runtime_activation_bundle.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_order_intent_real_runtime_activation_bundle.py
+- trading_bot/docs/PROMPT_29_4_4U68_GENERIC_LSR_V2_SUPERVISED_PAPER_ORDER_INTENT_REAL_RUNTIME_ACTIVATION_BUNDLE_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U68_MANIFEST.txt
+
+Upstream:
+- 29.4.4u-67 integrated dry-run runtime bundle
+
+Expected decision:
+- LSR_V2_GENERIC_SUPERVISED_PAPER_ORDER_INTENT_REAL_RUNTIME_ACTIVATION_BUNDLE_READY
+
+Safety:
+- read-only, fail-closed, no submit, no close, no broker call, no scheduler, no Telegram/network send, no state/status mutation, no live/testnet/exchange.

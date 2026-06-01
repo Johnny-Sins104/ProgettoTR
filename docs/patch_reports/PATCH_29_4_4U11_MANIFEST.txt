@@ -1,0 +1,21 @@
+PATCH 29.4.4u-11 — Generic LSR-v2 runtime snapshot footer/banner read-only wiring hook
+
+FILES:
+trading_bot/core/lsr_v2_generic_runtime_snapshot_footer_banner_wiring_hook.py
+trading_bot/run_lsr_v2_generic_runtime_snapshot_footer_banner_wiring_hook.py
+trading_bot/tests/test_lsr_v2_generic_runtime_snapshot_footer_banner_wiring_hook.py
+trading_bot/docs/PROMPT_29_4_4U11_GENERIC_LSR_V2_RUNTIME_SNAPSHOT_FOOTER_BANNER_READ_ONLY_WIRING_HOOK_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U11_MANIFEST.txt
+
+SAFETY:
+read-only
+fail-closed
+no submit
+no close
+no broker call
+no scheduler
+no Telegram network send
+no paper_state mutation
+no paper_status mutation
+no live/testnet/exchange
+no ordinal expansion

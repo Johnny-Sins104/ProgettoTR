@@ -1,0 +1,33 @@
+PATCH 29.4.4u-29 — Generic LSR-v2 supervised paper-only submit execution
+
+FILES
+- trading_bot/core/lsr_v2_generic_supervised_paper_submit_execution.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_submit_execution.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_submit_execution.py
+- trading_bot/docs/PROMPT_29_4_4U29_GENERIC_LSR_V2_SUPERVISED_PAPER_SUBMIT_EXECUTION_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U29_MANIFEST.txt
+
+UPSTREAM
+- 29.4.4u-28 — Generic LSR-v2 supervised paper-only order-intent activation
+
+MODE
+- Controlled submit execution gate
+- Read-only by default
+- Fail-closed
+- Paper-only
+- No ordinal expansion
+
+SAFETY
+- No broker submit
+- No broker close
+- No paper_state mutation
+- No paper_status mutation
+- No scheduler
+- No Telegram/network send
+- No live/testnet/exchange path
+
+EXPECTED DECISION
+- LSR_V2_GENERIC_SUPERVISED_PAPER_SUBMIT_EXECUTION_READY
+
+NEXT PATCH
+- 29.4.4u-30 — Generic LSR-v2 supervised paper open-position monitor preflight

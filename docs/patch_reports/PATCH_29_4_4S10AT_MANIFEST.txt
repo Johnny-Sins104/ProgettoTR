@@ -1,0 +1,25 @@
+PATCH: 29.4.4s-10at — LSR-v2 third closed trade final audit / post-close reconciliation
+
+NEW FILES:
+- trading_bot/core/lsr_v2_third_closed_trade_final_audit.py
+- trading_bot/run_lsr_v2_third_closed_trade_final_audit.py
+- trading_bot/tests/test_lsr_v2_third_closed_trade_final_audit.py
+- trading_bot/docs/PROMPT_29_4_4S10AT_THIRD_CLOSED_TRADE_FINAL_AUDIT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4S10AT_MANIFEST.txt
+
+REPORT OUTPUTS CREATED AT RUNTIME:
+- data/lsr_v2_third_closed_trade_final_audit_report.json
+- data/lsr_v2_third_closed_trade_final_audit.jsonl
+
+SAFETY CONTRACT:
+- Audit-only post-close reconciliation.
+- No order submission.
+- No position opening.
+- No position closing.
+- No re-entry.
+- No paper_state mutation.
+- No paper_status mutation.
+- No live broker.
+- No testnet broker.
+- No exchange broker.
+- Requires close operator env variables to be absent for PASS.

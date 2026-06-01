@@ -1,0 +1,32 @@
+PATCH: 29.4.4t-1 — LSR-v2 Engine Read-Only Dashboard/Lifecycle Artifact Hook
+TYPE: patch-only
+STATUS: PREPARED_FOR_LOCAL_VALIDATION
+
+FILES:
+trading_bot/core/lsr_v2_engine_read_only_artifact_hook.py
+trading_bot/run_lsr_v2_engine_read_only_artifact_hook.py
+trading_bot/tests/test_lsr_v2_engine_read_only_artifact_hook.py
+trading_bot/core/paper_engine.py
+trading_bot/run_paper_trading.py
+trading_bot/docs/PROMPT_29_4_4T1_ENGINE_READ_ONLY_ARTIFACT_HOOK_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4T1_MANIFEST.txt
+
+SAFETY:
+- read-only artifact hook
+- no order submission
+- no position opening
+- no position closing
+- no broker call
+- no scheduler start
+- no Telegram network send
+- no paper_state mutation
+- no paper_status mutation
+- no re-entry
+- no fourth trade
+- live/testnet/exchange broker remain disabled
+
+EXPECTED_DECISION:
+LSR_V2_ENGINE_READ_ONLY_ARTIFACT_HOOK_READY
+
+NEXT_PATCH:
+29.4.4t-2 — Paper runner footer/console visibility consolidation

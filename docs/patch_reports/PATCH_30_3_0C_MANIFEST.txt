@@ -1,0 +1,40 @@
+PATCH 30.3.0C - Bounded replay drill and supervised submit preflight readiness
+
+Scope:
+- Add bounded paper runtime control with `--max-cycles`.
+- Add replay start control with `--market-data-replay-start-offset`.
+- Add heavy artifact control with `--cycle-artifacts` / `--no-cycle-artifacts`.
+- Keep full artifacts enabled by default for `--once`, and keep continuous/replay drills lightweight unless explicitly requested.
+- Validate a supervised LSR-v2 replay cycle through route, order-intent, handoff dry-run, and submit preflight without submitting orders.
+
+Files:
+- trading_bot/core/paper_market_data.py
+- trading_bot/core/paper_engine.py
+- trading_bot/run_paper_trading.py
+- trading_bot/test_runtime_risk_io_hardening.py
+- docs/patch_reports/PATCH_30_3_0C_MANIFEST.txt
+- trading_bot/docs/PROMPT_30_3_0C_BOUNDED_REPLAY_AND_SUBMIT_PREFLIGHT_PATCH_REPORT.md
+
+Validation:
+- `python -m py_compile trading_bot\core\paper_market_data.py trading_bot\core\paper_engine.py trading_bot\run_paper_trading.py trading_bot\test_runtime_risk_io_hardening.py` -> PASS.
+- `python trading_bot\test_runtime_risk_io_hardening.py` -> PASS.
+- Bounded replay, 3 cycles, `--no-cycle-artifacts` -> PASS; offsets 500, 525, 550; `MAX_CYCLES_REACHED` emitted.
+- Supervised diagnostic replay with operator confirmation -> PASS; candidate-ready runtime cycles observed.
+- `run_lsr_v2_operator_route_audit.py` -> PASS, `LSR_V2_OPERATOR_ROUTE_AUDIT_READY_DIAGNOSTIC`, `would_route_count=1`.
+- `run_lsr_v2_order_intent_audit.py` -> PASS, `LSR_V2_ORDER_INTENT_AUDIT_READY_DIAGNOSTIC`, `would_create_order_count=1`.
+- `run_lsr_v2_paper_broker_handoff_dry_run.py` -> PASS, `LSR_V2_PAPER_BROKER_HANDOFF_DRY_RUN_READY_DIAGNOSTIC`, payload valid.
+- `run_lsr_v2_supervised_paper_submit_preflight.py` -> PASS, `LSR_V2_SUPERVISED_PAPER_SUBMIT_PREFLIGHT_READY`.
+- `python tools\run_checks.py --require-deps` -> PASS, 30 smoke tests passed.
+- `python -m pytest` -> PASS, 1010 passed, 2 warnings.
+
+Safety:
+- `submit_enabled=false`
+- `broker_submit_called=false`
+- `paper_order_submission_enabled=false`
+- `routing_enabled=false`
+- `execution_enabled=false`
+- `live_enabled=false`
+- `testnet_enabled=false`
+- `exchange_broker_enabled=false`
+- Orders submitted: 0
+- Positions opened: 0

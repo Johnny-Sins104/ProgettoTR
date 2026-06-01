@@ -1,0 +1,36 @@
+PATCH 29.4.4u-27 — Generic LSR-v2 supervised paper-only order-intent activation preflight
+
+Files:
+- trading_bot/core/lsr_v2_generic_supervised_paper_order_intent_activation_preflight.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_order_intent_activation_preflight.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_order_intent_activation_preflight.py
+- trading_bot/docs/PROMPT_29_4_4U27_GENERIC_LSR_V2_SUPERVISED_PAPER_ORDER_INTENT_ACTIVATION_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U27_MANIFEST.txt
+
+Mode:
+- preflight-only
+- read-only
+- fail-closed
+- paper-only
+- no ordinal expansion
+
+Upstream requirement:
+- data/lsr_v2_generic_supervised_paper_submit_execution_scaffold_report.json
+- decision: LSR_V2_GENERIC_SUPERVISED_PAPER_SUBMIT_EXECUTION_SCAFFOLD_READY
+
+Runtime guarantees:
+- no real paper_order_intent creation
+- no order-intent materialization
+- no order-intent persistence
+- no submit candidate creation
+- no submit
+- no close
+- no broker calls
+- no scheduler
+- no Telegram network send
+- no paper_state mutation
+- no paper_status mutation
+- no live/testnet/exchange path
+
+Recommended next patch:
+- 29.4.4u-28 — Generic LSR-v2 supervised paper-only order-intent activation

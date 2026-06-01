@@ -1,0 +1,24 @@
+PATCH 29.4.4u-34 — Generic LSR-v2 supervised paper realized PnL reconciliation preflight
+
+FILES:
+trading_bot/core/lsr_v2_generic_supervised_paper_realized_pnl_reconciliation_preflight.py
+trading_bot/run_lsr_v2_generic_supervised_paper_realized_pnl_reconciliation_preflight.py
+trading_bot/tests/test_lsr_v2_generic_supervised_paper_realized_pnl_reconciliation_preflight.py
+trading_bot/docs/PROMPT_29_4_4U34_GENERIC_LSR_V2_SUPERVISED_PAPER_REALIZED_PNL_RECONCILIATION_PREFLIGHT_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U34_MANIFEST.txt
+
+MODE:
+preflight-only
+read-only-by-default
+fail-closed
+paper-only
+no ordinal expansion
+
+UPSTREAM:
+29.4.4u-33 — Generic LSR-v2 supervised paper close execution
+
+EXPECTED DECISION:
+LSR_V2_GENERIC_SUPERVISED_PAPER_REALIZED_PNL_RECONCILIATION_PREFLIGHT_READY
+
+NEXT:
+29.4.4u-35 — Generic LSR-v2 supervised paper final audit preflight

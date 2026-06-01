@@ -1,31 +1,31 @@
 PROGETTOTR PAPER ENGINE | PAPER | 5m | conservative | Telegram ON | Proactive ON | AI debug OFF | Unlock ON
 assets=BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT poll=60s
 [FETCH START] symbol=BTC/USDT timeframe=5m limit=500
-[FETCH DONE] symbol=BTC/USDT candles=500 elapsed_seconds=2.2500
+[FETCH DONE] symbol=BTC/USDT candles=500 elapsed_seconds=2.4220
 [EVALUATE START] symbol=BTC/USDT
-[REGIME MODEL REGISTRY] Loaded specialized models successfully. Unified Acc: 68.8% | Trending Acc: 68.8% | Ranging Acc: 80.0%
-[EVALUATE DONE] symbol=BTC/USDT side=HOLD signal=0 map_score=45.0 structure_state=PRICE_IN_SUPPLY_WAIT_CONFIRMATION elapsed_seconds=2.1100
+[REGIME MODEL REGISTRY] Loaded specialized models successfully. Unified Acc: 63.8% | Trending Acc: 63.8% | Ranging Acc: 69.2%
+[EVALUATE DONE] symbol=BTC/USDT side=HOLD signal=0 map_score=60.0 structure_state=PRICE_IN_DEMAND_WAIT_CONFIRMATION elapsed_seconds=2.3910
 [FETCH START] symbol=ETH/USDT timeframe=5m limit=500
-[FETCH DONE] symbol=ETH/USDT candles=500 elapsed_seconds=2.2340
+[FETCH DONE] symbol=ETH/USDT candles=500 elapsed_seconds=2.3750
 [EVALUATE START] symbol=ETH/USDT
-[EVALUATE DONE] symbol=ETH/USDT side=HOLD signal=0 map_score=45.0 structure_state=PRICE_IN_DEMAND_WAIT_CONFIRMATION elapsed_seconds=0.0160
+[EVALUATE DONE] symbol=ETH/USDT side=HOLD signal=0 map_score=60.0 structure_state=PRICE_IN_DEMAND_WAIT_CONFIRMATION elapsed_seconds=0.0160
 [FETCH START] symbol=SOL/USDT timeframe=5m limit=500
-[FETCH DONE] symbol=SOL/USDT candles=500 elapsed_seconds=2.2810
+[FETCH DONE] symbol=SOL/USDT candles=500 elapsed_seconds=2.3750
 [EVALUATE START] symbol=SOL/USDT
-[EVALUATE DONE] symbol=SOL/USDT side=HOLD signal=0 map_score=60.0 structure_state=PRICE_IN_DEMAND_WAIT_CONFIRMATION elapsed_seconds=0.0310
+[EVALUATE DONE] symbol=SOL/USDT side=HOLD signal=0 map_score=45.0 structure_state=PRICE_IN_DEMAND_WAIT_CONFIRMATION elapsed_seconds=0.0310
 [FETCH START] symbol=BNB/USDT timeframe=5m limit=500
-[FETCH DONE] symbol=BNB/USDT candles=500 elapsed_seconds=2.2030
+[FETCH DONE] symbol=BNB/USDT candles=500 elapsed_seconds=2.2190
 [EVALUATE START] symbol=BNB/USDT
 [EVALUATE DONE] symbol=BNB/USDT side=HOLD signal=0 map_score=60.0 structure_state=PRICE_IN_DEMAND_WAIT_CONFIRMATION elapsed_seconds=0.0150
-[PAPER ONCE WATCHDOG] cycle_completed_detected=true cycle_id=pc_000136_8bb3e9c5 hard_exit_grace_seconds=3.00
+[PAPER ONCE WATCHDOG] cycle_completed_detected=true cycle_id=pc_000207_dc6355fa hard_exit_grace_seconds=3.00
 [PAPER CYCLE COMPLETED]
-cycle_id=pc_000136_8bb3e9c5
+cycle_id=pc_000207_dc6355fa
 scanned=4
 signals=0
 orders=0
 open_positions=0
 errors=0
-elapsed_seconds=11.2773
+elapsed_seconds=12.6324
 paper_orders_enabled=false
 paper_unlock_experiment_allowed=false
 manual_activation_allowed=false
@@ -48,4 +48,4 @@ scanned=4
 orders=0
 positions=0
 reason=all assets rejected by filters
-[PAPER ONCE EXIT] reason=cycle_completed_watchdog_hard_exit cycle_id=pc_000136_8bb3e9c5
+[PAPER ONCE EXIT] reason=cycle_completed_watchdog_hard_exit cycle_id=pc_000207_dc6355fa

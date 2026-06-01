@@ -1,0 +1,20 @@
+PATCH 29.4.4u-5 — Generic LSR-v2 paper cycle integration preflight
+
+Files:
+trading_bot/core/lsr_v2_generic_paper_cycle_integration_preflight.py
+trading_bot/run_lsr_v2_generic_paper_cycle_integration_preflight.py
+trading_bot/tests/test_lsr_v2_generic_paper_cycle_integration_preflight.py
+trading_bot/docs/PROMPT_29_4_4U5_GENERIC_LSR_V2_PAPER_CYCLE_INTEGRATION_PREFLIGHT_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U5_MANIFEST.txt
+
+Safety:
+- read-only
+- preflight-only
+- fail-closed
+- no ordinal expansion
+- no submit/open/close
+- no broker call
+- no scheduler
+- no Telegram network send
+- no paper_state/paper_status mutation
+- no live/testnet/exchange broker

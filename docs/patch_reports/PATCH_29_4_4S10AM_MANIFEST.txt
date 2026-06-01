@@ -1,0 +1,7 @@
+PATCH 29.4.4s-10am — LSR-v2 third paper trade submit preflight
+
+Files:
+trading_bot/core/lsr_v2_third_trade_submit_preflight.py
+trading_bot/run_lsr_v2_third_trade_submit_preflight.py
+trading_bot/tests/test_lsr_v2_third_trade_submit_preflight.py
+trading_bot/docs/PROMPT_29_4_4S10AM_THIRD_TRADE_SUBMIT_PREFLIGHT_PATCH_REPORT.md

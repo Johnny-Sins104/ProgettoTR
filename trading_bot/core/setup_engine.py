@@ -398,8 +398,9 @@ class MarketStructureSetupEngine:
         regime = str(cls._get(row, "market_regime", cls._get(row, "regime", ""))).upper()
         bb = cls._f(row, "bb_position", cls._f(row, "range_pos_400", 0.5))
         rsi = cls._f(row, "rsi_14", cls._f(row, "rsi", 50.0))
-        near_support = cls._b(row, "near_support", False) or cls._f(row, "near_sr", 0.0) > 0
-        near_resistance = cls._b(row, "near_resistance", False) or cls._f(row, "near_sr", 0.0) > 0
+        near_sr = cls._f(row, "near_sr", 0.0) > 0
+        near_support = cls._b(row, "near_support", False) or (near_sr and bb < 0.50)
+        near_resistance = cls._b(row, "near_resistance", False) or (near_sr and bb > 0.50)
         score = 0.0
         reasons: list[str] = []
         if "RANG" in regime or "TRANS" in regime:

@@ -117,10 +117,13 @@ def _row_get(row: Any, key: str, default: Any = 0.0) -> Any:
         return default
 
 
-def _last_series_mean(df: pd.DataFrame, col: str, window: int, default: float = 0.0) -> float:
+def _last_series_mean(df: pd.DataFrame, col: str, window: int, default: float = 0.0, *, exclude_current: bool = True) -> float:
     try:
         if col in df.columns and len(df[col]) > 0:
-            vals = pd.to_numeric(df[col], errors="coerce").tail(window).dropna()
+            series = pd.to_numeric(df[col], errors="coerce")
+            if exclude_current and len(series) > 1:
+                series = series.iloc[:-1]
+            vals = series.tail(window).dropna()
             if len(vals):
                 return _safe_float(vals.mean(), default)
     except Exception:

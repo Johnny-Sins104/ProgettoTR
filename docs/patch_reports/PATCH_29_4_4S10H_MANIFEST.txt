@@ -1,0 +1,15 @@
+PATCH 29.4.4s-10h — LSR-v2 paper broker handoff dry-run / order payload schema audit
+
+Files added:
+trading_bot/core/lsr_v2_paper_broker_handoff_dry_run.py
+trading_bot/run_lsr_v2_paper_broker_handoff_dry_run.py
+trading_bot/tests/test_lsr_v2_paper_broker_handoff_dry_run.py
+trading_bot/docs/PROMPT_29_4_4S10H_LSR_V2_PAPER_BROKER_HANDOFF_DRY_RUN_PATCH_REPORT.md
+
+Safety:
+- dry-run only
+- no PaperBrokerAdapter.place_order() call
+- no order submission
+- no position opening
+- no paper state mutation
+- no live/testnet/exchange broker

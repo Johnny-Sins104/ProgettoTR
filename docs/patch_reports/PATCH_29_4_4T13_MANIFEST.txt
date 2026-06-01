@@ -1,0 +1,16 @@
+PATCH 29.4.4t-13 — LSR-v2 fourth-trade candidate detection audit
+
+Files:
+- trading_bot/core/lsr_v2_fourth_trade_candidate_detection_audit.py
+- trading_bot/run_lsr_v2_fourth_trade_candidate_detection_audit.py
+- trading_bot/tests/test_lsr_v2_fourth_trade_candidate_detection_audit.py
+- trading_bot/docs/PROMPT_29_4_4T13_FOURTH_TRADE_CANDIDATE_DETECTION_AUDIT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T13_MANIFEST.txt
+
+Scope:
+- Read-only candidate detection audit.
+- Diagnostic-only candidate evidence scan.
+- No route, submit, broker call, state mutation, Telegram send, scheduler, live/testnet/exchange.
+
+Expected decision:
+- LSR_V2_FOURTH_TRADE_CANDIDATE_DETECTION_AUDIT_READY

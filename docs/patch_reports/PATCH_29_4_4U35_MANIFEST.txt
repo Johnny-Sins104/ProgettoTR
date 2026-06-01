@@ -1,0 +1,20 @@
+PATCH 29.4.4u-35 — Generic LSR-v2 supervised paper final audit preflight
+
+Files:
+- trading_bot/core/lsr_v2_generic_supervised_paper_final_audit_preflight.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_final_audit_preflight.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_final_audit_preflight.py
+- trading_bot/docs/PROMPT_29_4_4U35_GENERIC_LSR_V2_SUPERVISED_PAPER_FINAL_AUDIT_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U35_MANIFEST.txt
+
+Mode:
+- preflight-only
+- read-only by default
+- fail-closed
+- paper-only
+
+Upstream:
+- 29.4.4u-34 — Generic LSR-v2 supervised paper realized PnL reconciliation preflight
+
+Expected next patch:
+- 29.4.4u-36 — Generic LSR-v2 supervised paper final audit execution scaffold

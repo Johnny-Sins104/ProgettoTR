@@ -1,0 +1,26 @@
+PATCH 30.2.0C - Paper once async teardown exit guard
+
+Scope:
+- Replace the final unconditional `os._exit(...)` in `run_paper_trading.py` with a graceful `SystemExit` wrapper after normal engine teardown.
+- Keep the cycle-completed watchdog hard exit unchanged for true post-cycle hangs.
+- Add `PAPER_ONCE_FORCE_OS_EXIT=1` as an emergency compatibility escape hatch.
+- Add a regression source check for the runner exit contract.
+
+Files:
+- trading_bot/run_paper_trading.py
+- trading_bot/test_runtime_risk_io_hardening.py
+- docs/patch_reports/PATCH_30_2_0C_MANIFEST.txt
+- trading_bot/docs/PROMPT_30_2_0C_ASYNC_TEARDOWN_EXIT_GUARD_PATCH_REPORT.md
+
+Safety:
+- No broker calls.
+- No order submit or close.
+- No risk/routing/signal mutation.
+- Watchdog hard exit remains available for completed-cycle hangs.
+- Legacy final hard exit remains opt-in via `PAPER_ONCE_FORCE_OS_EXIT=1`.
+
+Validation:
+- `python -m py_compile trading_bot\run_paper_trading.py trading_bot\test_runtime_risk_io_hardening.py` -> PASS.
+- `python trading_bot\test_runtime_risk_io_hardening.py` -> PASS.
+- `python tools\run_checks.py --no-pytest` -> PASS, 657 Python files parsed, 0 syntax errors.
+- Manual LSR-v2/paper regression runner -> PASS, 147 files loaded, 837 tests passed, 0 failed, 0 skipped, 0 import failures.

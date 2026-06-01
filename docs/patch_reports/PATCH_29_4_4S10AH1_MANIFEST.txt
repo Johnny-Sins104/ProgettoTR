@@ -1,0 +1,16 @@
+Prompt: 29.4.4s-10ah-1
+Title: LSR-v2 Telegram open-position monitor bridge / SL-TP progress bar
+
+Files:
+trading_bot/core/lsr_v2_telegram_position_monitor_bridge.py
+trading_bot/run_lsr_v2_telegram_position_monitor_bridge.py
+trading_bot/tests/test_lsr_v2_telegram_position_monitor_bridge.py
+trading_bot/docs/PROMPT_29_4_4S10AH1_TELEGRAM_POSITION_MONITOR_BRIDGE_PATCH_REPORT.md
+
+Safety:
+- no submit
+- no close
+- no broker call
+- no paper_state mutation
+- no paper_status mutation
+- no live/testnet/exchange broker

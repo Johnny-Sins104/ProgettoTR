@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = ROOT.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+try:
+    from core.lsr_v2_launcher_read_only_visibility_preflight import build_lsr_v2_launcher_read_only_visibility_preflight_report_from_files
+except Exception:
+    from trading_bot.core.lsr_v2_launcher_read_only_visibility_preflight import build_lsr_v2_launcher_read_only_visibility_preflight_report_from_files
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="LSR-v2 launcher read-only visibility preflight")
+    parser.add_argument("--data-dir", default="data")
+    parser.add_argument("--project-root", default=str(PROJECT_ROOT))
+    args = parser.parse_args()
+    report = build_lsr_v2_launcher_read_only_visibility_preflight_report_from_files(
+        data_dir=args.data_dir,
+        project_root=args.project_root,
+    )
+    keys = [
+        "status",
+        "decision",
+        "classification_labels",
+        "blockers",
+        "launcher_visibility_preflight_ready",
+        "launcher_visibility_allowed",
+        "launcher_mutation_allowed",
+        "launcher_execution_allowed",
+        "launcher_console_wiring_allowed",
+        "engine_hook_ready",
+        "integration_preflight_ready",
+        "lifecycle_auto_monitor_ready",
+        "telegram_dashboard_ready",
+        "three_trade_postmortem_ready",
+        "lifecycle_state",
+        "dashboard_mode",
+        "telegram_payload_ready",
+        "telegram_update_ready",
+        "telegram_send_allowed",
+        "telegram_network_called",
+        "visual_sl_tp_progress_bar_ready",
+        "visual_sl_tp_progress_bar",
+        "scheduler_enabled",
+        "scheduler_started",
+        "submit_execution_events_total",
+        "close_execution_events_total",
+        "aggregate_realized_pnl",
+        "balance_after",
+        "flat_state_confirmed",
+        "pending_orders_clear",
+        "paper_state_status_consistency",
+        "operator_env_absent",
+        "launcher_source_files_present",
+        "launcher_required_markers_present",
+        "missing_launcher_source_files",
+        "missing_launcher_source_markers",
+        "fourth_submit_or_reentry_detected",
+        "fourth_trade_allowed",
+        "fourth_trade_locked",
+        "stability_lock_active",
+        "open_positions_after",
+        "paper_status_open_positions_after",
+        "paper_status_pending_orders_after",
+        "orders_submitted_by_launcher_visibility_preflight",
+        "positions_opened_by_launcher_visibility_preflight",
+        "positions_closed_by_launcher_visibility_preflight",
+        "paper_state_modified_by_launcher_visibility_preflight",
+        "paper_status_modified_by_launcher_visibility_preflight",
+        "broker_submit_called_by_launcher_visibility_preflight",
+        "broker_close_called_by_launcher_visibility_preflight",
+        "live_enabled",
+        "testnet_enabled",
+        "exchange_broker_enabled",
+        "operational_unlock_allowed",
+        "promotion_ready",
+        "recommended_next_patch",
+        "next_step",
+        "report",
+        "jsonl",
+    ]
+    print(json.dumps({k: report.get(k) for k in keys}, indent=2, sort_keys=True))
+    return 0 if report.get("status") == "PASS" else 1 if str(report.get("decision", "")).startswith("REJECT") else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

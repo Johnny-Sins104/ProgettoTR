@@ -1,0 +1,8 @@
+PATCH 29.4.4u-61 — Generic LSR-v2 supervised paper integrated operation terminal-ready synthesis execution
+
+FILES:
+- trading_bot/core/lsr_v2_generic_supervised_paper_integrated_operation_terminal_ready_synthesis_execution.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_integrated_operation_terminal_ready_synthesis_execution.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_integrated_operation_terminal_ready_synthesis_execution.py
+- trading_bot/docs/PROMPT_29_4_4U61_GENERIC_LSR_V2_SUPERVISED_PAPER_INTEGRATED_OPERATION_TERMINAL_READY_SYNTHESIS_EXECUTION_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U61_MANIFEST.txt

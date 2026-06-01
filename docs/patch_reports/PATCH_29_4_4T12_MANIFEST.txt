@@ -1,0 +1,30 @@
+PATCH 29.4.4t-12 — LSR-v2 guarded paper-only fourth-trade unlock activation / candidate detection preflight
+
+FILES:
+- trading_bot/core/lsr_v2_fourth_trade_unlock_activation_candidate_preflight.py
+- trading_bot/run_lsr_v2_fourth_trade_unlock_activation_candidate_preflight.py
+- trading_bot/tests/test_lsr_v2_fourth_trade_unlock_activation_candidate_preflight.py
+- trading_bot/docs/PROMPT_29_4_4T12_FOURTH_TRADE_UNLOCK_ACTIVATION_CANDIDATE_PREFLIGHT_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4T12_MANIFEST.txt
+
+SCOPE:
+- Read-only / preflight-only / fail-closed
+- Validates t11 activation preflight and upstream LSR-v2 reports
+- Models candidate detection readiness but keeps candidate detection disabled
+- Writes only its own report and jsonl when executed
+
+SAFETY:
+- No submit
+- No open
+- No close
+- No broker call
+- No scheduler
+- No Telegram network send
+- No paper_state mutation
+- No paper_status mutation
+- No re-entry
+- No fourth-trade unlock
+- No live/testnet/exchange broker
+
+EXPECTED DECISION:
+- LSR_V2_FOURTH_TRADE_UNLOCK_ACTIVATION_CANDIDATE_PREFLIGHT_READY

@@ -1,0 +1,25 @@
+PATCH 29.4.4u-64 — Generic LSR-v2 supervised paper runtime activation envelope execution
+
+ADDED:
+- trading_bot/core/lsr_v2_generic_supervised_paper_runtime_activation_envelope_execution.py
+- trading_bot/run_lsr_v2_generic_supervised_paper_runtime_activation_envelope_execution.py
+- trading_bot/tests/test_lsr_v2_generic_supervised_paper_runtime_activation_envelope_execution.py
+- trading_bot/docs/PROMPT_29_4_4U64_GENERIC_LSR_V2_SUPERVISED_PAPER_RUNTIME_ACTIVATION_ENVELOPE_EXECUTION_PATCH_REPORT.md
+- docs/patch_reports/PATCH_29_4_4U64_MANIFEST.txt
+
+VALIDATION TARGETS:
+- python -m compileall -q trading_bot
+- python -m pytest -q trading_bot/tests/test_lsr_v2_generic_supervised_paper_runtime_activation_envelope_execution.py
+- python trading_bot/run_lsr_v2_generic_supervised_paper_runtime_activation_envelope_execution.py
+
+SAFETY:
+- read-only by default
+- fail-closed
+- no submit
+- no close
+- no broker call
+- no state mutation
+- no status mutation
+- no Telegram/network send
+- no scheduler start
+- no live/testnet/exchange enablement

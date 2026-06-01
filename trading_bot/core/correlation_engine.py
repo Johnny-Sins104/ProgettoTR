@@ -39,7 +39,10 @@ class CorrelationEngine:
             return pd.DataFrame(columns=self.assets)
 
         # Forward fill to handle any asynchronous index gaps, then drop remaining NaNs
-        aligned_df = aligned_df.fillna(method=fill_method).dropna()
+        if hasattr(aligned_df, fill_method):
+            aligned_df = getattr(aligned_df, fill_method)().dropna()
+        else:
+            aligned_df = aligned_df.fillna(method=fill_method).dropna()
         returns_df = aligned_df.pct_change().dropna()
         return returns_df
 
@@ -69,7 +72,8 @@ class CorrelationEngine:
         
         # Fill missing values if any asset has zero variance or missing data
         corr_matrix = corr_matrix.fillna(0.5)
-        np.fill_diagonal(corr_matrix.values, 1.0)
+        for i in range(len(corr_matrix)):
+            corr_matrix.iloc[i, i] = 1.0
         return corr_matrix
 
     def get_volatility_clustering(self, returns_df: pd.DataFrame, window: int = 14) -> Dict[str, float]:

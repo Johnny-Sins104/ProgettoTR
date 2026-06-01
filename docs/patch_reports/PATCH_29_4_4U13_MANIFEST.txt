@@ -1,0 +1,22 @@
+PATCH: 29.4.4u-13 — Generic LSR-v2 runtime snapshot footer/banner engine-runner read-only adapter hook
+TYPE: patch-only
+MODE: read-only / fail-closed
+
+FILES:
+trading_bot/core/lsr_v2_generic_runtime_snapshot_footer_banner_engine_runner_adapter_hook.py
+trading_bot/run_lsr_v2_generic_runtime_snapshot_footer_banner_engine_runner_adapter_hook.py
+trading_bot/tests/test_lsr_v2_generic_runtime_snapshot_footer_banner_engine_runner_adapter_hook.py
+trading_bot/docs/PROMPT_29_4_4U13_GENERIC_LSR_V2_RUNTIME_SNAPSHOT_FOOTER_BANNER_ENGINE_RUNNER_READ_ONLY_ADAPTER_HOOK_PATCH_REPORT.md
+docs/patch_reports/PATCH_29_4_4U13_MANIFEST.txt
+
+EXPECTED_DECISION:
+LSR_V2_GENERIC_RUNTIME_SNAPSHOT_FOOTER_BANNER_ENGINE_RUNNER_READ_ONLY_ADAPTER_HOOK_READY
+
+SAFETY:
+No submit/open/close.
+No broker calls.
+No scheduler.
+No Telegram network send.
+No paper_state or paper_status mutation.
+No live/testnet/exchange broker.
+No ordinal expansion.

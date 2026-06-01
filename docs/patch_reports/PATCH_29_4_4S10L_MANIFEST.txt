@@ -1,0 +1,14 @@
+Prompt 29.4.4s-10l — LSR-v2 paper position lifecycle audit / first order monitoring
+
+Files:
+- trading_bot/core/lsr_v2_paper_position_lifecycle.py
+- trading_bot/run_lsr_v2_paper_position_lifecycle.py
+- trading_bot/tests/test_lsr_v2_paper_position_lifecycle.py
+- trading_bot/docs/PROMPT_29_4_4S10L_LSR_V2_PAPER_POSITION_LIFECYCLE_PATCH_REPORT.md
+
+Safety:
+- No order submission by lifecycle audit.
+- No position opening by lifecycle audit.
+- No broker submit by lifecycle audit.
+- No live/testnet/exchange broker.
+- No automatic close or automatic re-entry.
