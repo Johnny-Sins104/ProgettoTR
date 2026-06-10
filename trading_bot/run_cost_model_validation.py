@@ -349,6 +349,46 @@ def run_numerical_cases() -> tuple[Dict[str, Any], List[str]]:
         "5m_higher_than_15m_for_realistic_and_above": tf_ok_all,
     }
 
+    # ------------------------------------------------------------------
+    # Case F — BUY win on 4h and 1d (tf_mult parity with 15m baseline)
+    # ------------------------------------------------------------------
+    print("\n[CASE F] BUY win — BTC/USDT 4h/1d — entry=50000 exit=55000 stop=47500 qty=0.01")
+    for tf in ("4h", "1d"):
+        cF, fF = _run_case(
+            label=f"F_btc_{tf}",
+            side="BUY",
+            entry=50000.0, exit_=55000.0, stop=47500.0,
+            qty=0.01, symbol="BTC/USDT", timeframe=tf,
+        )
+        cases[f"case_F_btc_{tf}"] = cF
+        all_failures.extend(fF)
+
+        print(_fmt(f"[{tf}] scenario", "total_cost_amt  total_bps"))
+        for sc in REAL_SCENARIO_NAMES:
+            o_dict = cF["by_scenario"][sc]
+            print(_fmt(f"  {sc}", f"{o_dict['total_cost_amt']:.6f}  {o_dict['total_round_trip_bps']:.4f}"))
+
+    # tf_mult parity: 4h and 1d bps must equal the 15m baseline exactly
+    # (tf_mult_4h = tf_mult_1d = tf_mult_15m = 1.0 in every scenario; mirrors
+    # the 5m>15m check above)
+    print("\n  [4h/1d vs 15m bps parity check]")
+    for symbol in ("BTC/USDT", "XRP/USDT"):
+        for tf in ("4h", "1d"):
+            for sc in REAL_SCENARIO_NAMES:
+                bps_tf = UnifiedCostModel.bps_for_scenario(sc, symbol, tf)["total_round_trip_bps"]
+                bps_15m = UnifiedCostModel.bps_for_scenario(sc, symbol, "15m")["total_round_trip_bps"]
+                parity_ok = bps_tf == bps_15m
+                if not parity_ok:
+                    all_failures.append(
+                        f"[F_tf_parity][{symbol} {tf}][{sc}] bps={bps_tf} != 15m bps={bps_15m}"
+                    )
+            print(_fmt(f"  {symbol} {tf} == 15m (all scenarios)",
+                       _pass_fail(all(
+                           UnifiedCostModel.bps_for_scenario(sc, symbol, tf)["total_round_trip_bps"]
+                           == UnifiedCostModel.bps_for_scenario(sc, symbol, "15m")["total_round_trip_bps"]
+                           for sc in REAL_SCENARIO_NAMES
+                       ))))
+
     return cases, all_failures
 
 
@@ -389,8 +429,12 @@ def run_bps_breakeven_check() -> tuple[Dict[str, Any], List[str], bool]:
     combos = [
         ("BTC/USDT", "5m"),
         ("BTC/USDT", "15m"),
+        ("BTC/USDT", "4h"),
+        ("BTC/USDT", "1d"),
         ("XRP/USDT", "5m"),
         ("XRP/USDT", "15m"),
+        ("XRP/USDT", "4h"),
+        ("XRP/USDT", "1d"),
     ]
 
     failures: List[str] = []
@@ -462,6 +506,15 @@ def build_report(
         "numerical_cases": cases,
         "bps_by_scenario_and_symbol": bps_table,
         "scenario_ordering_verified": ordering_verified,
+        "tf_mult_calibration_note": (
+            "tf_mult_4h = tf_mult_1d = 1.0 (15m baseline): fees are per-side and "
+            "holding-period independent; variable costs are incurred only at the two "
+            "execution moments (one order per signal regardless of timeframe); the 5m "
+            "uplift (1.20) models breakout-entry clustering in volatile microstructure, "
+            "which does not apply to scheduled 4h/1d bar-close entries. Entries stay "
+            "MARKET/taker and stress_mult applies in full. Funding is a PnL accrual "
+            "(clean_bot/funding.py), never a cost component."
+        ),
         "cost_formulas": {
             "gross_pnl": "(exit - entry) * qty * direction",
             "notional": "entry * qty",
