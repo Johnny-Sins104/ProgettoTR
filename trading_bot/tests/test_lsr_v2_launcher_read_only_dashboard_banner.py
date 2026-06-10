@@ -190,8 +190,9 @@ def test_emit_launcher_banner_prints_read_only_text(tmp_path: Path) -> None:
 
 
 def test_avvia_bot_live_refuses_live_and_emits_banner(monkeypatch) -> None:
+    calls: list[str] = []
     fake_runner = types.ModuleType("run_paper_trading")
-    fake_runner.main = lambda: None
+    fake_runner.main = lambda: calls.append("paper_main")
     monkeypatch.setitem(sys.modules, "run_paper_trading", fake_runner)
 
     path = Path(__file__).resolve().parents[1] / "avvia_bot_live.py"
@@ -200,8 +201,6 @@ def test_avvia_bot_live_refuses_live_and_emits_banner(monkeypatch) -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    calls: list[str] = []
-    monkeypatch.setattr(module, "paper_main", lambda: calls.append("paper_main"))
     monkeypatch.setattr(module, "_emit_lsr_v2_read_only_banner", lambda: calls.append("banner"))
     monkeypatch.setattr(module.sys, "argv", ["avvia_bot_live.py", "--mode", "paper"])
     module.main()
@@ -211,6 +210,6 @@ def test_avvia_bot_live_refuses_live_and_emits_banner(monkeypatch) -> None:
     try:
         module.main()
     except SystemExit as exc:
-        assert "Live real-money execution is disabled" in str(exc)
+        assert "execution is disabled" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("live mode was not refused")

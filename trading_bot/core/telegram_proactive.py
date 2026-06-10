@@ -13,6 +13,11 @@ import hashlib
 import json
 import time
 
+try:
+    from core.paper_position_dashboard import format_closed_position_dashboard, format_live_position_dashboard
+except Exception:  # pragma: no cover - package import fallback
+    from .paper_position_dashboard import format_closed_position_dashboard, format_live_position_dashboard
+
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -44,6 +49,10 @@ class TelegramProactiveSettings:
     notify_position_pnl_delta_pct: float = 0.25
     dedup_seconds: float = 30.0
     max_messages_per_minute: int = 10
+    position_dashboard_single_message: bool = True
+    position_dashboard_update_seconds: float = 20.0
+    position_dashboard_bar_width: int = 20
+    position_dashboard_send_close_summary: bool = True
 
 
 @dataclass
@@ -59,6 +68,10 @@ class TelegramProactiveState:
     last_shutdown_notified: bool = False
     last_notification_at: str = ""
     last_notification_type: str = ""
+    live_position_message_id_by_position: dict[str, int] = field(default_factory=dict)
+    live_position_last_edit_ts_by_position: dict[str, float] = field(default_factory=dict)
+    live_position_last_text_hash_by_position: dict[str, str] = field(default_factory=dict)
+    live_position_archived_message_id_by_position: dict[str, int] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "TelegramProactiveState":
@@ -82,6 +95,10 @@ class TelegramProactiveState:
             "last_shutdown_notified": self.last_shutdown_notified,
             "last_notification_at": self.last_notification_at,
             "last_notification_type": self.last_notification_type,
+            "live_position_message_id_by_position": self.live_position_message_id_by_position,
+            "live_position_last_edit_ts_by_position": self.live_position_last_edit_ts_by_position,
+            "live_position_last_text_hash_by_position": self.live_position_last_text_hash_by_position,
+            "live_position_archived_message_id_by_position": self.live_position_archived_message_id_by_position,
         }
 
 
@@ -128,6 +145,9 @@ class TelegramProactiveNotifier:
             "notify_position_every_seconds": float(self.settings.notify_position_every_seconds or 0.0),
             "dedup_seconds": float(self.settings.dedup_seconds or 0.0),
             "max_messages_per_minute": int(self.settings.max_messages_per_minute or 0),
+            "position_dashboard_single_message": bool(self.settings.position_dashboard_single_message),
+            "position_dashboard_update_seconds": float(self.settings.position_dashboard_update_seconds or 0.0),
+            "position_dashboard_bar_width": int(self.settings.position_dashboard_bar_width or 0),
         }
 
     def _audit(self, event_type: str, **payload: Any) -> None:
@@ -141,6 +161,152 @@ class TelegramProactiveNotifier:
             return True
         self.state.sent_window_ts = [t for t in self.state.sent_window_ts if now_ts - float(t) < 60.0]
         return len(self.state.sent_window_ts) < max_per_min
+
+
+    async def send_or_update_position_dashboard(
+        self,
+        *,
+        account: Any,
+        position: Any,
+        reason: str = "",
+        cycle_id: str = "",
+        force: bool = False,
+    ) -> bool:
+        """Create or edit the single live paper position dashboard message.
+
+        This method only sends/edits Telegram UI state.  It never submits,
+        closes, routes, or mutates paper_state/paper_status.
+        """
+        position_id = str(getattr(position, "position_id", "") or "")
+        if not position_id:
+            return False
+        base = {
+            "notification_type": "position_dashboard",
+            "position_id": position_id,
+            "cycle_id": cycle_id,
+            "trigger_reason": reason,
+        }
+        if not self.settings.enabled:
+            self._audit("TELEGRAM_POSITION_DASHBOARD_SKIPPED", status="skipped", reason="proactive_disabled", **base)
+            return False
+        if not getattr(self.telegram, "enabled", False):
+            self._audit("TELEGRAM_POSITION_DASHBOARD_SKIPPED", status="skipped", reason="telegram_disabled", **base)
+            return False
+        if not bool(self.settings.position_dashboard_single_message):
+            self._audit("TELEGRAM_POSITION_DASHBOARD_SKIPPED", status="skipped", reason="single_message_disabled", **base)
+            return False
+
+        now_ts = time.time()
+        update_seconds = max(0.0, float(self.settings.position_dashboard_update_seconds or 0.0))
+        last_edit_ts = float(self.state.live_position_last_edit_ts_by_position.get(position_id, 0.0) or 0.0)
+        message_id = self.state.live_position_message_id_by_position.get(position_id)
+        if message_id and not force and update_seconds > 0 and now_ts - last_edit_ts < update_seconds:
+            self._audit("TELEGRAM_POSITION_DASHBOARD_SKIPPED", status="skipped", reason="update_interval", **base)
+            self.save()
+            return False
+
+        text = format_live_position_dashboard(
+            account=account,
+            position=position,
+            width=int(self.settings.position_dashboard_bar_width or 20),
+        )
+        text_hash = stable_hash(text)
+
+        if not message_id:
+            if not force and not self._rate_allowed(now_ts):
+                self._audit("TELEGRAM_POSITION_DASHBOARD_SKIPPED", status="skipped", reason="max_messages_per_minute", **base)
+                self.save()
+                return False
+            sender = getattr(self.telegram, "send_message_return_id", None)
+            if callable(sender):
+                new_message_id = await sender(text)
+            else:  # fallback for older fakes/tests
+                await self.telegram.send(text)
+                new_message_id = None
+            if new_message_id is not None:
+                self.state.live_position_message_id_by_position[position_id] = int(new_message_id)
+            self.state.live_position_last_edit_ts_by_position[position_id] = now_ts
+            self.state.live_position_last_text_hash_by_position[position_id] = text_hash
+            self.state.sent_window_ts.append(now_ts)
+            self.state.last_notification_at = utc_now_iso()
+            self.state.last_notification_type = "position_dashboard"
+            self._audit("TELEGRAM_POSITION_DASHBOARD_SENT", status="sent", message_id=new_message_id, **base)
+            self.save()
+            return True
+
+        editor = getattr(self.telegram, "edit_message_text", None)
+        edit_ok = False
+        if callable(editor):
+            edit_ok = bool(await editor(message_id=int(message_id), text=text))
+        if not edit_ok:
+            sender = getattr(self.telegram, "send_message_return_id", None)
+            if callable(sender):
+                new_message_id = await sender(text)
+                if new_message_id is not None:
+                    self.state.live_position_message_id_by_position[position_id] = int(new_message_id)
+                    message_id = int(new_message_id)
+                    edit_ok = True
+        if edit_ok:
+            self.state.live_position_last_edit_ts_by_position[position_id] = now_ts
+            self.state.live_position_last_text_hash_by_position[position_id] = text_hash
+            self.state.last_notification_at = utc_now_iso()
+            self.state.last_notification_type = "position_dashboard"
+            self._audit("TELEGRAM_POSITION_DASHBOARD_EDITED", status="edited", message_id=int(message_id), **base)
+            self.save()
+            return True
+        self._audit("TELEGRAM_POSITION_DASHBOARD_FAILED", status="failed", message_id=int(message_id), **base)
+        self.save()
+        return False
+
+    async def finalize_position_dashboard(
+        self,
+        *,
+        account: Any,
+        closed_position: Any,
+        reason: str = "",
+        cycle_id: str = "",
+    ) -> bool:
+        """Final-edit and archive a paper position dashboard on close."""
+        if isinstance(closed_position, dict):
+            position_id = str(closed_position.get("position_id", "") or "")
+        else:
+            position_id = str(getattr(closed_position, "position_id", "") or "")
+        if not position_id:
+            return False
+        message_id = self.state.live_position_message_id_by_position.get(position_id)
+        base = {
+            "notification_type": "position_dashboard_closed",
+            "position_id": position_id,
+            "cycle_id": cycle_id,
+            "trigger_reason": reason,
+        }
+        if not message_id:
+            self._audit("TELEGRAM_POSITION_DASHBOARD_CLOSE_SKIPPED", status="skipped", reason="message_id_absent", **base)
+            self.save()
+            return False
+        if not self.settings.enabled or not getattr(self.telegram, "enabled", False):
+            self._audit("TELEGRAM_POSITION_DASHBOARD_CLOSE_SKIPPED", status="skipped", reason="telegram_disabled", **base)
+            return False
+        text = format_closed_position_dashboard(
+            account=account,
+            position=closed_position,
+            width=int(self.settings.position_dashboard_bar_width or 20),
+        )
+        editor = getattr(self.telegram, "edit_message_text", None)
+        edited = bool(await editor(message_id=int(message_id), text=text)) if callable(editor) else False
+        if edited:
+            self.state.live_position_archived_message_id_by_position[position_id] = int(message_id)
+            self.state.live_position_message_id_by_position.pop(position_id, None)
+            self.state.live_position_last_edit_ts_by_position.pop(position_id, None)
+            self.state.live_position_last_text_hash_by_position.pop(position_id, None)
+            self.state.last_notification_at = utc_now_iso()
+            self.state.last_notification_type = "position_dashboard_closed"
+            self._audit("TELEGRAM_POSITION_DASHBOARD_CLOSED", status="edited", message_id=int(message_id), **base)
+            self.save()
+            return True
+        self._audit("TELEGRAM_POSITION_DASHBOARD_CLOSE_FAILED", status="failed", message_id=int(message_id), **base)
+        self.save()
+        return False
 
     async def send(
         self,

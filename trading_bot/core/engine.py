@@ -2,8 +2,14 @@ import pandas as pd
 from config import Config
 
 # Pesi per il Market Regime Switching
-WEIGHTS_TRENDING: dict[str, int] = Config.WEIGHTS_TRENDING
-WEIGHTS_RANGING: dict[str, int] = Config.WEIGHTS_RANGING
+_DEFAULT_WEIGHTS_TRENDING: dict[str, int] = {
+    "ema": 14, "bias": 18, "engulfing": 25, "rsi": 25, "support": 16, "psy_level": 2
+}
+_DEFAULT_WEIGHTS_RANGING: dict[str, int] = {
+    "rsi": 30, "engulfing": 25, "support": 25, "psy_level": 20
+}
+WEIGHTS_TRENDING: dict[str, int] = getattr(Config, "WEIGHTS_TRENDING", _DEFAULT_WEIGHTS_TRENDING)
+WEIGHTS_RANGING: dict[str, int] = getattr(Config, "WEIGHTS_RANGING", _DEFAULT_WEIGHTS_RANGING)
 
 
 class DecisionEngine:

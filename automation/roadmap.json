@@ -1,0 +1,349 @@
+{
+    "schema_version":  1,
+    "policy":  "Execute only explicitly specified, approved roadmap items. Never invent patches.",
+    "source":  "docs/integration_phase1_report.md",
+    "items":  [
+                  {
+                      "id":  "TR-INT-01",
+                      "title":  "Caratterizzazione e contratto",
+                      "status":  "completed",
+                      "auto_run":  false,
+                      "prerequisites":  [
+
+                                        ]
+                  },
+                  {
+                      "id":  "TR-INT-02",
+                      "title":  "Correzione backtest/paper/models",
+                      "status":  "completed",
+                      "auto_run":  false,
+                      "prerequisites":  [
+                                            "TR-INT-01"
+                                        ]
+                  },
+                  {
+                      "id":  "TR-INT-02B",
+                      "title":  "Execution correctness hotfix",
+                      "status":  "completed",
+                      "auto_run":  false,
+                      "prerequisites":  [
+                                            "TR-INT-02"
+                                        ]
+                  },
+                  {
+                      "id":  "TR-INT-03",
+                      "title":  "Closed-candle WebSocket feed",
+                      "status":  "completed",
+                      "auto_run":  true,
+                      "prerequisites":  [
+                                            "TR-INT-02B"
+                                        ],
+                      "source_reference":  "docs/integration_phase1_report.md sections 7A M4-M6, 9, 11-14 Fase 3",
+                      "scope":  [
+                                    "Create trading_bot/clean_bot/market_feed_ws.py using only public WebSocket market data.",
+                                    "Process only closed candles.",
+                                    "Implement deduplication by close timestamp.",
+                                    "Implement exponential reconnect/backoff and 90-second zombie timeout.",
+                                    "Implement multi-timeframe watermark synchronization with explicit state and no globals.",
+                                    "Bootstrap closed historical candles using public REST before WebSocket connection.",
+                                    "Expose health metrics: connected_at, reconnect_count and last_error.",
+                                    "Keep FEED_ENABLED false by default and perform no network connection at import."
+                                ],
+                      "required_tests":  [
+                                             "test_closed_candle_only",
+                                             "test_deduplication",
+                                             "test_reconnect_backoff",
+                                             "test_zombie_timeout",
+                                             "test_no_order_methods",
+                                             "test_5m_watermark_stateful",
+                                             "test_feed_disabled_by_default",
+                                             "test_feed_does_not_touch_1m_cost_model"
+                                         ],
+                      "constraints":  [
+                                          "No private API keys or private endpoints.",
+                                          "No order, submit, trade or exchange mutation methods.",
+                                          "No changes to strategies or optimization.",
+                                          "Do not enable the feed by default."
+                                      ],
+                      "report":  "docs/TR_INT_03_REPORT.md"
+                  },
+                  {
+                      "id":  "TR-INT-04",
+                      "title":  "Paper persistence and audit",
+                      "status":  "completed",
+                      "auto_run":  true,
+                      "prerequisites":  [
+                                            "TR-INT-03"
+                                        ],
+                      "source_reference":  "docs/integration_phase1_report.md sections 7A M7-M8, 11-14 Fase 4",
+                      "scope":  [
+                                    "Complete atomic paper persistence and recovery safeguards.",
+                                    "Create a backup before any recovery operation.",
+                                    "Extend audit events with signal_price, fill_price, fee, slippage, qty, notional, entry_reason, exit_reason, regime, timeframe, candle_uid and trade_uid.",
+                                    "Keep readers backward compatible with old events."
+                                ],
+                      "required_tests":  [
+                                             "test_atomic_save",
+                                             "test_backup_before_recovery",
+                                             "test_corrupted_state_fails_closed",
+                                             "test_event_schema_audit_fields",
+                                             "test_backward_compatible_reader"
+                                         ],
+                      "constraints":  [
+                                          "Fail closed on corrupted state.",
+                                          "No live/testnet/exchange enablement.",
+                                          "No real order submission."
+                                      ],
+                      "report":  "docs/TR_INT_04_REPORT.md"
+                  },
+                  {
+                      "id":  "TR-INT-05",
+                      "title":  "Deterministic validation gates",
+                      "status":  "completed",
+                      "auto_run":  true,
+                      "prerequisites":  [
+                                            "TR-INT-04"
+                                        ],
+                      "source_reference":  "docs/integration_phase1_report.md sections 7B M9-M15, 9, 11-14 Fase 5",
+                      "scope":  [
+                                    "Create immutable validation configuration independent from .env.",
+                                    "Implement explicit OOS warmup with no lookahead.",
+                                    "Implement full no-cost rerun through UnifiedCostModel rather than post-hoc adjustment.",
+                                    "Route clean optimizer costs through UnifiedCostModel and remove local flat-cost authority.",
+                                    "Replace second-half candidate selection with a true untouched out-of-sample gate and stronger post-cost acceptance criteria.",
+                                    "Implement temporal concentration and adapted economic gates.",
+                                    "Regenerate BTC/XRP/scalping/optimizer benchmark artifacts after the certified cost and 0.005 risk changes.",
+                                    "Correct report date ranges using the actual dataset timestamps.",
+                                    "Produce deterministic validation output and explicitly decide whether any edge is demonstrated."
+                                ],
+                      "required_tests":  [
+                                             "test_immutable_config_env_independent",
+                                             "test_temporal_concentration_gate",
+                                             "test_cost_vs_nocost_full_rerun",
+                                             "test_oos_warmup_no_lookahead",
+                                             "test_optimizer_uses_unified_cost_model",
+                                             "test_optimizer_selection_does_not_use_final_oos",
+                                             "test_report_dates_match_dataset",
+                                             "test_economic_gate_pf",
+                                             "test_economic_gate_min_trades",
+                                             "test_deterministic_output"
+                                         ],
+                      "constraints":  [
+                                          "Do not optimize strategy parameters.",
+                                          "Do not copy botClaude thresholds or structures without adaptation.",
+                                          "No live/testnet/exchange enablement."
+                                      ],
+                      "report":  "docs/TR_INT_05_REPORT.md"
+                  },
+                  {
+                      "id":  "TR-OPS-01",
+                      "title":  "Paper operations readiness gates",
+                      "status":  "completed",
+                      "auto_run":  true,
+                      "prerequisites":  [
+                                            "TR-INT-05"
+                                        ],
+                      "source_reference":  "User validation baseline recorded in automation/VALIDATION_BASELINE_2026-06-08.md and docs/ROADMAP_PATCH_FUTURE.md PATCH 30.0.0A",
+                      "scope":  [
+                                    "Make the clean paper runner load project .env consistently without exposing secrets.",
+                                    "Strengthen no_live_modified so it checks an explicit approved baseline and covers runtime config, market-data client and Telegram modules.",
+                                    "Produce a read-only working-tree normalization audit separating source, generated artifacts, deletions and untracked files.",
+                                    "Do not delete, restore, stage, commit or push files automatically."
+                                ],
+                      "required_tests":  [
+                                             "test_clean_runner_loads_dotenv_without_logging_secrets",
+                                             "test_no_live_modified_detects_preexisting_runtime_changes",
+                                             "test_no_live_modified_covers_runtime_files",
+                                             "test_worktree_normalization_audit_is_read_only"
+                                         ],
+                      "constraints":  [
+                                          "No secret values in output, logs or reports.",
+                                          "No automatic file deletion, restoration, staging, commit or push.",
+                                          "No live/testnet/exchange enablement."
+                                      ],
+                      "report":  "docs/TR_OPS_01_REPORT.md"
+                  },
+                  {
+                      "id":  "STRAT-01",
+                      "title":  "Dataset expansion and research contract",
+                      "status":  "in_progress",
+                      "auto_run":  true,
+                      "prerequisites":  [
+                                            "TR-OPS-01"
+                                        ],
+                      "source_document":  "docs/STRATEGY_RESEARCH_ROADMAP.md",
+                      "source_reference":  "STRAT-01 - Dataset expansion and research contract",
+                      "scope":  [
+                                    "Create a deterministic public historical-data expansion pipeline for BTC, ETH, XRP, SOL and BNB.",
+                                    "Target at least four years when publicly available, with 15m signal data and 5m execution data.",
+                                    "Persist only closed candles using atomic caches and a manifest containing hashes, provenance, ranges, rows and gaps.",
+                                    "Define and persist immutable train, validation and untouched final-OOS temporal boundaries.",
+                                    "Run integrity and sufficiency audits; report unavailable history honestly without synthetic substitution."
+                                ],
+                      "required_tests":  [
+                                             "test_public_data_only_no_credentials",
+                                             "test_closed_candles_only",
+                                             "test_atomic_cache_and_manifest_hashes",
+                                             "test_temporal_split_final_oos_untouched",
+                                             "test_gap_and_range_audit",
+                                             "test_insufficient_history_reported_honestly"
+                                         ],
+                      "constraints":  [
+                                          "Public historical market-data retrieval is allowed.",
+                                          "No private API keys, private endpoints, orders, bot startup or Telegram.",
+                                          "Do not synthesize missing history.",
+                                          "Do not implement or optimize strategies in this patch."
+                                      ],
+                      "report":  "docs/STRAT_01_REPORT.md"
+                  },
+                  {
+                      "id":  "STRAT-02",
+                      "title":  "Three falsifiable strategy hypotheses",
+                      "status":  "pending",
+                      "auto_run":  true,
+                      "prerequisites":  [
+                                            "STRAT-01"
+                                        ],
+                      "source_document":  "docs/STRATEGY_RESEARCH_ROADMAP.md",
+                      "source_reference":  "STRAT-02 - Three falsifiable hypotheses",
+                      "scope":  [
+                                    "Implement a research-only common strategy interface for volatility breakout, trend pullback and cross-sectional momentum.",
+                                    "Use 15m signals and causal 5m execution where applicable.",
+                                    "Limit each hypothesis to at most 12 economically motivated configurations declared before validation.",
+                                    "Route every simulated trade through UnifiedCostModel with risk capped at 0.005.",
+                                    "Produce train and validation reports for signal density, turnover, cost-to-edge and parameter plateaus."
+                                ],
+                      "required_tests":  [
+                                             "test_exactly_three_hypothesis_families",
+                                             "test_max_twelve_configs_per_family",
+                                             "test_no_final_oos_access_during_ideation",
+                                             "test_causal_15m_signal_5m_execution",
+                                             "test_all_trades_use_unified_cost_model",
+                                             "test_research_only_no_runtime_integration"
+                                         ],
+                      "constraints":  [
+                                          "No final-OOS use for score, ranking, shortlist or strategy modification.",
+                                          "No optimization toward a target trade frequency.",
+                                          "No paper/live integration, private APIs, orders or Telegram.",
+                                          "NO_CANDIDATE is an acceptable result."
+                                      ],
+                      "report":  "docs/STRAT_02_REPORT.md"
+                  },
+                  {
+                      "id":  "STRAT-03",
+                      "title":  "Robust selection and edge decision",
+                      "status":  "pending",
+                      "auto_run":  true,
+                      "prerequisites":  [
+                                            "STRAT-02"
+                                        ],
+                      "source_document":  "docs/STRATEGY_RESEARCH_ROADMAP.md",
+                      "source_reference":  "STRAT-03 - Robust selection and edge decision",
+                      "scope":  [
+                                    "Implement walk-forward and untouched final-OOS evaluation for every registered trial.",
+                                    "Implement Deflated Sharpe Ratio and CSCV Probability of Backtest Overfitting.",
+                                    "Evaluate parameter plateaus, conservative and at-least-2x severe costs, temporal concentration, top-trade concentration, assets and regimes.",
+                                    "Apply every edge gate from the canonical source without lowering thresholds.",
+                                    "Produce an explicit deterministic edge_demonstrated true or false decision."
+                                ],
+                      "required_tests":  [
+                                             "test_trial_count_includes_all_attempts",
+                                             "test_final_oos_untouched_until_final_gate",
+                                             "test_deflated_sharpe_selection_bias",
+                                             "test_cscv_probability_backtest_overfitting",
+                                             "test_parameter_plateau_not_single_optimum",
+                                             "test_severe_cost_gate",
+                                             "test_top_three_trade_concentration_gate",
+                                             "test_edge_gate_thresholds_cannot_be_lowered",
+                                             "test_deterministic_edge_decision"
+                                         ],
+                      "constraints":  [
+                                          "Do not lower gates to create a candidate.",
+                                          "Do not use final OOS for iteration or configuration changes.",
+                                          "No paper/live integration, private APIs, orders or Telegram.",
+                                          "edge_demonstrated=false is an acceptable and honest result."
+                                      ],
+                      "report":  "docs/STRAT_03_REPORT.md"
+                  },
+                  {
+                      "id":  "STRAT-04",
+                      "title":  "Paper candidate readiness",
+                      "status":  "pending",
+                      "auto_run":  true,
+                      "prerequisites":  [
+                                            "STRAT-03"
+                                        ],
+                      "source_document":  "docs/STRATEGY_RESEARCH_ROADMAP.md",
+                      "source_reference":  "STRAT-04 - Paper candidate readiness",
+                      "scope":  [
+                                    "Read the deterministic STRAT-03 edge decision.",
+                                    "If edge_demonstrated is true, freeze candidate configuration and hashes, integrate it into clean paper behind a disabled-by-default flag, and connect the public WebSocket feed to the paper runner.",
+                                    "If edge_demonstrated is false, emit NO_CANDIDATE and make no strategy or paper-runner integration changes.",
+                                    "Produce a supervised paper campaign command, checklist and immutable acceptance gates.",
+                                    "Keep live, testnet, exchange mutations and automatic paper startup disabled."
+                                ],
+                      "required_tests":  [
+                                             "test_no_candidate_causes_no_integration",
+                                             "test_candidate_config_and_hashes_frozen",
+                                             "test_websocket_paper_integration_disabled_by_default",
+                                             "test_no_live_testnet_or_order_paths",
+                                             "test_paper_campaign_gates_immutable"
+                                         ],
+                      "constraints":  [
+                                          "Never integrate a candidate unless STRAT-03 says edge_demonstrated=true.",
+                                          "Never start paper automatically.",
+                                          "No live/testnet/private APIs/orders/Telegram sends.",
+                                          "Do not weaken acceptance gates."
+                                      ],
+                      "report":  "docs/STRAT_04_REPORT.md"
+                  },
+                  {
+                      "id":  "STRAT-PAPER-01",
+                      "title":  "Eight-week supervised paper campaign",
+                      "status":  "optional",
+                      "auto_run":  false,
+                      "prerequisites":  [
+                                            "STRAT-04"
+                                        ],
+                      "source_document":  "docs/STRATEGY_RESEARCH_ROADMAP.md",
+                      "source_reference":  "STRAT-PAPER-01 - Campagna paper supervisionata",
+                      "scope":  [
+                                    "Manual elapsed-time gate for an eight-week supervised paper campaign."
+                                ],
+                      "required_tests":  [
+                                             "test_minimum_elapsed_eight_weeks",
+                                             "test_minimum_fifty_observed_trades",
+                                             "test_paper_acceptance_metrics"
+                                         ],
+                      "constraints":  [
+                                          "Manual only; never auto-run or auto-complete.",
+                                          "No live/testnet/private APIs/orders."
+                                      ],
+                      "report":  "docs/STRAT_PAPER_01_REPORT.md"
+                  },
+                  {
+                      "id":  "TR-INT-06",
+                      "title":  "Read-only localhost status server",
+                      "status":  "optional",
+                      "auto_run":  false,
+                      "prerequisites":  [
+                                            "TR-OPS-01"
+                                        ],
+                      "source_reference":  "docs/integration_phase1_report.md sections 11-14 Fase 6",
+                      "scope":  [
+                                    "Optional read-only localhost status server."
+                                ],
+                      "required_tests":  [
+                                             "test_readonly_only",
+                                             "test_localhost_binding",
+                                             "test_no_mutable_endpoints"
+                                         ],
+                      "constraints":  [
+                                          "Optional: never auto-run.",
+                                          "Only GET endpoints.",
+                                          "Localhost binding only."
+                                      ],
+                      "report":  "docs/TR_INT_06_REPORT.md"
+                  }
+              ]
+}

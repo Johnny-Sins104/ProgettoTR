@@ -8,6 +8,7 @@ except Exception:  # pragma: no cover - script-style fallback
 
 install_aiohttp_windows_ssl_context_compat()
 
+import aiohttp
 import ccxt
 import ccxt.async_support as ccxt_async
 import pandas as pd
@@ -46,9 +47,12 @@ class ExchangeClient:
             self._credentials
         )
         try:
-            raw = await exchange.fetch_ohlcv(
-                self.symbol, self.timeframe, limit=self.limit
-            )
+            try:
+                raw = await exchange.fetch_ohlcv(
+                    self.symbol, self.timeframe, limit=self.limit
+                )
+            except Exception:
+                raw = await self._fetch_binance_public_ohlcv_fallback()
         finally:
             # Prompt 29.1: always attempt to close ccxt/aiohttp resources, even
             # when the surrounding task is being cancelled by CTRL+C.
@@ -56,6 +60,45 @@ class ExchangeClient:
             with contextlib.suppress(Exception, asyncio.CancelledError):
                 await asyncio.shield(close_task)
         return self._to_dataframe(raw)
+
+    async def _fetch_binance_public_ohlcv_fallback(self) -> list:
+        """Fetch public Binance candles directly when ccxt transport fails.
+
+        This keeps paper-live market data usable in the bundled Windows runtime
+        without touching private/exchange trading endpoints.
+        """
+        exchange_id = str(self.exchange_id or "").lower()
+        if exchange_id not in {"binance", "binanceusdm"}:
+            raise RuntimeError(f"binance_public_fallback_unsupported_exchange:{self.exchange_id}")
+        symbol = str(self.symbol or "").replace("/", "").replace(":", "").upper()
+        if not symbol:
+            raise ValueError("symbol_missing_for_binance_public_fallback")
+        interval = str(self.timeframe or "5m")
+        limit = max(1, min(int(self.limit or 500), 1000))
+        if exchange_id == "binanceusdm":
+            url = "https://fapi.binance.com/fapi/v1/klines"
+        else:
+            url = "https://api.binance.com/api/v3/klines"
+        params = {"symbol": symbol, "interval": interval, "limit": str(limit)}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, timeout=10) as resp:
+                text = await resp.text()
+                if resp.status >= 400:
+                    raise RuntimeError(f"binance_public_ohlcv_failed:{resp.status}:{text[:200]}")
+                rows = await resp.json()
+        out = []
+        for row in rows:
+            out.append([
+                int(row[0]),
+                float(row[1]),
+                float(row[2]),
+                float(row[3]),
+                float(row[4]),
+                float(row[5]),
+            ])
+        if not out:
+            raise RuntimeError("binance_public_ohlcv_empty")
+        return out
 
     def _to_dataframe(self, raw: list) -> pd.DataFrame:
         """Converte la lista OHLCV in DataFrame indicizzato per datetime UTC."""

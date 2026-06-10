@@ -205,6 +205,8 @@ class LSRV2RuntimeBridgeSettings:
     timeframe: str = "5m"
     max_scan_rows: int = 500
     max_recent_candidate_bars: int = 12
+    max_submit_candidate_age_bars: int = 3
+    require_recent_candidate_for_submit: bool = True
     max_event_lines: int = 50000
     require_candidate_ready: bool = True
     profile_name: str = "LSR_V2_RETEST_LIMIT_STOP_SWEEP_TP2R_HOLD24"
@@ -267,15 +269,19 @@ def _candidate_ready(candidate: Mapping[str, Any], settings: LSRV2RuntimeBridgeS
     return True
 
 
+def _candidate_recent_index(candidate: Mapping[str, Any]) -> int:
+    retest_i = _safe_int(candidate.get("retest_index"), -1)
+    reclaim_i = _safe_int(candidate.get("reclaim_index"), -1)
+    return max(retest_i, reclaim_i)
+
+
 def _select_runtime_candidate(candidates: list[dict[str, Any]], *, row_count: int, settings: LSRV2RuntimeBridgeSettings) -> dict[str, Any] | None:
     if not candidates:
         return None
     recent_candidates: list[dict[str, Any]] = []
     min_index = max(0, int(row_count) - max(1, int(settings.max_recent_candidate_bars)))
     for candidate in candidates:
-        retest_i = _safe_int(candidate.get("retest_index"), -1)
-        reclaim_i = _safe_int(candidate.get("reclaim_index"), -1)
-        recent_i = max(retest_i, reclaim_i)
+        recent_i = _candidate_recent_index(candidate)
         if recent_i >= min_index:
             recent_candidates.append(candidate)
     pool = recent_candidates if recent_candidates else candidates
@@ -303,6 +309,15 @@ def build_lsr_v2_runtime_candidate_audit_event(
     quality = cand.get("quality") if isinstance(cand.get("quality"), Mapping) else {}
     candidate_ready = _candidate_ready(cand, settings) if cand else False
     retest_ready = _safe_bool(lifecycle.get("retest_ready"), False)
+    latest_row_index = max(0, len(rows) - 1)
+    candidate_recent_index = _candidate_recent_index(cand) if cand else -1
+    candidate_age_bars = latest_row_index - candidate_recent_index if candidate_recent_index >= 0 else None
+    max_submit_age = max(0, int(settings.max_submit_candidate_age_bars))
+    candidate_fresh_for_submit = bool(
+        cand
+        and candidate_recent_index >= 0
+        and (not settings.require_recent_candidate_for_submit or int(candidate_age_bars or 0) <= max_submit_age)
+    )
     blocked_reasons: list[str] = []
     if not settings.enabled:
         blocked_reasons.append("lsr_v2_runtime_bridge_disabled")
@@ -310,6 +325,8 @@ def build_lsr_v2_runtime_candidate_audit_event(
         blocked_reasons.append("no_lsr_v2_runtime_candidate")
     elif not candidate_ready:
         blocked_reasons.append("lsr_v2_runtime_candidate_not_ready")
+    if cand and not candidate_fresh_for_submit:
+        blocked_reasons.append("runtime_candidate_stale_for_submit")
     if not rows:
         blocked_reasons.append("no_runtime_market_rows")
     if not settings.fail_closed:
@@ -344,6 +361,11 @@ def build_lsr_v2_runtime_candidate_audit_event(
         "sweep_index": cand.get("sweep_index"),
         "reclaim_index": cand.get("reclaim_index"),
         "retest_index": cand.get("retest_index"),
+        "latest_row_index": latest_row_index,
+        "candidate_recent_index": candidate_recent_index,
+        "candidate_age_bars": candidate_age_bars,
+        "max_submit_candidate_age_bars": max_submit_age,
+        "candidate_fresh_for_submit": bool(candidate_fresh_for_submit),
         "levels": {
             "entry_price": _safe_float(levels.get("entry_price"), 0.0),
             "stop_loss": _safe_float(levels.get("stop_loss"), 0.0),
@@ -428,6 +450,9 @@ def build_lsr_v2_runtime_bridge_events_for_symbol(
         "runtime_candidate_event_type": RUNTIME_CANDIDATE_EVENT_TYPE,
         "runtime_detected_candidates": len(candidates),
         "runtime_candidate_ready": bool(candidate_event.get("candidate_ready")),
+        "runtime_candidate_fresh_for_submit": bool(candidate_event.get("candidate_fresh_for_submit")),
+        "runtime_candidate_age_bars": candidate_event.get("candidate_age_bars"),
+        "runtime_max_submit_candidate_age_bars": candidate_event.get("max_submit_candidate_age_bars"),
         "runtime_retest_ready": bool(candidate_event.get("retest_ready")),
         "runtime_bridge_integration_prompt_id": PROMPT_ID,
         "orders_submitted_by_lsr_v2_runtime_bridge": 0,
@@ -448,6 +473,11 @@ def build_lsr_v2_runtime_bridge_events_for_symbol(
         bridge_event["blocked_reasons"] = reasons
         if not bridge_event.get("blocked_reason") or bridge_event.get("blocked_reason") == "paper_supervised_bridge_fail_closed":
             bridge_event["blocked_reason"] = reasons[0]
+    if _safe_bool(candidate_event.get("candidate_ready"), False) and not _safe_bool(candidate_event.get("candidate_fresh_for_submit"), False):
+        reasons = list(bridge_event.get("blocked_reasons") if isinstance(bridge_event.get("blocked_reasons"), list) else [])
+        if "runtime_candidate_stale_for_submit" not in reasons:
+            reasons.append("runtime_candidate_stale_for_submit")
+        bridge_event["blocked_reasons"] = reasons
     return candidate_event, bridge_event
 
 

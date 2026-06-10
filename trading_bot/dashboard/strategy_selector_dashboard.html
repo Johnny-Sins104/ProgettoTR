@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProgettoTR Strategy Selector</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #172033; background: #f7f8fa; }
+    main { max-width: 920px; margin: 0 auto; }
+    button { border: 1px solid #b8c0cc; background: white; border-radius: 6px; padding: 10px 14px; cursor: pointer; }
+    button.active { background: #113f67; color: white; border-color: #113f67; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    section { background: white; border: 1px solid #d9dee7; border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .metric { display: grid; grid-template-columns: 180px 1fr; gap: 8px; margin: 6px 0; }
+    .blocked { color: #9b1c1c; font-weight: bold; }
+    .ok { color: #176b3a; font-weight: bold; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f0f3f7; padding: 12px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ProgettoTR Strategy Selector</h1>
+  <section>
+    <h2>Strategia attiva</h2>
+    <div id="tabs">
+      <button data-strategy="ema_vwap">EMA+RSI+VWAP</button>
+      <button data-strategy="bb">Bollinger Bands</button>
+      <button data-strategy="macd">MACD Cross</button>
+      <button data-strategy="ichimoku">Ichimoku</button>
+      <button data-strategy="auto" disabled>Auto</button>
+    </div>
+    <p id="warning"></p>
+  </section>
+  <section>
+    <h2>Shadow signal</h2>
+    <div class="metric"><strong>Segnale</strong><span id="shadow-signal">-</span></div>
+    <div class="metric"><strong>Score</strong><span id="shadow-score">-</span></div>
+    <div class="metric"><strong>Decisione</strong><span id="shadow-decision">-</span></div>
+    <div class="metric"><strong>Motivi</strong><span id="shadow-reasons">-</span></div>
+    <div><strong>Condizioni</strong><ul id="shadow-conditions"></ul></div>
+  </section>
+  <section>
+    <h2>Journal shadow</h2>
+    <div class="metric"><strong>Eventi salvati</strong><span id="journal-events">0</span></div>
+    <div class="metric"><strong>BUY / SELL / WAIT</strong><span id="journal-counts">-</span></div>
+    <div class="metric"><strong>Score medio</strong><span id="journal-avg">-</span></div>
+    <div class="metric"><strong>Outcome tracking</strong><span id="outcome-status">-</span></div>
+    <div><strong>Condizioni SELL</strong><ul id="sell-conditions"></ul></div>
+    <div><strong>Condizioni BUY</strong><ul id="buy-conditions"></ul></div>
+  </section>
+  <section>
+    <h2>Status backend</h2>
+    <pre id="status">Caricamento...</pre>
+  </section>
+</main>
+<script>
+async function refreshStatus() {
+  const res = await fetch('/api/strategy/status');
+  const data = await res.json();
+  document.getElementById('status').textContent = JSON.stringify(data, null, 2);
+  document.querySelectorAll('button[data-strategy]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.strategy === data.active_strategy);
+  });
+  const shadow = data.last_shadow_signal || {};
+  document.getElementById('shadow-signal').textContent = shadow.signal || 'WAIT';
+  document.getElementById('shadow-score').textContent = `${Number(shadow.score || 0).toFixed(0)}%`;
+  document.getElementById('shadow-decision').textContent = shadow.blocked ? 'BLOCCATO' : 'DIAGNOSTICO';
+  document.getElementById('shadow-decision').className = shadow.blocked ? 'blocked' : 'ok';
+  document.getElementById('shadow-reasons').textContent = (shadow.block_reasons || []).join(', ') || '-';
+  const list = document.getElementById('shadow-conditions');
+  list.innerHTML = '';
+  (shadow.conditions || []).forEach(cond => {
+    const item = document.createElement('li');
+    item.textContent = `${cond.ok ? 'OK' : 'NO'} ${cond.name}: ${cond.value ?? '-'} (${cond.reason || '-'})`;
+    list.appendChild(item);
+  });
+  const stats = data.selected_strategy_shadow_stats || {};
+  document.getElementById('journal-events').textContent = data.shadow_events_recorded || 0;
+  document.getElementById('journal-counts').textContent = `BUY ${stats.buy_signals || 0} / SELL ${stats.sell_signals || 0} / WAIT ${stats.wait_signals || 0}`;
+  document.getElementById('journal-avg').textContent = `${Number(stats.avg_score || 0).toFixed(1)}%`;
+  document.getElementById('outcome-status').textContent = data.outcome_tracking_status || 'SCAFFOLD_ONLY';
+  const sellList = document.getElementById('sell-conditions');
+  const buyList = document.getElementById('buy-conditions');
+  sellList.innerHTML = '';
+  buyList.innerHTML = '';
+  (shadow.conditions || []).forEach(cond => {
+    const target = /below|bearish|sell/i.test(cond.name) ? sellList : buyList;
+    const item = document.createElement('li');
+    item.textContent = `${cond.ok ? 'OK' : 'NO'} ${cond.name}: ${cond.value ?? '-'} (${cond.reason || '-'})`;
+    target.appendChild(item);
+  });
+  document.getElementById('warning').textContent = data.strategy_switch_blocked
+    ? 'Cambio strategia bloccato: posizione aperta.'
+    : 'Shadow mode: calcola solo la strategia attiva e non apre trade.';
+}
+document.querySelectorAll('button[data-strategy]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const res = await fetch('/api/strategy/select', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({strategy: btn.dataset.strategy})
+    });
+    document.getElementById('status').textContent = JSON.stringify(await res.json(), null, 2);
+    await refreshStatus();
+  });
+});
+refreshStatus();
+</script>
+</body>
+</html>

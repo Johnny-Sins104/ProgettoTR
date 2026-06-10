@@ -114,18 +114,84 @@ class TelegramControlBot:
         with self.audit_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, sort_keys=True) + "\n")
 
-    async def send(self, text: str) -> None:
+    async def send_message_return_id(
+        self,
+        text: str,
+        *,
+        reply_markup: dict[str, Any] | None = None,
+        parse_mode: str | None = None,
+    ) -> int | None:
+        """Send a Telegram message and return its message_id when available.
+
+        This is intentionally notification-only.  It does not interact with any
+        broker, paper state, or execution boundary.
+        """
         if not self.enabled:
             print(f"[TelegramV2 disabled] {text}")
-            return
+            return None
         url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-        payload = {"chat_id": self.chat_id, "text": text[:3900]}
+        payload: dict[str, Any] = {"chat_id": self.chat_id, "text": text[:3900]}
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
         try:
             session = await self.get_session()
-            await session.post(url, json=payload, timeout=8)
+            async with session.post(url, json=payload, timeout=8) as resp:
+                data = await resp.json()
+            if data.get("ok"):
+                message_id = (data.get("result") or {}).get("message_id")
+                try:
+                    return int(message_id)
+                except Exception:
+                    return None
+            self.audit("TELEGRAM_SEND_FAILED", response=data)
         except Exception as exc:
             print(f"[TelegramV2] send failed: {exc}")
             self.audit("TELEGRAM_SEND_FAILED", error=str(exc), error_type=exc.__class__.__name__)
+        return None
+
+    async def send(self, text: str) -> None:
+        await self.send_message_return_id(text)
+
+    async def edit_message_text(
+        self,
+        *,
+        message_id: int,
+        text: str,
+        reply_markup: dict[str, Any] | None = None,
+        parse_mode: str | None = None,
+    ) -> bool:
+        """Edit an existing Telegram message.
+
+        Returns True when Telegram accepts the edit, including the benign
+        "message is not modified" response.  Returns False when callers should
+        recreate the dashboard message.
+        """
+        if not self.enabled:
+            print(f"[TelegramV2 disabled edit:{message_id}] {text}")
+            return False
+        url = f"https://api.telegram.org/bot{self.token}/editMessageText"
+        payload: dict[str, Any] = {"chat_id": self.chat_id, "message_id": int(message_id), "text": text[:3900]}
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        try:
+            session = await self.get_session()
+            async with session.post(url, json=payload, timeout=8) as resp:
+                data = await resp.json()
+            if data.get("ok"):
+                return True
+            description = str(data.get("description") or "")
+            if "message is not modified" in description.lower():
+                self.audit("TELEGRAM_EDIT_NOOP", message_id=int(message_id), reason="message_is_not_modified")
+                return True
+            self.audit("TELEGRAM_EDIT_FAILED", message_id=int(message_id), response=data)
+        except Exception as exc:
+            print(f"[TelegramV2] edit failed: {exc}")
+            self.audit("TELEGRAM_EDIT_FAILED", message_id=int(message_id), error=str(exc), error_type=exc.__class__.__name__)
+        return False
 
     async def poll_forever(self) -> None:
         if not self.enabled:

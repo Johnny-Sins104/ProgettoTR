@@ -173,6 +173,10 @@ class PaperEngineSettings:
     telegram_notify_position_pnl_delta_pct: float = 0.25
     telegram_proactive_dedup_seconds: float = 30.0
     telegram_proactive_max_messages_per_minute: int = 10
+    telegram_position_dashboard_single_message: bool = True
+    telegram_position_dashboard_update_seconds: float = 20.0
+    telegram_position_dashboard_bar_width: int = 20
+    telegram_position_dashboard_send_close_summary: bool = True
     signal_diagnostics_enabled: bool = True
     signal_diagnostics_backfill_enabled: bool = True
     exploratory_signal_analysis: bool = True
@@ -345,6 +349,10 @@ class PaperTradingEngine:
                 notify_position_pnl_delta_pct=float(settings.telegram_notify_position_pnl_delta_pct or 0.0),
                 dedup_seconds=float(settings.telegram_proactive_dedup_seconds or 0.0),
                 max_messages_per_minute=int(settings.telegram_proactive_max_messages_per_minute or 0),
+                position_dashboard_single_message=bool(settings.telegram_position_dashboard_single_message),
+                position_dashboard_update_seconds=float(settings.telegram_position_dashboard_update_seconds or 20.0),
+                position_dashboard_bar_width=int(settings.telegram_position_dashboard_bar_width or 20),
+                position_dashboard_send_close_summary=bool(settings.telegram_position_dashboard_send_close_summary),
             ),
         )
         self._register_telegram_handlers()
@@ -776,6 +784,10 @@ class PaperTradingEngine:
             return
         notify_every_cycles = max(1, int(self.settings.telegram_notify_position_every_n_cycles or 1))
         notify_every_seconds = max(0.0, float(self.settings.telegram_notify_position_every_seconds or 0.0))
+        if bool(getattr(self.settings, "telegram_position_dashboard_single_message", True)):
+            dashboard_seconds = max(0.0, float(getattr(self.settings, "telegram_position_dashboard_update_seconds", 20.0) or 0.0))
+            if dashboard_seconds > 0:
+                notify_every_seconds = dashboard_seconds if notify_every_seconds <= 0 else min(notify_every_seconds, dashboard_seconds)
         pnl_delta = max(0.0, float(self.settings.telegram_notify_position_pnl_delta_pct or 0.0))
         now_ts = datetime.now(timezone.utc).timestamp()
         should_send = bool(force)
@@ -809,6 +821,16 @@ class PaperTradingEngine:
             self.proactive.state.last_position_monitor_cycle[pid] = self._cycle_seq
             self.proactive.state.last_position_monitor_sent_at[pid] = now_ts
         self.proactive.save()
+        if bool(getattr(self.settings, "telegram_position_dashboard_single_message", True)):
+            for pos in snapshot.positions:
+                await self.proactive.send_or_update_position_dashboard(
+                    account=snapshot.account,
+                    position=pos,
+                    reason=reason,
+                    cycle_id=cycle_id,
+                    force=force,
+                )
+            return
         monitor = self.position_monitor.format_telegram(account=snapshot.account, positions=snapshot.positions)
         event_type = "TELEGRAM_POSITION_MONITOR_NOTIFICATION" if force else "TELEGRAM_POSITION_UPDATE_NOTIFICATION"
         await self._send_proactive(
@@ -909,6 +931,7 @@ class PaperTradingEngine:
         snapshot = self.broker_adapter.reconcile()
         matching = [p for p in snapshot.positions if p.symbol == symbol and str(p.side).upper() == side]
         pos = matching[-1] if matching else (snapshot.positions[-1] if snapshot.positions else None)
+        single_dashboard = bool(getattr(self.settings, "telegram_position_dashboard_single_message", True))
         if pos is None:
             await self._send_proactive(
                 "position_opened",
@@ -919,7 +942,7 @@ class PaperTradingEngine:
                 side=side,
                 cycle_id=cycle_id,
             )
-        else:
+        elif not single_dashboard:
             direction = "LONG" if str(pos.side).upper() == "BUY" else "SHORT"
             risk_amount = abs(float(pos.entry_price) - float(pos.stop_loss or pos.entry_price)) * abs(float(pos.qty))
             await self._send_proactive(
@@ -959,8 +982,16 @@ class PaperTradingEngine:
             pnl = float(getattr(p, "realized_pnl", 0.0) or 0.0)
             base = abs(qty * entry_price) or 1.0
             pnl_pct = pnl / base * 100.0
+            equity_snapshot = self.broker_adapter.reconcile().account
             equity = float(self.broker.snapshot(self.last_prices).get("equity") or self.broker.balance)
             direction = "LONG" if side.upper() == "BUY" else "SHORT"
+            if bool(getattr(self.settings, "telegram_position_dashboard_single_message", True)):
+                await self.proactive.finalize_position_dashboard(
+                    account=equity_snapshot,
+                    closed_position=p,
+                    reason=reason,
+                    cycle_id=cycle_id,
+                )
             if self.settings.telegram_notify_on_tp_sl and reason in {"TP", "SL"}:
                 if reason == "TP":
                     await self._send_proactive(
@@ -1030,15 +1061,16 @@ class PaperTradingEngine:
         if self._paper_once_progress_logs_enabled():
             print(message, flush=True)
 
-    def _emit_lsr_v2_runtime_bridge_for_symbol(self, *, symbol: str, df: Any, cycle_id: str) -> None:
+    def _emit_lsr_v2_runtime_bridge_for_symbol(self, *, symbol: str, df: Any, cycle_id: str) -> dict[str, Any]:
         """Emit cycle-scoped LSR-v2 audit events for one scanned symbol.
 
-        This is intentionally fail-closed.  It never routes, submits orders,
-        opens positions, or mutates paper state; it only appends diagnostics to
-        the event log and to the in-memory cycle artifact list.
+        The default remains fail-closed and diagnostic-only.  A paper-only
+        submit path can be enabled with explicit operator confirmations; it
+        still keeps live, testnet, and exchange-broker execution blocked.
         """
+        result: dict[str, Any] = {"signal": 0, "order": 0, "order_snapshot": None, "bridge_event": None}
         if not self.settings.lsr_v2_paper_supervised_bridge_enabled:
-            return
+            return result
         try:
             promotion_report = {}
             promotion_path = self.data_dir / "lsr_v2_promotion_gate_report.json"
@@ -1060,19 +1092,76 @@ class PaperTradingEngine:
                 open_positions_count=len(self.broker.open_positions),
             )
             # Force-pin runtime safety before the generic event writer sees it.
+            lsr_submit_enabled = str(os.getenv("LSR_V2_PAPER_SUPERVISED_SUBMIT_ENABLE", "0") or "").strip() == "1"
+            lsr_submit_confirm = str(os.getenv("LSR_V2_PAPER_SUPERVISED_SUBMIT_CONFIRM", "") or "").strip()
+            lsr_submit_confirmation_ok = lsr_submit_confirm == "I_UNDERSTAND_PAPER_ONLY"
+            bridge_can_submit = bool(
+                lsr_submit_enabled
+                and lsr_submit_confirmation_ok
+                and self.settings.lsr_v2_paper_supervised_bridge_operator_enable
+                and self.lsr_v2_bridge_settings.operator_confirmation_ok
+                and str(getattr(self.settings, "mode", "paper") or "paper").lower() == "paper"
+                and bool(candidate_event.get("candidate_ready"))
+                and bool(candidate_event.get("candidate_fresh_for_submit"))
+                and str(candidate_event.get("side") or "").upper() in {"BUY", "SELL"}
+                and len(self.broker.open_positions) < self.settings.max_positions
+                and not any(p.symbol == symbol for p in self.broker.open_positions)
+            )
+            if bridge_can_submit:
+                entry_price = float((candidate_event.get("levels") or {}).get("entry_price") or 0.0)
+                stop_loss = float((candidate_event.get("levels") or {}).get("stop_loss") or 0.0)
+                take_profit = float((candidate_event.get("levels") or {}).get("take_profit") or 0.0)
+                risk_distance = abs(entry_price - stop_loss)
+                risk_amount = max(0.0, float(self.broker.balance) * float(self.settings.risk_per_trade_pct))
+                qty = risk_amount / risk_distance if entry_price > 0.0 and risk_distance > 0.0 else 0.0
+                if qty > 0.0 and take_profit > 0.0:
+                    metadata = {
+                        "cycle_id": cycle_id,
+                        "timeframe": self.settings.timeframe,
+                        "cost_model": self.settings.cost_model,
+                        "combination": "LSR_V2_PaperSupervisedRuntimeBridge",
+                        "paper_unlock": True,
+                        "guarded_supervised_execution": True,
+                        "paper_order_source": "lsr_v2_paper_supervised_runtime_bridge",
+                        "execution_source": "lsr_v2_paper_supervised_runtime_bridge",
+                        "candidate_id": candidate_event.get("candidate_id"),
+                        "quality_grade": (candidate_event.get("quality") or {}).get("grade"),
+                        "quality_score": (candidate_event.get("quality") or {}).get("score"),
+                        "risk_per_trade_pct": self.settings.risk_per_trade_pct,
+                    }
+                    order_snapshot = self.broker_adapter.place_order(
+                        symbol=symbol,
+                        side=str(candidate_event.get("side") or "BUY"),  # type: ignore[arg-type]
+                        qty=qty,
+                        price=entry_price,
+                        stop_loss=stop_loss,
+                        take_profit=take_profit,
+                        metadata=metadata,
+                    )
+                    result.update({"signal": 1, "order": 1, "order_snapshot": order_snapshot})
+                    bridge_event["would_submit"] = True
+                    bridge_event["broker_submit_called"] = True
+                    bridge_event["routing_enabled"] = True
+                    bridge_event["execution_enabled"] = True
+                    bridge_event["paper_order_submission_enabled"] = True
+                    bridge_event["orders_submitted_by_lsr_v2_runtime_bridge"] = 1
+                    bridge_event["positions_opened_by_lsr_v2_runtime_bridge"] = 1
+                    bridge_event["blocked_reason"] = None
+                    bridge_event["blocked_reasons"] = []
             for payload in (candidate_event, bridge_event):
-                payload["would_submit"] = False
-                payload["broker_submit_called"] = False
-                payload["routing_enabled"] = False
-                payload["execution_enabled"] = False
-                payload["paper_order_submission_enabled"] = False
+                payload.setdefault("would_submit", False)
+                payload.setdefault("broker_submit_called", False)
+                payload.setdefault("routing_enabled", False)
+                payload.setdefault("execution_enabled", False)
+                payload.setdefault("paper_order_submission_enabled", False)
                 payload["live_enabled"] = False
                 payload["testnet_enabled"] = False
                 payload["exchange_broker_enabled"] = False
-                payload["orders_submitted_by_lsr_v2_runtime_bridge"] = 0
-                payload["positions_opened_by_lsr_v2_runtime_bridge"] = 0
+                payload.setdefault("orders_submitted_by_lsr_v2_runtime_bridge", 0)
+                payload.setdefault("positions_opened_by_lsr_v2_runtime_bridge", 0)
                 self._lsr_v2_runtime_cycle_events.append(dict(payload))
                 self.broker.emit(**payload)
+            result["bridge_event"] = bridge_event
             # s-10e: write the cycle-scoped runtime report incrementally. The
             # watchdog hard-exit path can print the footer before the normal
             # end-of-cycle artifacts are produced, so the report must exist as
@@ -1104,6 +1193,7 @@ class PaperTradingEngine:
                 broker_submit_called=False,
                 would_submit=False,
             )
+        return result
 
     async def evaluate_symbol(self, symbol: str, *, cycle_id: str = "") -> dict[str, Any]:
         result: dict[str, Any] = {"symbol": symbol, "scanned": 0, "signal": 0, "order": 0, "error": 0, "no_signal": 0, "skipped": 0}
@@ -1146,7 +1236,24 @@ class PaperTradingEngine:
                 last_price=last_price,
                 closed_positions=len(closed),
             )
-            self._emit_lsr_v2_runtime_bridge_for_symbol(symbol=symbol, df=df, cycle_id=cycle_id)
+            lsr_bridge_result = self._emit_lsr_v2_runtime_bridge_for_symbol(symbol=symbol, df=df, cycle_id=cycle_id)
+            if int(lsr_bridge_result.get("order") or 0) > 0:
+                order_snapshot = lsr_bridge_result.get("order_snapshot")
+                bridge_event = lsr_bridge_result.get("bridge_event") if isinstance(lsr_bridge_result.get("bridge_event"), dict) else {}
+                result["signal"] = 1
+                result["order"] = 1
+                await self._notify_order_filled(
+                    symbol=symbol,
+                    side=str(bridge_event.get("side") or getattr(order_snapshot, "side", "")),
+                    order_id=str(getattr(order_snapshot, "order_id", "")),
+                    qty=float(getattr(order_snapshot, "qty", 0.0) or 0.0),
+                    price=float(bridge_event.get("entry_price") or getattr(order_snapshot, "price", 0.0) or 0.0),
+                    stop_loss=float(bridge_event.get("stop_loss") or 0.0),
+                    take_profit=float(bridge_event.get("take_profit") or 0.0),
+                    cycle_id=cycle_id,
+                )
+                await self._notify_position_opened(symbol=symbol, side=str(bridge_event.get("side") or ""), cycle_id=cycle_id)
+                return result
             if self.broker.is_paused:
                 result["skipped"] = 1
                 self.broker.emit("ASSET_SKIPPED", cycle_id=cycle_id, symbol=symbol, reason="paused")
@@ -3085,6 +3192,10 @@ def settings_from_args(args: Any) -> PaperEngineSettings:
         telegram_notify_position_pnl_delta_pct=float(getattr(Config, "TELEGRAM_NOTIFY_POSITION_PNL_DELTA_PCT", 0.25)),
         telegram_proactive_dedup_seconds=float(getattr(Config, "TELEGRAM_PROACTIVE_DEDUP_SECONDS", 30.0)),
         telegram_proactive_max_messages_per_minute=int(getattr(Config, "TELEGRAM_PROACTIVE_MAX_MESSAGES_PER_MINUTE", 10)),
+        telegram_position_dashboard_single_message=bool(getattr(Config, "TELEGRAM_POSITION_DASHBOARD_SINGLE_MESSAGE", True)),
+        telegram_position_dashboard_update_seconds=float(getattr(Config, "TELEGRAM_POSITION_DASHBOARD_UPDATE_SECONDS", 20.0)),
+        telegram_position_dashboard_bar_width=int(getattr(Config, "TELEGRAM_POSITION_DASHBOARD_BAR_WIDTH", 20)),
+        telegram_position_dashboard_send_close_summary=bool(getattr(Config, "TELEGRAM_POSITION_DASHBOARD_SEND_CLOSE_SUMMARY", True)),
         signal_diagnostics_enabled=(False if bool(getattr(args, "no_signal_diagnostics", False)) else bool(getattr(Config, "PAPER_SIGNAL_DIAGNOSTICS_ENABLED", True))),
         signal_diagnostics_backfill_enabled=(False if bool(getattr(args, "no_signal_diagnostics_backfill", False)) else bool(getattr(Config, "PAPER_SIGNAL_DIAGNOSTICS_BACKFILL_ENABLED", True))),
         exploratory_signal_analysis=bool(getattr(Config, "PAPER_EXPLORATORY_SIGNAL_ANALYSIS", True)),

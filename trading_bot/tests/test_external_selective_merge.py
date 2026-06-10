@@ -30,6 +30,10 @@ if "config" not in sys.modules:
         CANDLE_PATTERN_RETEST_TOLERANCE_PCT = 0.0015
         CANDLE_PATTERN_VOLUME_RATIO_THRESHOLD = 1.10
         CRYPTO_SCENARIO_SR_PROXIMITY_PCT = 0.0035
+        WEIGHTS_TRENDING: dict = {"ema": 14, "bias": 18, "engulfing": 25, "rsi": 25, "support": 16, "psy_level": 2}
+        WEIGHTS_RANGING: dict = {"rsi": 30, "engulfing": 25, "support": 25, "psy_level": 20}
+        TRENDING_THRESHOLD: int = 60
+        RANGING_THRESHOLD: int = 40
 
     config_mod.Config = Config
     sys.modules["config"] = config_mod

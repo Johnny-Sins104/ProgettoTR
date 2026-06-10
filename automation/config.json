@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "max_cycles": 5,
+  "poll_seconds": 20,
+  "require_approval_before_claude": false,
+  "direct_handoff_enabled": true,
+  "auto_advance_roadmap": true,
+  "claude_command": "claude.exe",
+  "claude_effort": "high",
+  "claude_permission_mode": "auto",
+  "claude_tools": "default",
+  "claude_output_format": "stream-json",
+  "codex_reasoning_effort": "high",
+  "codex_sandbox_mode": "danger-full-access",
+  "codex_environment_retry_limit": 2,
+  "quota_default_cooldown_hours": 5,
+  "codex_review_timeout_minutes": 60,
+  "quota_error_patterns": [
+    "usage limit",
+    "rate limit",
+    "quota exceeded",
+    "limit reached",
+    "session limit",
+    "you have hit your limit",
+    "you've hit your limit"
+  ],
+  "codex_quota_error_patterns": [
+    "usage limit",
+    "rate limit",
+    "quota exceeded",
+    "you have hit your limit",
+    "you've hit your limit"
+  ]
+}

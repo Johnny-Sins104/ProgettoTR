@@ -1,4 +1,0 @@
-trading_bot/core/lsr_v2_second_trade_handoff_dry_run.py
-trading_bot/run_lsr_v2_second_trade_handoff_dry_run.py
-trading_bot/tests/test_lsr_v2_second_trade_handoff_dry_run.py
-trading_bot/docs/PROMPT_29_4_4S10V_SECOND_TRADE_HANDOFF_DRY_RUN_PATCH_REPORT.md

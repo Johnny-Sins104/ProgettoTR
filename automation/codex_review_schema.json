@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": ["approved", "fix_required", "blocked"]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "review_markdown": {
+      "type": "string"
+    },
+    "next_claude_prompt": {
+      "type": "string"
+    }
+  },
+  "required": ["decision", "summary", "review_markdown", "next_claude_prompt"]
+}

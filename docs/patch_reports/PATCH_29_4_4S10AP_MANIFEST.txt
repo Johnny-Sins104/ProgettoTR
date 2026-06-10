@@ -1,9 +1,0 @@
-Prompt 29.4.4s-10ap — LSR-v2 third paper trade position lifecycle
-
-Files:
-trading_bot/core/lsr_v2_third_trade_position_lifecycle.py
-trading_bot/run_lsr_v2_third_trade_position_lifecycle.py
-trading_bot/tests/test_lsr_v2_third_trade_position_lifecycle.py
-trading_bot/docs/PROMPT_29_4_4S10AP_THIRD_TRADE_POSITION_LIFECYCLE_PATCH_REPORT.md
-
-Audit-only lifecycle layer. No submit, no close, no broker call, no state mutation.

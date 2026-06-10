@@ -34,3 +34,23 @@ trading_bot/reports/
 console_once*.txt
 patch_reports.zip
 trading_bot/scratch/
+
+# Archive snapshots (zip + generated file lists)
+archive/
+
+# Generated report docs (re-created by runners)
+docs/*_report.md
+docs/patch_reports/*.txt
+
+# Web dashboard server artifacts
+web/__pycache__/
+
+# Claude/Codex automation runtime artifacts
+automation/APPROVE_CLAUDE
+automation/STOP
+automation/CLAUDE_DONE.json
+automation/CODEX_REVIEW.md
+automation/state.json
+automation/quota.json
+automation/history/
+automation/logs/

@@ -1,9 +1,9 @@
 @echo off
 setlocal EnableExtensions
 
-REM ProgettoTR - Live/Dry-run launcher for Windows CMD
+REM ProgettoTR - Paper-live launcher for Windows CMD
 REM Do NOT hardcode API keys or Telegram tokens in this file.
-REM Set secrets as Windows environment variables instead.
+REM Secrets may be loaded by the Python app from .env or environment variables.
 
 cd /d "%~dp0"
 
@@ -19,19 +19,14 @@ if not exist "trading_bot\main.py" (
     exit /b 1
 )
 
-if "%API_KEY%"=="" echo [WARN] API_KEY is not set. Exchange private actions may be disabled.
-if "%API_SECRET%"=="" echo [WARN] API_SECRET is not set. Exchange private actions may be disabled.
-if "%TELEGRAM_TOKEN%"=="" echo [WARN] TELEGRAM_TOKEN is not set. Telegram alerts disabled.
-if "%TELEGRAM_CHAT_ID%"=="" echo [WARN] TELEGRAM_CHAT_ID is not set. Telegram alerts disabled.
-
 echo.
+echo [INFO] Paper-live mode: no live/testnet/exchange broker is enabled.
+echo [INFO] Telegram credentials, if configured, are loaded by the Python app.
 echo [INFO] LSR-v2 read-only dashboard banner will be printed by avvia_bot_live.py when artifacts are ready.
 echo [INFO] Launcher visibility is read-only: no Telegram send, no scheduler, no submit/close.
 echo.
-echo [INFO] Starting bot. Press CTRL+C to stop.
+echo [INFO] Starting bot from project root. Press CTRL+C to stop.
 echo.
-
-cd /d "%~dp0trading_bot"
 
 set "PYTHON_CMD="
 
@@ -47,7 +42,7 @@ if "%PYTHON_CMD%"=="" (
     set "PYTHON_CMD=C:\Users\Davide\AppData\Local\Microsoft\WindowsApps\python.exe"
 )
 
-%PYTHON_CMD% avvia_bot_live.py --mode paper --timeframe 5m --cost-model conservative
+%PYTHON_CMD% trading_bot\avvia_bot_live.py --mode paper-live --symbols BTC/USDT --timeframe 5m --cost-model conservative --max-cycles 0 --poll-seconds 20 --no-cycle-artifacts
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
@@ -60,5 +55,9 @@ echo.
 echo ================================================================
 echo Bot process ended.
 echo ================================================================
+echo.
+echo [INFO] Final read-only paper diagnosis:
+%PYTHON_CMD% trading_bot\avvia_bot_live.py --paper-blockers --tail 500
+echo.
 pause
 exit /b 0

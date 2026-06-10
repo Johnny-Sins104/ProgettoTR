@@ -46,6 +46,18 @@ def _candidate_df() -> pd.DataFrame:
     return pd.DataFrame(rows, index=pd.date_range("2026-05-28", periods=len(rows), freq="5min"))
 
 
+def _stale_candidate_df() -> pd.DataFrame:
+    rows: list[dict] = []
+    for _ in range(20):
+        rows.append({"Open": 102.0, "High": 105.0, "Low": 100.0, "Close": 102.0, "Volume": 100.0})
+    rows.append({"Open": 101.0, "High": 102.0, "Low": 99.50, "Close": 100.40, "Volume": 140.0})
+    rows.append({"Open": 100.4, "High": 106.0, "Low": 100.2, "Close": 105.50, "Volume": 130.0})
+    rows.append({"Open": 105.5, "High": 106.2, "Low": 100.05, "Close": 104.00, "Volume": 120.0})
+    for _ in range(24):
+        rows.append({"Open": 102.0, "High": 105.0, "Low": 100.0, "Close": 102.0, "Volume": 100.0})
+    return pd.DataFrame(rows, index=pd.date_range("2026-05-28", periods=len(rows), freq="5min"))
+
+
 def _flat_df() -> pd.DataFrame:
     rows = [{"Open": 102.0, "High": 105.0, "Low": 100.0, "Close": 102.0, "Volume": 100.0} for _ in range(40)]
     return pd.DataFrame(rows, index=pd.date_range("2026-05-28", periods=len(rows), freq="5min"))
@@ -74,6 +86,29 @@ def test_builds_cycle_scoped_candidate_and_bridge_events_fail_closed() -> None:
     assert bridge_event["broker_submit_called"] is False
     assert bridge_event["orders_submitted_by_lsr_v2_runtime_bridge"] == 0
     assert bridge_event["positions_opened_by_lsr_v2_runtime_bridge"] == 0
+    assert candidate_event["candidate_fresh_for_submit"] is False
+    assert "runtime_candidate_stale_for_submit" in candidate_event["blocked_reasons"]
+
+
+def test_stale_runtime_candidate_is_audited_but_not_fresh_for_submit() -> None:
+    bridge_settings = LSRV2PaperSupervisedBridgeSettings(operator_enable=True, operator_confirmation=CONFIRMATION_PHRASE)
+    candidate_event, bridge_event = build_lsr_v2_runtime_bridge_events_for_symbol(
+        df=_stale_candidate_df(),
+        cycle_id="pc_stale",
+        symbol="BTC/USDT",
+        timeframe="5m",
+        promotion_gate_report=_promotion_pass(),
+        bridge_settings=bridge_settings,
+        runtime_settings=LSRV2RuntimeBridgeSettings(max_recent_candidate_bars=6, max_submit_candidate_age_bars=3),
+    )
+
+    assert candidate_event["candidate_ready"] is True
+    assert candidate_event["candidate_fresh_for_submit"] is False
+    assert candidate_event["candidate_age_bars"] > candidate_event["max_submit_candidate_age_bars"]
+    assert "runtime_candidate_stale_for_submit" in candidate_event["blocked_reasons"]
+    assert bridge_event["runtime_candidate_fresh_for_submit"] is False
+    assert "runtime_candidate_stale_for_submit" in bridge_event["blocked_reasons"]
+    assert bridge_event["would_submit"] is False
 
 
 def test_no_runtime_candidate_still_emits_symbol_scoped_audit() -> None:

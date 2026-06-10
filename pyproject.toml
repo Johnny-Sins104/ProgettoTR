@@ -1,0 +1,24 @@
+[project]
+name = "progetto-tr"
+version = "29.5.0"
+requires-python = ">=3.11"
+description = "Paper-first crypto trading bot laboratory (Binance Futures USDT-M)"
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+    "trading_bot/tests",
+    "trading_bot",
+]
+python_files  = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode  = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

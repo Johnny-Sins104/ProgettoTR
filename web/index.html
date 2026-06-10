@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProgettoTR Dashboard</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #1c2128;
+  --border:    #30363d;
+  --border2:   #21262d;
+  --text:      #e6edf3;
+  --muted:     #8b949e;
+  --accent:    #58a6ff;
+  --green:     #3fb950;
+  --red:       #f85149;
+  --yellow:    #d29922;
+  --font-mono: "Consolas","Cascadia Code","Fira Code",monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ── header ── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.logo {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: .3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo svg { width: 22px; height: 22px; }
+.server-badge {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  flex-shrink: 0;
+}
+.dot.idle { background: var(--muted); box-shadow: none; }
+.dot.error { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.dot.pulse { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+/* ── main grid ── */
+main {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+}
+
+/* ── panel ── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.panel-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.panel-title {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--muted);
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.status-badge.running { color: var(--green); border-color: #238636; }
+.status-badge.stopped { color: var(--muted); }
+.status-badge.error   { color: var(--red); border-color: #da3633; }
+
+/* ── form ── */
+.panel-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.form-group select,
+.form-group input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color .15s;
+  width: 100%;
+}
+.form-group select:focus,
+.form-group input:focus { border-color: var(--accent); }
+.form-group select option { background: var(--surface2); }
+
+/* ── buttons ── */
+.btn-row { display: flex; gap: 8px; }
+.btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, opacity .15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-start {
+  background: #238636;
+  border-color: #2ea043;
+  color: #fff;
+}
+.btn-start:hover:not(:disabled) { background: #2ea043; }
+.btn-stop {
+  background: #da3633;
+  border-color: #f85149;
+  color: #fff;
+}
+.btn-stop:hover:not(:disabled) { background: #f85149; }
+.btn-clear {
+  flex: 0 0 auto;
+  background: transparent;
+  border-color: var(--border2);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 4px 10px;
+}
+.btn-clear:hover { color: var(--text); border-color: var(--border); }
+
+/* ── log viewer ── */
+.log-section {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border2);
+  flex: 1;
+}
+.log-head {
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface2);
+}
+.log-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.log-count {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--border2);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+.log-body {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-y: auto;
+  height: 300px;
+  padding: 10px 14px;
+  background: #0a0e14;
+  color: #a5d6ff;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.log-body:empty::before {
+  content: "No output yet.";
+  color: var(--muted);
+  font-style: italic;
+}
+.log-line { display: block; }
+.log-line.err { color: #ffa198; }
+.log-line.warn { color: #e3b341; }
+.log-line.ok { color: #56d364; }
+.log-line.info { color: #79c0ff; }
+.log-line.dim { color: var(--muted); }
+
+/* ── uptime strip ── */
+.meta-strip {
+  padding: 6px 14px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border2);
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.meta-strip span { display: flex; gap: 4px; }
+.meta-val { color: var(--text); font-weight: 600; }
+
+/* ── scrollbar ── */
+.log-body::-webkit-scrollbar { width: 6px; }
+.log-body::-webkit-scrollbar-track { background: transparent; }
+.log-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── divider inside form ── */
+.form-divider {
+  border: none;
+  border-top: 1px solid var(--border2);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+      <polyline points="16 7 22 7 22 13"/>
+    </svg>
+    ProgettoTR Dashboard
+  </div>
+  <div class="server-badge">
+    <div class="dot pulse" id="server-dot"></div>
+    <span id="server-label">Dashboard online</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── PAPER BOT panel ────────────────────────────────── -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">Paper Bot</span>
+      <span class="status-badge stopped" id="bot-badge">
+        <span class="dot idle" id="bot-dot"></span>
+        <span id="bot-badge-text">IDLE</span>
+      </span>
+    </div>
+
+    <div class="panel-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Symbol</label>
+          <select id="bot-symbol">
+            <option value="BTC/USDT">BTC/USDT</option>
+            <option value="ETH/USDT">ETH/USDT</option>
+            <option value="XRP/USDT">XRP/USDT</option>
+            <option value="SOL/USDT">SOL/USDT</option>
+            <option value="BNB/USDT">BNB/USDT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Timeframe</label>
+          <select id="bot-timeframe">
+            <option value="5m" selected>5m</option>
+            <option value="15m">15m</option>
+            <option value="1m">1m</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Cost model</label>
+          <select id="bot-cost-model">
+            <option value="conservative" selected>conservative</option>
+            <option value="active">active</option>
+            <option value="aggressive">aggressive</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Poll interval (sec)</label>
+          <input id="bot-poll" type="number" value="20" min="5" max="300">
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-start" id="bot-start-btn" onclick="botStart()">
+          ▶ Start
+        </button>
+        <button class="btn btn-stop" id="bot-stop-btn" onclick="botStop()" disabled>
+          ■ Stop
+        </button>
+      </div>
+    </div>
+
+    <div class="log-section">
+      <div class="log-head">
+        <div class="log-label">
+          Output
+          <span class="log-count" id="bot-log-count">0</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="bot-autoscroll" checked style="accent-color:var(--accent)"> auto-scroll
+          </label>
+          <button class="btn btn-clear" onclick="clearLogs('bot')">Clear</button>
+        </div>
+      </div>
+      <div class="log-body" id="bot-log"></div>
+    </div>
+
+    <div class="meta-strip" id="bot-meta" style="display:none">
+      <span>PID <span class="meta-val" id="bot-pid">—</span></span>
+      <span>Uptime <span class="meta-val" id="bot-uptime">—</span></span>
+      <span>Exit <span class="meta-val" id="bot-exit">—</span></span>
+    </div>
+  </div>
+
+  <!-- ── BACKTEST panel ──────────────────────────────────── -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">Backtest</span>
+      <span class="status-badge stopped" id="bt-badge">
+        <span class="dot idle" id="bt-dot"></span>
+        <span id="bt-badge-text">IDLE</span>
+      </span>
+    </div>
+
+    <div class="panel-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Capital iniziale (€)</label>
+          <input id="bt-capital" type="number" value="100" min="10" max="1000000">
+        </div>
+        <div class="form-group">
+          <label>Numero candele</label>
+          <select id="bt-candles">
+            <option value="1000">1 000  (~3.5 gg 5m)</option>
+            <option value="2000">2 000  (~7 gg 5m)</option>
+            <option value="5000" selected>5 000  (~17 gg 5m)</option>
+            <option value="10000">10 000  (~35 gg 5m)</option>
+            <option value="50000">50 000  (~175 gg 5m)</option>
+            <option value="150000">150 000  (max dataset)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-start" id="bt-start-btn" onclick="btStart()">
+          ▶ Avvia backtest
+        </button>
+        <button class="btn btn-stop" id="bt-stop-btn" onclick="btStop()" disabled>
+          ■ Stop
+        </button>
+      </div>
+    </div>
+
+    <div class="log-section">
+      <div class="log-head">
+        <div class="log-label">
+          Output
+          <span class="log-count" id="bt-log-count">0</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="bt-autoscroll" checked style="accent-color:var(--accent)"> auto-scroll
+          </label>
+          <button class="btn btn-clear" onclick="clearLogs('bt')">Clear</button>
+        </div>
+      </div>
+      <div class="log-body" id="bt-log"></div>
+    </div>
+
+    <div class="meta-strip" id="bt-meta" style="display:none">
+      <span>PID <span class="meta-val" id="bt-pid">—</span></span>
+      <span>Durata <span class="meta-val" id="bt-uptime">—</span></span>
+      <span>Exit <span class="meta-val" id="bt-exit">—</span></span>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── state ──────────────────────────────────────────────────────────────────────
+const state = {
+  bot: { logIdx: 0, localLines: [], startTime: null },
+  bt:  { logIdx: 0, localLines: [], startTime: null },
+};
+
+// ── polling ────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method };
+  if (body !== undefined) {
+    opts.headers = { 'Content-Type': 'application/json' };
+    opts.body = JSON.stringify(body);
+  }
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+async function poll() {
+  try {
+    const [status, botLogs, btLogs] = await Promise.all([
+      api('GET', '/api/status'),
+      api('GET', `/api/bot/logs?since=${state.bot.logIdx}`),
+      api('GET', `/api/backtest/logs?since=${state.bt.logIdx}`),
+    ]);
+    applyStatus('bot', status.bot);
+    applyStatus('bt',  status.backtest);
+    appendLogs('bot', botLogs);
+    appendLogs('bt',  btLogs);
+  } catch (e) {
+    document.getElementById('server-dot').className = 'dot error';
+    document.getElementById('server-label').textContent = 'Server offline';
+  }
+}
+
+// ── status rendering ───────────────────────────────────────────────────────────
+function applyStatus(id, s) {
+  const badge     = document.getElementById(`${id}-badge`);
+  const dot       = document.getElementById(`${id}-dot`);
+  const badgeText = document.getElementById(`${id}-badge-text`);
+  const startBtn  = document.getElementById(`${id}-start-btn`);
+  const stopBtn   = document.getElementById(`${id}-stop-btn`);
+  const metaEl    = document.getElementById(`${id}-meta`);
+  const pidEl     = document.getElementById(`${id}-pid`);
+  const uptimeEl  = document.getElementById(`${id}-uptime`);
+  const exitEl    = document.getElementById(`${id}-exit`);
+
+  if (s.running) {
+    badge.className = 'status-badge running';
+    dot.className   = 'dot pulse';
+    badgeText.textContent = 'RUNNING';
+    startBtn.disabled = true;
+    stopBtn.disabled  = false;
+    state[id].startTime = s.start_time;
+  } else {
+    const hasError = s.exit_code !== null && s.exit_code !== 0;
+    badge.className = hasError ? 'status-badge error' : 'status-badge stopped';
+    dot.className   = hasError ? 'dot error' : 'dot idle';
+    badgeText.textContent = hasError ? `EXIT ${s.exit_code}` : 'IDLE';
+    startBtn.disabled = false;
+    stopBtn.disabled  = true;
+  }
+
+  if (s.pid || s.start_time !== null) {
+    metaEl.style.display = '';
+    pidEl.textContent = s.pid ?? '—';
+    exitEl.textContent = s.exit_code !== null ? String(s.exit_code) : (s.running ? '—' : '—');
+    if (s.start_time) {
+      const elapsed = Math.floor((Date.now() / 1000) - s.start_time);
+      uptimeEl.textContent = fmtDur(elapsed);
+    }
+  } else {
+    metaEl.style.display = 'none';
+  }
+}
+
+function fmtDur(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+// ── log rendering ─────────────────────────────────────────────────────────────
+const ERR_PAT  = /error|exception|traceback|failed|fatal/i;
+const WARN_PAT = /warn|warning/i;
+const OK_PAT   = /success|ok|profit|win|tp|take.?profit/i;
+const INFO_PAT = /\[info\]|\[dashboard\]|\[cycle\]/i;
+const DIM_PAT  = /^-+$|^={3,}|^\s*$/;
+
+function classifyLine(txt) {
+  if (ERR_PAT.test(txt))  return 'err';
+  if (WARN_PAT.test(txt)) return 'warn';
+  if (OK_PAT.test(txt))   return 'ok';
+  if (INFO_PAT.test(txt)) return 'info';
+  if (DIM_PAT.test(txt))  return 'dim';
+  return '';
+}
+
+function appendLogs(id, data) {
+  if (!data.lines || data.lines.length === 0) return;
+  state[id].logIdx = data.next_index;
+  state[id].localLines.push(...data.lines);
+
+  const logEl   = document.getElementById(`${id}-log`);
+  const countEl = document.getElementById(`${id}-log-count`);
+  const autoEl  = document.getElementById(`${id}-autoscroll`);
+
+  const atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 30;
+
+  for (const line of data.lines) {
+    const span = document.createElement('span');
+    span.className = 'log-line ' + classifyLine(line);
+    span.textContent = line + '\n';
+    logEl.appendChild(span);
+  }
+
+  countEl.textContent = state[id].localLines.length;
+
+  if (autoEl.checked && atBottom) {
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+function clearLogs(id) {
+  state[id].logIdx = 0;
+  state[id].localLines = [];
+  document.getElementById(`${id}-log`).innerHTML = '';
+  document.getElementById(`${id}-log-count`).textContent = '0';
+}
+
+// ── bot actions ───────────────────────────────────────────────────────────────
+async function botStart() {
+  const body = {
+    symbol:       document.getElementById('bot-symbol').value,
+    timeframe:    document.getElementById('bot-timeframe').value,
+    cost_model:   document.getElementById('bot-cost-model').value,
+    poll_seconds: parseInt(document.getElementById('bot-poll').value, 10),
+  };
+  clearLogs('bot');
+  const r = await api('POST', '/api/bot/start', body);
+  if (!r.ok) alert('Errore avvio bot: ' + (r.error || 'unknown'));
+}
+
+async function botStop() {
+  await api('POST', '/api/bot/stop');
+}
+
+// ── backtest actions ──────────────────────────────────────────────────────────
+async function btStart() {
+  const body = {
+    capital: parseFloat(document.getElementById('bt-capital').value),
+    candles: parseInt(document.getElementById('bt-candles').value, 10),
+  };
+  clearLogs('bt');
+  const r = await api('POST', '/api/backtest/start', body);
+  if (!r.ok) alert('Errore avvio backtest: ' + (r.error || 'unknown'));
+}
+
+async function btStop() {
+  await api('POST', '/api/backtest/stop');
+}
+
+// ── keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'F5') { e.preventDefault(); poll(); }
+});
+
+// ── init ──────────────────────────────────────────────────────────────────────
+poll();
+setInterval(poll, 800);
+</script>
+</body>
+</html>
