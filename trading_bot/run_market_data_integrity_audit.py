@@ -876,8 +876,9 @@ def main() -> None:
     _NON_OHLCV = {"market_features.parquet"}
     parquet_files = sorted(
         [p for p in DATA_DIR.glob("*.parquet") if p.name not in _NON_OHLCV]
-        # STRAT-01 research cache (atomic parquet + manifest, closed candles)
+        # STRAT-01/02 research caches (atomic parquet + manifest, closed candles)
         + list((DATA_DIR / "strat01_cache").glob("*.parquet"))
+        + list((DATA_DIR / "strat02_cache").glob("*.parquet"))
     )
 
     inventory: list[dict] = []

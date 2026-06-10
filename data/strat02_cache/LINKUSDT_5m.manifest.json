@@ -1,0 +1,19 @@
+{
+  "asset": "LINKUSDT",
+  "timeframe": "5m",
+  "source_url": "https://data.binance.vision/data/futures/um/monthly/klines/LINKUSDT/5m/",
+  "provenance": "binance_vision_um_futures_bulk",
+  "download_utc": "2026-06-10T11:11:42+00:00",
+  "row_count": 672795,
+  "first_ts": "2020-01-17T08:00:00+00:00",
+  "last_ts": "2026-06-10T10:10:00+00:00",
+  "coverage_days": 2336.09,
+  "coverage_years": 6.3959,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "6694e93d43485afb40f7b15e6d5279cbf2b980fc580e9310a409b97fdbccc974",
+  "path": "C:\\Users\\Davide\\Desktop\\ProgettoTR-main\\data\\strat02_cache\\LINKUSDT_5m.parquet",
+  "timeframe_minutes": 5,
+  "checksum_verified": true,
+  "selection_rule": "The 16 earliest USDT perpetuals listed on Binance UM futures (2019-09..2020-02), in listing order \u2014 a point-in-time liquidity proxy free of survivorship bias; later-delisted contracts included until their delisting date."
+}

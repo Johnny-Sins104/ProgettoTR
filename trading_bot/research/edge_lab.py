@@ -53,6 +53,12 @@ EXEC_TIMEFRAME = "5m"           # costs are charged at the execution timeframe
 ASSETS = ("BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "BNBUSDT")
 SYMBOL_MAP = {a: f"{a[:-4]}/USDT" for a in ASSETS}
 
+
+def symbol_for(asset: str) -> str:
+    """'XXXUSDT' -> 'XXX/USDT' for the cost model (works for any panel)."""
+    a = str(asset).upper()
+    return f"{a[:-4]}/USDT" if a.endswith("USDT") else "BTC/USDT"
+
 DEFAULT_CACHE_DIR = Path("data/strat01_cache")
 DEFAULT_RESEARCH_DIR = Path("data/edge_research")
 TRIAL_LOG_NAME = "trial_log.jsonl"
@@ -78,8 +84,11 @@ class SplitContract:
     lock_sha256: str
 
     @staticmethod
-    def load(cache_dir: Path = DEFAULT_CACHE_DIR) -> "SplitContract":
-        lock_path = Path(cache_dir) / SPLIT_LOCK_NAME
+    def load(
+        cache_dir: Path = DEFAULT_CACHE_DIR,
+        lock_name: str = SPLIT_LOCK_NAME,
+    ) -> "SplitContract":
+        lock_path = Path(cache_dir) / lock_name
         if not lock_path.exists():
             raise FileNotFoundError(
                 f"Split lock file missing: {lock_path}. Run STRAT-01 first."
@@ -500,7 +509,7 @@ def portfolio_replay(
             exit_price=ev.exit_price,
             quantity=qty,
             scenario=scenario,
-            symbol=SYMBOL_MAP.get(ev.asset, "BTC/USDT"),
+            symbol=symbol_for(ev.asset),
             timeframe=EXEC_TIMEFRAME,
             atr_pct=ev.atr_pct_entry,
         )

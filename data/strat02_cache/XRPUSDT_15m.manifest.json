@@ -1,0 +1,19 @@
+{
+  "asset": "XRPUSDT",
+  "timeframe": "15m",
+  "source_url": "https://data.binance.vision/data/futures/um/monthly/klines/XRPUSDT/15m/",
+  "provenance": "binance_vision_um_futures_bulk",
+  "download_utc": "2026-06-10T11:57:26+00:00",
+  "row_count": 225320,
+  "first_ts": "2020-01-06T08:15:00+00:00",
+  "last_ts": "2026-06-10T10:00:00+00:00",
+  "coverage_days": 2347.07,
+  "coverage_years": 6.4259,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "98f6a3c07418a6ecc7188cdcad65f7c29372f4dcffa5e6f39b77204cc30fceee",
+  "path": "C:\\Users\\Davide\\Desktop\\ProgettoTR-main\\data\\strat02_cache\\XRPUSDT_15m.parquet",
+  "timeframe_minutes": 15,
+  "checksum_verified": true,
+  "selection_rule": "The 16 earliest USDT perpetuals listed on Binance UM futures (2019-09..2020-02), in listing order \u2014 a point-in-time liquidity proxy free of survivorship bias; later-delisted contracts included until their delisting date."
+}

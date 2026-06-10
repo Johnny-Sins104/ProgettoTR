@@ -1,0 +1,19 @@
+{
+  "asset": "XTZUSDT",
+  "timeframe": "15m",
+  "source_url": "https://data.binance.vision/data/futures/um/monthly/klines/XTZUSDT/15m/",
+  "provenance": "binance_vision_um_futures_bulk",
+  "download_utc": "2026-06-10T11:43:29+00:00",
+  "row_count": 222345,
+  "first_ts": "2020-02-06T08:00:00+00:00",
+  "last_ts": "2026-06-10T10:00:00+00:00",
+  "coverage_days": 2316.08,
+  "coverage_years": 6.3411,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "4a67ed00f1c22e9bc52d848fb58a742131f55a5fc4210d2c1bcac82fcb526a26",
+  "path": "C:\\Users\\Davide\\Desktop\\ProgettoTR-main\\data\\strat02_cache\\XTZUSDT_15m.parquet",
+  "timeframe_minutes": 15,
+  "checksum_verified": true,
+  "selection_rule": "The 16 earliest USDT perpetuals listed on Binance UM futures (2019-09..2020-02), in listing order \u2014 a point-in-time liquidity proxy free of survivorship bias; later-delisted contracts included until their delisting date."
+}

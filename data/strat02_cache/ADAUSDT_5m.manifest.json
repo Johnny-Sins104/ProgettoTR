@@ -1,0 +1,19 @@
+{
+  "asset": "ADAUSDT",
+  "timeframe": "5m",
+  "source_url": "https://data.binance.vision/data/futures/um/monthly/klines/ADAUSDT/5m/",
+  "provenance": "binance_vision_um_futures_bulk",
+  "download_utc": "2026-06-10T11:23:24+00:00",
+  "row_count": 668763,
+  "first_ts": "2020-01-31T08:00:00+00:00",
+  "last_ts": "2026-06-10T10:10:00+00:00",
+  "coverage_days": 2322.09,
+  "coverage_years": 6.3575,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "fb9b5483a94875439202905f18a947047b44a7e76386e8673f0923f983d562bb",
+  "path": "C:\\Users\\Davide\\Desktop\\ProgettoTR-main\\data\\strat02_cache\\ADAUSDT_5m.parquet",
+  "timeframe_minutes": 5,
+  "checksum_verified": true,
+  "selection_rule": "The 16 earliest USDT perpetuals listed on Binance UM futures (2019-09..2020-02), in listing order \u2014 a point-in-time liquidity proxy free of survivorship bias; later-delisted contracts included until their delisting date."
+}

@@ -140,6 +140,20 @@ _SYMBOL_SPREAD_BPS: Dict[str, float] = {
     "solusdt": 2.0,
     "bnbusdt": 1.8,
     "xrpusdt": 2.4,
+    # Extended research panel (cycle 2): conservative round-trip baselines
+    # for mid-cap perpetuals — never below the generic scenario base.
+    "bchusdt": 2.0,
+    "ltcusdt": 2.0,
+    "linkusdt": 2.2,
+    "adausdt": 2.4,
+    "trxusdt": 2.6,
+    "etcusdt": 2.8,
+    "eosusdt": 3.0,
+    "xlmusdt": 3.0,
+    "xtzusdt": 3.5,
+    "dashusdt": 3.5,
+    "zecusdt": 3.5,
+    "xmrusdt": 4.0,
 }
 
 
