@@ -1,0 +1,68 @@
+{
+  "report_type": "edge_research_report",
+  "cycle": 2,
+  "cycle_ceiling": 3,
+  "diagnostic_only": true,
+  "opens_orders": false,
+  "generated_at_utc": "2026-06-10T14:15:31.552815+00:00",
+  "methodology": "docs/STRATEGY_RESEARCH_ROADMAP.md STRAT-01..STRAT-04 + cycle-2 regime gate",
+  "split_lock_sha256": "15c3457c70e2f7fb42c57b308f1d0b56af9f22bb795e7fb6186661d72dd271a2",
+  "splits": {
+    "train": [
+      "2020-01-01 00:00:00+00:00",
+      "2023-11-12 10:48:00.000000016+00:00"
+    ],
+    "validation": [
+      "2023-11-12 10:48:00.000000016+00:00",
+      "2025-02-24 22:24:00.000000016+00:00"
+    ],
+    "final_oos": [
+      "2025-02-24 22:24:00.000000016+00:00",
+      "2026-06-10 10:00:00+00:00"
+    ]
+  },
+  "panel": [
+    "ADAUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "BTCUSDT",
+    "DASHUSDT",
+    "EOSUSDT",
+    "ETCUSDT",
+    "ETHUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "TRXUSDT",
+    "XLMUSDT",
+    "XMRUSDT",
+    "XRPUSDT",
+    "XTZUSDT",
+    "ZECUSDT"
+  ],
+  "risk_per_trade": 0.005,
+  "total_trials_counted_cumulative": 84,
+  "trial_log_entries": 202,
+  "gates_spec": {
+    "min_trades": 50,
+    "min_profit_factor": 1.2,
+    "min_net_pnl": 0.0,
+    "max_drawdown_pct": 15.0,
+    "min_dsr_probability": 0.95,
+    "max_pbo": 0.5,
+    "severe_min_net_pnl": 0.0,
+    "max_top3_profit_share": 0.35,
+    "regime_min_positive": 2,
+    "regime_min_trades": 10
+  },
+  "cscv_pbo_c2_panel": {
+    "pbo": 0.4082362082362082,
+    "n_combinations": 12870,
+    "n_blocks": 16,
+    "mean_logit": 0.7974743924706265
+  },
+  "final_oos_opened": false,
+  "oos_contamination_statement": "Cycle-2 final-OOS protection: phases C2-2/C2-3 loaded data through guard_no_oos() which physically drops candles with datetime >= oos_start. The cycle-2 OOS overlaps the burnt cycle-1 OOS window (2025-08..2026-06) because the contract fixes it to the most recent 20%; this overlap is declared, and mitigated by: configurations re-declared a priori, cumulative trial counting, and the researcher never re-ranking on cycle-1 OOS metrics. This run is the first and only read of the cycle-2 OOS; re-running is refused via oos_access_log.json.",
+  "shortlist_size": 0,
+  "candidates": [],
+  "edge_demonstrated": false
+}
