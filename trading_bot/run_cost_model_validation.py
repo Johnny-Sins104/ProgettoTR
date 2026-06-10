@@ -42,9 +42,14 @@ PAPER_TRADING_ACTIVATION_ALLOWED: bool = False
 # Import cost model
 # ---------------------------------------------------------------------------
 from core.unified_trade_cost import (  # noqa: E402  (after sys.path insert)
-    SCENARIO_NAMES,
+    SCENARIO_NAMES as _ALL_SCENARIO_NAMES,
     UnifiedCostModel,
 )
+
+# This gate validates only real-cost scenarios: "zero" is a diagnostic-only
+# scenario excluded by UnifiedCostModel.all_scenarios() and would violate the
+# total_cost > 0 assertions by construction.
+SCENARIO_NAMES = tuple(s for s in _ALL_SCENARIO_NAMES if s != "zero")
 
 # ---------------------------------------------------------------------------
 # Helpers
