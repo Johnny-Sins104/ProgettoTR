@@ -49,6 +49,11 @@ from .edge_lab import (
 # Config containers
 # ---------------------------------------------------------------------------
 
+def _col(df: pd.DataFrame, name: str) -> np.ndarray:
+    """Column as float ndarray; pandas NA/None become NaN (no exceptions)."""
+    return pd.to_numeric(df[name], errors="coerce").to_numpy(dtype=float)
+
+
 @dataclass(frozen=True)
 class HypothesisConfig:
     config_id: str
@@ -117,11 +122,11 @@ def vb_specs(df15: pd.DataFrame, cfg: HypothesisConfig) -> List[DirectionalSigna
     p = cfg.params
     n = p["lookback_bars_15m"]
     close = df15["Close"].to_numpy(float)
-    ph = df15[f"prior_high_{n}"].to_numpy(float)
-    pl = df15[f"prior_low_{n}"].to_numpy(float)
-    vol = df15["volume_ratio_20"].to_numpy(float)
-    rank = df15["atr_pct_rank_96"].to_numpy(float)
-    atr = df15["atr14"].to_numpy(float)
+    ph = _col(df15, f"prior_high_{n}")
+    pl = _col(df15, f"prior_low_{n}")
+    vol = _col(df15, "volume_ratio_20")
+    rank = _col(df15, "atr_pct_rank_96")
+    atr = _col(df15, "atr14")
 
     base = (vol >= p["volume_min"]) & (atr > 0) & ~np.isnan(rank)
     if p["squeeze_pmax"] < 1.0:
@@ -196,11 +201,11 @@ def tp_specs(df15: pd.DataFrame, cfg: HypothesisConfig) -> List[DirectionalSigna
     close = df15["Close"].to_numpy(float)
     low = df15["Low"].to_numpy(float)
     high = df15["High"].to_numpy(float)
-    ema50 = df15["ema50"].to_numpy(float)
-    ema200 = df15["ema200"].to_numpy(float)
-    ref = df15[p["ref_ema"]].to_numpy(float)
-    rsi = df15["rsi14"].to_numpy(float)
-    atr = df15["atr14"].to_numpy(float)
+    ema50 = _col(df15, "ema50")
+    ema200 = _col(df15, "ema200")
+    ref = _col(df15, p["ref_ema"])
+    rsi = _col(df15, "rsi14")
+    atr = _col(df15, "atr14")
     band = p["band_pct"]
 
     valid = (atr > 0) & (ema200 > 0) & ~np.isnan(rsi)
@@ -306,7 +311,7 @@ def xs_events(
     for asset, df in frames15.items():
         panel[asset] = (
             df["datetime"].to_numpy(dtype="datetime64[ns]"),
-            df[form_col].to_numpy(float),
+            _col(df, form_col),
         )
 
     start = window_start.ceil("D")

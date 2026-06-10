@@ -1,0 +1,573 @@
+{
+  "declared_at_utc": "2026-06-10T09:45:40.888208+00:00",
+  "split_lock_sha256": "2023968f311cbf39480362d74e7c05786806e64f8975c93d67258b8cc6a71c65",
+  "risk_per_trade": 0.005,
+  "cost_scenario_default": "realistic",
+  "n_configs": 36,
+  "configs": [
+    {
+      "config_id": "VB01",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 96,
+        "squeeze_pmax": 0.5,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 1-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2) and 1-day ATR%-rank <= 0.5 (volatility compression). Stop 2.0xATR15, ATR trailing 4.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after compression.",
+      "config_hash": "ded868d5ad6d9c93"
+    },
+    {
+      "config_id": "VB02",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 96,
+        "squeeze_pmax": 0.5,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 1-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2) and 1-day ATR%-rank <= 0.5 (volatility compression). Stop 3.0xATR15, ATR trailing 6.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after compression.",
+      "config_hash": "21a46004ed1c59c3"
+    },
+    {
+      "config_id": "VB03",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 96,
+        "squeeze_pmax": 1.0,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 1-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2). Stop 2.0xATR15, ATR trailing 4.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after any regime.",
+      "config_hash": "eb12760fd1ab44f1"
+    },
+    {
+      "config_id": "VB04",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 96,
+        "squeeze_pmax": 1.0,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 1-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2). Stop 3.0xATR15, ATR trailing 6.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after any regime.",
+      "config_hash": "fe3b9ac95a33aad8"
+    },
+    {
+      "config_id": "VB05",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 192,
+        "squeeze_pmax": 0.5,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 2-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2) and 1-day ATR%-rank <= 0.5 (volatility compression). Stop 2.0xATR15, ATR trailing 4.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after compression.",
+      "config_hash": "371c2485d62216cb"
+    },
+    {
+      "config_id": "VB06",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 192,
+        "squeeze_pmax": 0.5,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 2-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2) and 1-day ATR%-rank <= 0.5 (volatility compression). Stop 3.0xATR15, ATR trailing 6.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after compression.",
+      "config_hash": "850f8850bd13c538"
+    },
+    {
+      "config_id": "VB07",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 192,
+        "squeeze_pmax": 1.0,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 2-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2). Stop 2.0xATR15, ATR trailing 4.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after any regime.",
+      "config_hash": "ea0d7ea3138bcde4"
+    },
+    {
+      "config_id": "VB08",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 192,
+        "squeeze_pmax": 1.0,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 2-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2). Stop 3.0xATR15, ATR trailing 6.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after any regime.",
+      "config_hash": "d94748074d6f0b3b"
+    },
+    {
+      "config_id": "VB09",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 288,
+        "squeeze_pmax": 0.5,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 3-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2) and 1-day ATR%-rank <= 0.5 (volatility compression). Stop 2.0xATR15, ATR trailing 4.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after compression.",
+      "config_hash": "c08d52852cab887d"
+    },
+    {
+      "config_id": "VB10",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 288,
+        "squeeze_pmax": 0.5,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 3-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2) and 1-day ATR%-rank <= 0.5 (volatility compression). Stop 3.0xATR15, ATR trailing 6.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after compression.",
+      "config_hash": "ed5b312e0436119f"
+    },
+    {
+      "config_id": "VB11",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 288,
+        "squeeze_pmax": 1.0,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 3-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2). Stop 2.0xATR15, ATR trailing 4.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after any regime.",
+      "config_hash": "fc9953e5cf649912"
+    },
+    {
+      "config_id": "VB12",
+      "family": "volatility_breakout",
+      "params": {
+        "lookback_bars_15m": 288,
+        "squeeze_pmax": 1.0,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Breakout of the prior 3-day extreme on a closed 15m candle with volume confirmation (volume_ratio_20 >= 1.2). Stop 3.0xATR15, ATR trailing 6.0xATR15 to ride expansion; max hold 6 days. Economic basis: stop-run/expansion after any regime.",
+      "config_hash": "872ec3cd26ae1536"
+    },
+    {
+      "config_id": "TP01",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 1.5,
+        "target_rr": 1.5,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema20 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 1.5xATR15, fixed target 1.5R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "0b3e65d282b393db"
+    },
+    {
+      "config_id": "TP02",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 1.5,
+        "target_rr": 2.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema20 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 1.5xATR15, fixed target 2.0R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "57229512d30e1b68"
+    },
+    {
+      "config_id": "TP03",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 1.5,
+        "target_rr": 3.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema20 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 1.5xATR15, fixed target 3.0R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "6e56615645f5e86b"
+    },
+    {
+      "config_id": "TP04",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 2.5,
+        "target_rr": 1.5,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema20 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 2.5xATR15, fixed target 1.5R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "34378b0252f7e9cf"
+    },
+    {
+      "config_id": "TP05",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 2.5,
+        "target_rr": 2.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema20 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 2.5xATR15, fixed target 2.0R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "ecf67d6d4167c9b2"
+    },
+    {
+      "config_id": "TP06",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 2.5,
+        "target_rr": 3.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema20 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 2.5xATR15, fixed target 3.0R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "1b1ee0df792de0d0"
+    },
+    {
+      "config_id": "TP07",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 1.5,
+        "target_rr": 1.5,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema50 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 1.5xATR15, fixed target 1.5R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "abf7c96cdcfca375"
+    },
+    {
+      "config_id": "TP08",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 1.5,
+        "target_rr": 2.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema50 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 1.5xATR15, fixed target 2.0R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "687825fda9dc2f17"
+    },
+    {
+      "config_id": "TP09",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 1.5,
+        "target_rr": 3.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema50 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 1.5xATR15, fixed target 3.0R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "d6392207e5f08b12"
+    },
+    {
+      "config_id": "TP10",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 2.5,
+        "target_rr": 1.5,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema50 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 2.5xATR15, fixed target 1.5R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "8b30f7ba42e86da2"
+    },
+    {
+      "config_id": "TP11",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 2.5,
+        "target_rr": 2.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema50 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 2.5xATR15, fixed target 2.0R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "7655f0e91925809c"
+    },
+    {
+      "config_id": "TP12",
+      "family": "trend_pullback",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 2.5,
+        "target_rr": 3.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "15m trend defined by EMA stack (close vs ema200 and ema50 vs ema200); entry when price pulls back to ema50 (band 0.2%) and closes back on the trend side with RSI in the neutral band. Stop 2.5xATR15, fixed target 3.0R, max hold 2 days. Economic basis: trend participants absorb pullbacks at the dynamic mean, giving tight-invalidation asymmetric entries.",
+      "config_hash": "b7ff90b959866981"
+    },
+    {
+      "config_id": "XS01",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 1,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 1 day(s) rank the 5 assets by their past 3-day return on closed 15m candles; hold the top-ranked asset long and the bottom-ranked short for 1 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "dbe69125660a6b44"
+    },
+    {
+      "config_id": "XS02",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 1,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 1 day(s) rank the 5 assets by their past 3-day return on closed 15m candles; hold the top-ranked asset long for 1 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "744c9cebc07537c8"
+    },
+    {
+      "config_id": "XS03",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 3,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 3 day(s) rank the 5 assets by their past 3-day return on closed 15m candles; hold the top-ranked asset long and the bottom-ranked short for 3 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "04e0cb01d47212c0"
+    },
+    {
+      "config_id": "XS04",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 3,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 3 day(s) rank the 5 assets by their past 3-day return on closed 15m candles; hold the top-ranked asset long for 3 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "c82d1ad00543a60c"
+    },
+    {
+      "config_id": "XS05",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 1,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 1 day(s) rank the 5 assets by their past 7-day return on closed 15m candles; hold the top-ranked asset long and the bottom-ranked short for 1 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "30c1a457a817fbdf"
+    },
+    {
+      "config_id": "XS06",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 1,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 1 day(s) rank the 5 assets by their past 7-day return on closed 15m candles; hold the top-ranked asset long for 1 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "2ae779ef4284b58a"
+    },
+    {
+      "config_id": "XS07",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 3,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 3 day(s) rank the 5 assets by their past 7-day return on closed 15m candles; hold the top-ranked asset long and the bottom-ranked short for 3 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "f7c95f98c9f4f784"
+    },
+    {
+      "config_id": "XS08",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 3,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 3 day(s) rank the 5 assets by their past 7-day return on closed 15m candles; hold the top-ranked asset long for 3 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "f709f5388599a588"
+    },
+    {
+      "config_id": "XS09",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 1,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 1 day(s) rank the 5 assets by their past 14-day return on closed 15m candles; hold the top-ranked asset long and the bottom-ranked short for 1 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "4607677ff8db3f10"
+    },
+    {
+      "config_id": "XS10",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 1,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 1 day(s) rank the 5 assets by their past 14-day return on closed 15m candles; hold the top-ranked asset long for 1 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "62cd6733064cc64a"
+    },
+    {
+      "config_id": "XS11",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 3,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 3 day(s) rank the 5 assets by their past 14-day return on closed 15m candles; hold the top-ranked asset long and the bottom-ranked short for 3 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "a428d7c76ac54b87"
+    },
+    {
+      "config_id": "XS12",
+      "family": "xs_momentum",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 3,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5
+      },
+      "rationale": "Every 3 day(s) rank the 5 assets by their past 14-day return on closed 15m candles; hold the top-ranked asset long for 3 day(s) with a 2.5xATR15 disaster stop. Economic basis: cross-sectional momentum persistence among correlated crypto majors (relative flows chase recent winners).",
+      "config_hash": "0116353f5738d96b"
+    }
+  ]
+}
