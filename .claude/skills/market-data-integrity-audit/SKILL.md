@@ -47,6 +47,21 @@ hashlib.md5(Path(report_file).read_bytes()).hexdigest()
 - Cerca `len(df) - 2` → conferma uso barra completata
 - Cerca guard stale/duplicate bar
 
+### 7. Serie funding (Edge Research 03)
+
+I file `*_funding*.parquet` sono input di ricerca grezzi ma NON OHLCV: vengono instradati a `_check_funding_file()` e tenuti in un inventario separato (`funding_inventory`), mai passati a `_check_ohlcv_file()`.
+
+Controlli (contratto dati: `trading_bot/clean_bot/funding.py`):
+- Colonne richieste: `datetime`, `symbol`, `funding_rate`
+- Timestamp UTC parseabili, ordinati, senza duplicati né out-of-order
+- **Griglia**: timestamp a ore intere; intervallo modale nell'allowlist {1h, 4h, 8h} (Binance ha spostato alcuni simboli USDT-M dal classico 8h al 4h) — rilevato per file, non hardcoded
+- **Gap**: diffs > 1.5x intervallo modale → reject (riporta `modal_interval_hours` e `gap_count`)
+- Null → reject
+- **Range sanity**: `|funding_rate| < 0.0075` (decimale, 0.0001 = 1 bp) — conteggia e respinge le violazioni
+- Coerenza per-riga tra `symbol` e slug del filename (`btcusdt_funding.parquet` → tutte le righe BTC/USDT)
+
+Routing gate: i reject delle serie funding confluiscono in `raw_data_gate`. L'**assenza** di file funding NON è un failure (le run carry sono opt-in).
+
 ## Architettura a 3 livelli (Prompt 2H)
 
 I gate sono separati. `benchmark_readiness_gate=PASS` è il segnale che autorizza la Fase 3, indipendentemente da `gate_result` (che resta BLOCKED finché i derived artifacts sono contaminati).
@@ -85,6 +100,9 @@ Test diagnostici corretti:
   "missing_15m_data": [...],
   "approved_datasets": [...],
   "rejected_datasets": [...],
+  "funding_inventory": [...],
+  "approved_funding_datasets": [...],
+  "rejected_funding_datasets": [...],
   "raw_data_gate": "PASS|BLOCKED",
   "derived_artifact_gate": "PASS|BLOCKED",
   "benchmark_readiness_gate": "PASS|BLOCKED",
@@ -106,6 +124,8 @@ Test diagnostici corretti:
 | Mancanza dati 15m per asset richiesti nel benchmark | BLOCKED |
 | 5m→15m aggregation mismatch > 0 | BLOCKED |
 | Lookahead: barra non completata usata | BLOCKED |
+| Serie funding: gap/null/off-grid/cap `|rate|`≥0.75%/symbol mismatch | BLOCKED (raw_data_gate) |
+| Serie funding assente (nessuna run carry richiesta) | non è un failure |
 
 ## Comandi
 

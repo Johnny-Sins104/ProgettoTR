@@ -330,6 +330,21 @@ def test_funding_cache_path_naming() -> None:
         funding_cache_path(Path("/tmp/data"), "")
 
 
+def test_panel_cache_path_naming() -> None:
+    """4h/1d kline caches use the deterministic {slug}_{tf}_cache convention."""
+    from trading_bot.clean_bot.data import cache_path
+
+    assert cache_path(Path("/tmp/data"), "BTC/USDT", "4h").name == "btcusdt_4h_cache.parquet"
+    assert cache_path(Path("/tmp/data"), "DOGE/USDT", "1d").name == "dogeusdt_1d_cache.parquet"
+    # 5m/1m explicit dicts unchanged
+    assert cache_path(Path("/tmp/data"), "BTC/USDT", "5m").name == "btc_5m_150k_cache.parquet"
+    # fail-closed on unknown timeframe and invalid symbol
+    with pytest.raises(ValueError, match="timeframe"):
+        cache_path(Path("/tmp/data"), "BTC/USDT", "2h")
+    with pytest.raises(ValueError, match="symbol"):
+        cache_path(Path("/tmp/data"), "", "4h")
+
+
 # ---------------------------------------------------------------------------
 # Backtester integration — opt-in, fail-closed pairing, default unchanged
 # ---------------------------------------------------------------------------
