@@ -49,9 +49,14 @@ _TF_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"_15m"), "15m"),
     (re.compile(r"_1h"), "1h"),
     (re.compile(r"_4h"), "4h"),
+    (re.compile(r"_1d"), "1d"),
 ]
 
-_TF_MINUTES: dict[str, int] = {"1m": 1, "5m": 5, "15m": 15, "1h": 60, "4h": 240}
+_TF_MINUTES: dict[str, int] = {"1m": 1, "5m": 5, "15m": 15, "1h": 60, "4h": 240, "1d": 1440}
+
+# Funding-rate series are raw research input but NOT OHLCV: they are routed
+# to _check_funding_file() and kept in a separate inventory.
+_FUNDING_FILE_PATTERN = re.compile(r"_funding", re.I)
 
 
 def _infer_asset(name: str) -> str:
@@ -99,7 +104,7 @@ def _check_ohlcv_file(path: Path) -> dict[str, Any]:
 
     # ---- timestamp column detection ----------------------------------------
     ts_col: str | None = None
-    for candidate in ("datetime", "open_time_utc", "timestamp", "time", "date", "index"):
+    for candidate in ("datetime", "timestamp", "time", "date", "index"):
         if candidate in df.columns:
             ts_col = candidate
             break
@@ -193,6 +198,160 @@ def _check_ohlcv_file(path: Path) -> dict[str, Any]:
         "null_count": null_count,
         "approved": approved,
         "rejection_reason": rejection_reason,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Funding series checks (Edge Research 03)
+# ---------------------------------------------------------------------------
+
+# Funding settlement intervals seen on Binance USDT-M perpetuals. The grid is
+# detected per file from the modal timestamp diff, not hardcoded to 8h.
+_FUNDING_ALLOWED_GRID_HOURS = (1.0, 4.0, 8.0)
+_FUNDING_MAX_ABS_RATE = 0.0075
+
+
+def _check_funding_file(path: Path) -> dict[str, Any]:
+    """Integrity checks for a funding-rate parquet (contract: clean_bot/funding.py).
+
+    Validates: required columns (datetime, symbol, funding_rate); UTC parseable;
+    sorted / no duplicates / no out-of-order; whole-hour grid with modal interval
+    in the {1h, 4h, 8h} allowlist; no nulls; |funding_rate| < 0.0075; per-row
+    symbol consistent with the filename slug.
+    Returns the same approved/rejection_reason shape as _check_ohlcv_file.
+    """
+    try:
+        import pandas as pd
+    except ImportError:
+        return {"error": "pandas not installed"}
+
+    name = path.name
+    asset = _infer_asset(name)
+
+    try:
+        df = pd.read_parquet(path)
+    except Exception as exc:
+        return {
+            "file": name,
+            "asset": asset,
+            "kind": "funding",
+            "error": str(exc),
+            "approved": False,
+            "rejection_reason": f"Failed to read parquet: {exc}",
+        }
+
+    rows = len(df)
+    rejection_reasons: list[str] = []
+
+    required = ("datetime", "symbol", "funding_rate")
+    missing_cols = sorted(set(required).difference(df.columns))
+    if missing_cols:
+        rejection_reasons.append(f"missing columns: {missing_cols}")
+    if rows == 0:
+        rejection_reasons.append("empty funding series")
+
+    null_count = 0
+    duplicate_count = 0
+    ooo_count = 0
+    gap_count = 0
+    off_grid_count = 0
+    rate_cap_violations = 0
+    symbol_mismatch_count = 0
+    modal_interval_hours: float | None = None
+    period_start: str | None = None
+    period_end: str | None = None
+
+    if not missing_cols and rows > 0:
+        null_count = int(df[list(required)].isnull().sum().sum())
+        if null_count > 0:
+            rejection_reasons.append(f"{null_count} null values")
+
+        ts = pd.to_datetime(df["datetime"], utc=True, errors="coerce")
+        unparseable = int(ts.isna().sum()) - int(df["datetime"].isna().sum())
+        if unparseable > 0:
+            rejection_reasons.append(f"{unparseable} unparseable timestamps")
+        ts_valid = ts.dropna()
+        if len(ts_valid):
+            period_start = ts_valid.min().isoformat()
+            period_end = ts_valid.max().isoformat()
+
+            duplicate_count = int(ts_valid.duplicated().sum())
+            if duplicate_count > 0:
+                rejection_reasons.append(f"{duplicate_count} duplicate timestamps")
+            ooo_count = int((ts_valid.diff().dropna() < pd.Timedelta(0)).sum())
+            if ooo_count > 0:
+                rejection_reasons.append(f"{ooo_count} out-of-order timestamps")
+
+            off_grid_count = int(
+                ((ts_valid.dt.minute != 0) | (ts_valid.dt.second != 0)
+                 | (ts_valid.dt.microsecond != 0)).sum()
+            )
+            if off_grid_count > 0:
+                rejection_reasons.append(
+                    f"{off_grid_count} off-grid timestamps (not whole hours)"
+                )
+
+            diffs = ts_valid.sort_values().diff().dropna()
+            if len(diffs) > 0:
+                mode_result = diffs.mode()
+                modal = mode_result.iloc[0] if len(mode_result) else diffs.median()
+                modal_interval_hours = modal.total_seconds() / 3600.0
+                if modal_interval_hours not in _FUNDING_ALLOWED_GRID_HOURS:
+                    rejection_reasons.append(
+                        f"modal interval {modal_interval_hours}h not in allowlist "
+                        f"{list(_FUNDING_ALLOWED_GRID_HOURS)}"
+                    )
+                # Gaps: diffs beyond the modal settlement interval (1.5x tolerance,
+                # mirroring the OHLCV gap logic).
+                gap_count = int((diffs > modal * 1.5).sum())
+                if gap_count > 0:
+                    rejection_reasons.append(f"{gap_count} funding interval gaps")
+
+        rates = pd.to_numeric(df["funding_rate"], errors="coerce")
+        non_numeric = int(rates.isna().sum()) - int(df["funding_rate"].isna().sum())
+        if non_numeric > 0:
+            rejection_reasons.append(f"{non_numeric} non-numeric funding_rate values")
+        rate_cap_violations = int((rates.abs() >= _FUNDING_MAX_ABS_RATE).sum())
+        if rate_cap_violations > 0:
+            rejection_reasons.append(
+                f"{rate_cap_violations} funding_rate values breach "
+                f"|rate| < {_FUNDING_MAX_ABS_RATE}"
+            )
+
+        # Per-row symbol consistency with the filename slug
+        # (btcusdt_funding.parquet rows must all carry BTC/USDT-equivalent symbol).
+        file_slug = name.lower().split("_funding")[0]
+        row_slugs = (
+            df["symbol"].astype(str)
+            .str.replace("/", "", regex=False)
+            .str.replace(":", "", regex=False)
+            .str.lower()
+        )
+        symbol_mismatch_count = int((row_slugs != file_slug).sum())
+        if symbol_mismatch_count > 0:
+            rejection_reasons.append(
+                f"{symbol_mismatch_count} rows with symbol inconsistent with filename"
+            )
+
+    approved = len(rejection_reasons) == 0
+    return {
+        "file": name,
+        "asset": asset,
+        "kind": "funding",
+        "rows": rows,
+        "columns": list(df.columns),
+        "period_start": period_start,
+        "period_end": period_end,
+        "modal_interval_hours": modal_interval_hours,
+        "gap_count": gap_count,
+        "duplicate_count": duplicate_count,
+        "out_of_order_count": ooo_count,
+        "off_grid_count": off_grid_count,
+        "rate_cap_violations": rate_cap_violations,
+        "symbol_mismatch_count": symbol_mismatch_count,
+        "null_count": null_count,
+        "approved": approved,
+        "rejection_reason": "; ".join(rejection_reasons) if rejection_reasons else None,
     }
 
 
@@ -630,6 +789,7 @@ def _evaluate_gates(
     missing_15m: list[str],
     agg_check: dict,
     la_check: dict,
+    funding_inventory: list[dict] | None = None,
 ) -> dict[str, Any]:
     """
     Produce three independent gates plus overall gate_result.
@@ -665,6 +825,16 @@ def _evaluate_gates(
         raw_data_reasons.append(
             f"{len(rejected_raw)} raw dataset(s) failed integrity checks: "
             + ", ".join(r["file"] for r in rejected_raw)
+        )
+    # Funding series are raw research input: rejections fold into raw_data_gate.
+    # ABSENCE of funding files is NOT a failure (carry runs are opt-in).
+    rejected_funding = [
+        r for r in (funding_inventory or []) if not r.get("approved", True)
+    ]
+    if rejected_funding:
+        raw_data_reasons.append(
+            f"{len(rejected_funding)} funding series failed integrity checks: "
+            + ", ".join(r["file"] for r in rejected_funding)
         )
     raw_data_gate = "PASS" if not raw_data_reasons else "BLOCKED"
 
@@ -786,6 +956,36 @@ def _write_markdown_report(output: dict, project_root: Path) -> None:
         for r in rejected:
             lines.append(f"  - REJECTED: `{r}`")
 
+    funding_inv = output.get("funding_inventory", [])
+    approved_funding = output.get("approved_funding_datasets", [])
+    rejected_funding = output.get("rejected_funding_datasets", [])
+    lines += [
+        "",
+        "## Funding Series",
+        "",
+        f"- Funding series checked: **{len(funding_inv)}**",
+        f"- Approved: **{len(approved_funding)}**",
+        f"- Rejected: **{len(rejected_funding)}**",
+        "",
+        "Funding rejections fold into `raw_data_gate`. Absence of funding files",
+        "is not a failure (carry runs are opt-in).",
+    ]
+    if funding_inv:
+        lines += [
+            "",
+            "| File | Rows | Grid (h) | Gaps | Approved |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+        for f in funding_inv:
+            lines.append(
+                f"| `{f.get('file', '?')}` | {f.get('rows', '?')} "
+                f"| {f.get('modal_interval_hours', '?')} | {f.get('gap_count', '?')} "
+                f"| {f.get('approved', '?')} |"
+            )
+        for f in funding_inv:
+            if not f.get("approved"):
+                lines.append(f"  - REJECTED: `{f.get('file')}` — {f.get('rejection_reason')}")
+
     agg_status = agg.get("status", "?")
     complete = agg.get("complete_buckets_compared", "?")
     full_overlap = agg.get("full_overlap_rows", "?")
@@ -874,12 +1074,12 @@ def main() -> None:
 
     # Exclude market_features.parquet (not raw OHLCV)
     _NON_OHLCV = {"market_features.parquet"}
-    parquet_files = sorted(
-        [p for p in DATA_DIR.glob("*.parquet") if p.name not in _NON_OHLCV]
-        # STRAT-01/02 research caches (atomic parquet + manifest, closed candles)
-        + list((DATA_DIR / "strat01_cache").glob("*.parquet"))
-        + list((DATA_DIR / "strat02_cache").glob("*.parquet"))
+    all_parquet_files = sorted(
+        p for p in DATA_DIR.glob("*.parquet") if p.name not in _NON_OHLCV
     )
+    # Funding series go to their own checker/inventory, never to _check_ohlcv_file.
+    funding_files = [p for p in all_parquet_files if _FUNDING_FILE_PATTERN.search(p.name)]
+    parquet_files = [p for p in all_parquet_files if not _FUNDING_FILE_PATTERN.search(p.name)]
 
     inventory: list[dict] = []
     for pf in parquet_files:
@@ -891,6 +1091,19 @@ def main() -> None:
 
     approved_datasets = [r["file"] for r in inventory if r.get("approved")]
     rejected_datasets = [r["file"] for r in inventory if not r.get("approved")]
+
+    funding_inventory: list[dict] = []
+    if funding_files:
+        print("\n  Funding series:")
+        for pf in funding_files:
+            print(f"  Checking {pf.name} ...", end=" ", flush=True)
+            result = _check_funding_file(pf)
+            status_tag = "OK" if result.get("approved") else f"FAIL ({result.get('rejection_reason')})"
+            print(status_tag)
+            funding_inventory.append(result)
+
+    approved_funding_datasets = [r["file"] for r in funding_inventory if r.get("approved")]
+    rejected_funding_datasets = [r["file"] for r in funding_inventory if not r.get("approved")]
 
     # ------------------------------------------------------------------
     # 2. Report hash contamination
@@ -917,7 +1130,7 @@ def main() -> None:
     # Known 5m-only assets (no 15m parquet found)
     _MISSING_15M = ["XRP/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
     # Verify dynamically: if a 15m file exists for any of these, remove from list
-    existing_names = {p.name.lower() for p in parquet_files}
+    existing_names = {p.name for p in parquet_files}
     missing_15m: list[str] = []
     _ASSET_TO_PREFIX = {
         "XRP/USDT": "xrpusdt",
@@ -961,6 +1174,7 @@ def main() -> None:
     all_gates = _evaluate_gates(
         inventory, contamination, tf_contamination, missing_15m,
         agg_check=agg_check, la_check=la_check,
+        funding_inventory=funding_inventory,
     )
     gate = all_gates["gate_result"]
     gate_reasons = all_gates["gate_reasons"]
@@ -983,6 +1197,11 @@ def main() -> None:
         "missing_15m_data": missing_15m,
         "approved_datasets": approved_datasets,
         "rejected_datasets": rejected_datasets,
+        # Funding series (Edge Research 03). Empty when no carry run is
+        # requested: absence is not a rejection.
+        "funding_inventory": funding_inventory,
+        "approved_funding_datasets": approved_funding_datasets,
+        "rejected_funding_datasets": rejected_funding_datasets,
         # 3-tier gate architecture (Prompt 2H)
         "raw_data_gate": all_gates["raw_data_gate"],
         "raw_data_gate_reasons": all_gates["raw_data_gate_reasons"],
@@ -1014,6 +1233,8 @@ def main() -> None:
     print(f"  Raw datasets checked  : {len(inventory)}")
     print(f"  Approved datasets     : {len(approved_datasets)}")
     print(f"  Rejected datasets     : {len(rejected_datasets)}")
+    print(f"  Funding series checked: {len(funding_inventory)} "
+          f"(approved {len(approved_funding_datasets)}, rejected {len(rejected_funding_datasets)})")
     print(f"  Missing 15m assets    : {len(missing_15m)}")
     print(f"  Aggregation check     : {agg_check.get('status')} (sample={agg_check.get('sample_size', 0)} bars)")
     print(f"  Lookahead guard       : {la_check['status']}")

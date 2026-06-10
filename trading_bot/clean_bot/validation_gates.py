@@ -39,6 +39,29 @@ VALIDATION_CONFIG: types.MappingProxyType = types.MappingProxyType({
 
 
 # ---------------------------------------------------------------------------
+# Panel validation configuration (Edge Research 03 — 4h/1d multi-symbol panel)
+#
+# Low-frequency strategies cannot reach 50 OOS trades per symbol: the trade
+# count is pooled across ALL panel symbols. Temporal concentration uses
+# monthly buckets (ISO weeks are too granular for 1d holding periods).
+# VALIDATION_CONFIG above is intentionally untouched.
+# ---------------------------------------------------------------------------
+
+PANEL_VALIDATION_CONFIG: types.MappingProxyType = types.MappingProxyType({
+    "min_oos_trades_panel": 50,       # pooled across all panel symbols
+    "min_pf": 1.0,                    # pooled profit factor strictly > this
+    "min_net_pnl": 0.0,               # pooled net P&L strictly > this
+    "temporal_conc_max_pct": 50.0,    # worst month ≤ 50% of abs(total P&L)
+    "temporal_bucket": "month",
+    "temporal_min_buckets": 3,        # gate requires ≥ 3 distinct months
+    "warmup_bars_by_timeframe": types.MappingProxyType({"4h": 401, "1d": 260}),
+    "cost_scenario": "conservative",  # unchanged policy
+    "risk_per_trade_pct": 0.005,      # unchanged policy
+    "min_positive_regimes": 2,        # net pnl > 0 in ≥ 2 of bull/bear/sideways
+})
+
+
+# ---------------------------------------------------------------------------
 # M10: OOS warmup with explicit no-lookahead guarantee
 # ---------------------------------------------------------------------------
 
@@ -133,6 +156,10 @@ def _week_key(dt: datetime) -> str:
     return f"{iso[0]}-W{iso[1]:02d}"
 
 
+def _month_key(dt: datetime) -> str:
+    return f"{dt.year}-{dt.month:02d}"
+
+
 # ---------------------------------------------------------------------------
 # M12: Temporal concentration gate
 # ---------------------------------------------------------------------------
@@ -142,19 +169,29 @@ def temporal_concentration_check(
     *,
     max_worst_week_pct: float | None = None,
     min_weeks: int | None = None,
+    bucket: str = "week",
 ) -> dict[str, Any]:
-    """M12: Flag anomalous P&L concentration in a single ISO week.
+    """M12: Flag anomalous P&L concentration in a single time bucket.
 
-    A week accounting for > max_worst_week_pct% of abs(total P&L) is an anomaly.
-    The gate requires >= min_weeks distinct weeks to run.
+    bucket="week" (default, ISO weeks) preserves the original M12 behavior.
+    bucket="month" is used by the panel gates (4h/1d trades make ISO weeks
+    too granular). With bucket="month" the legacy *_week* output keys carry
+    the monthly values; the "bucket" key states the granularity.
+
+    A bucket accounting for > max_worst_week_pct% of abs(total P&L) is an
+    anomaly. The gate requires >= min_weeks distinct buckets to run.
 
     Uses entry_time from trade dicts (falls back to exit_time).
 
     Returns
     -------
-    dict with: passes, reason, n_weeks, worst_week_pct, max_worst_week_pct,
-    min_weeks, weekly (sorted list of week summaries).
+    dict with: passes, reason, bucket, n_weeks, worst_week_pct,
+    max_worst_week_pct, min_weeks, weekly (sorted list of bucket summaries).
     """
+    if bucket not in ("week", "month"):
+        raise ValueError(f"Unknown temporal bucket {bucket!r}: must be 'week' or 'month'.")
+    key_fn = _week_key if bucket == "week" else _month_key
+
     if max_worst_week_pct is None:
         max_worst_week_pct = float(VALIDATION_CONFIG["temporal_conc_max_pct"])
     if min_weeks is None:
@@ -163,6 +200,7 @@ def temporal_concentration_check(
     base: dict[str, Any] = {
         "max_worst_week_pct": max_worst_week_pct,
         "min_weeks": min_weeks,
+        "bucket": bucket,
     }
 
     if not trades:
@@ -175,7 +213,7 @@ def temporal_concentration_check(
         dt = _parse_dt(t.get("entry_time") or t.get("exit_time"))
         if dt is None:
             continue
-        week_pnl[_week_key(dt)] += pnl
+        week_pnl[key_fn(dt)] += pnl
 
     if not week_pnl:
         return {**base, "passes": False, "reason": "no_parseable_timestamps",
@@ -390,3 +428,180 @@ def run_validation(
         },
         "edge_demonstrated": bool(promising and tc["passes"]),
     }
+
+
+# ---------------------------------------------------------------------------
+# Panel gates (Edge Research 03) — additive; per-symbol gates above untouched
+# ---------------------------------------------------------------------------
+
+def is_promising_panel(
+    per_symbol_results: dict[str, dict[str, Any]],
+    *,
+    config: types.MappingProxyType = PANEL_VALIDATION_CONFIG,
+) -> tuple[bool, dict[str, Any]]:
+    """Economic acceptance gate for a multi-symbol panel run (4h/1d research).
+
+    per_symbol_results maps symbol -> {"trades": [trade dicts...]}. Trades are
+    POOLED across all symbols before evaluation: low-frequency strategies
+    cannot reach the trade-count gate per symbol, but the panel as a whole must.
+
+    Criteria (pooled):
+    - closed trades >= min_oos_trades_panel (50)
+    - profit factor strictly > min_pf (1.0)
+    - net pnl strictly > min_net_pnl (0.0)
+    - temporal concentration with monthly buckets passes
+
+    Returns (passes: bool, checks: dict) in the same style as is_promising().
+    """
+    if not isinstance(per_symbol_results, dict) or not per_symbol_results:
+        return False, {"passes": False, "reason": "no_per_symbol_results"}
+
+    pooled: list[dict[str, Any]] = []
+    per_symbol_counts: dict[str, int] = {}
+    for symbol, result in per_symbol_results.items():
+        trades = (result or {}).get("trades")
+        if trades is None:
+            raise ValueError(
+                f"per_symbol_results[{symbol!r}] has no 'trades' key; "
+                f"pass an explicit (possibly empty) trade list."
+            )
+        per_symbol_counts[str(symbol)] = len(trades)
+        pooled.extend(trades)
+
+    net_pnl = sum(float(t.get("net_pnl", 0.0)) for t in pooled)
+    gross_profit = sum(max(0.0, float(t.get("net_pnl", 0.0))) for t in pooled)
+    gross_loss = sum(abs(min(0.0, float(t.get("net_pnl", 0.0)))) for t in pooled)
+    pf_val = (gross_profit / gross_loss) if gross_loss > 0 else (
+        float("inf") if gross_profit > 0 else 0.0
+    )
+
+    min_pf = float(config["min_pf"])
+    min_trades = int(config["min_oos_trades_panel"])
+    min_net_pnl = float(config["min_net_pnl"])
+
+    tc = temporal_concentration_check(
+        pooled,
+        max_worst_week_pct=float(config["temporal_conc_max_pct"]),
+        min_weeks=int(config["temporal_min_buckets"]),
+        bucket=str(config["temporal_bucket"]),
+    )
+
+    checks: dict[str, Any] = {
+        "pf_ok": pf_val > min_pf,
+        "pf_val": round(pf_val, 6) if math.isfinite(pf_val) else pf_val,
+        "min_pf": min_pf,
+        "pnl_ok": net_pnl > min_net_pnl,
+        "net_pnl": round(net_pnl, 8),
+        "min_net_pnl": min_net_pnl,
+        "trades_ok": len(pooled) >= min_trades,
+        "n_trades": len(pooled),
+        "min_trades": min_trades,
+        "per_symbol_trades": per_symbol_counts,
+        "temporal_ok": tc["passes"],
+        "temporal_detail": tc,
+    }
+    passes = bool(
+        checks["pf_ok"] and checks["pnl_ok"] and checks["trades_ok"] and checks["temporal_ok"]
+    )
+    checks["passes"] = passes
+    return passes, checks
+
+
+def regime_stratified_check(
+    trades: list[dict[str, Any]],
+    regime_by_time: "pd.Series | None",
+    *,
+    min_positive_regimes: int | None = None,
+) -> dict[str, Any]:
+    """Require pooled net pnl > 0 in >= min_positive_regimes distinct regimes.
+
+    regime_by_time: pd.Series with a sorted tz-aware DatetimeIndex and regime
+    labels as values (e.g. "bull"/"bear"/"sideways" — the labeling series comes
+    from the cycle-2 regime logic). Each trade's entry_time is mapped to the
+    latest label at or before it (backward as-of).
+
+    Fail-closed: missing labels, no trades, or any unlabelable trade fails the
+    check with an explicit reason — never a silent pass.
+    """
+    if min_positive_regimes is None:
+        min_positive_regimes = int(PANEL_VALIDATION_CONFIG["min_positive_regimes"])
+
+    base: dict[str, Any] = {"min_positive_regimes": min_positive_regimes}
+
+    if regime_by_time is None or len(regime_by_time) == 0:
+        return {**base, "passes": False, "reason": "no_regime_labels",
+                "regime_pnl": {}, "n_positive_regimes": 0}
+    if not trades:
+        return {**base, "passes": False, "reason": "no_trades",
+                "regime_pnl": {}, "n_positive_regimes": 0}
+
+    labels = regime_by_time.copy()
+    idx = pd.to_datetime(labels.index, utc=True)
+    if not idx.is_monotonic_increasing:
+        raise ValueError("regime_by_time index must be sorted ascending")
+    labels.index = idx
+
+    regime_pnl: dict[str, float] = defaultdict(float)
+    unlabeled = 0
+    for t in trades:
+        dt = _parse_dt(t.get("entry_time") or t.get("exit_time"))
+        if dt is None:
+            unlabeled += 1
+            continue
+        pos = labels.index.searchsorted(pd.Timestamp(dt), side="right") - 1
+        if pos < 0:
+            unlabeled += 1
+            continue
+        regime_pnl[str(labels.iloc[pos])] += float(t.get("net_pnl", 0.0))
+
+    result_pnl = {k: round(v, 8) for k, v in sorted(regime_pnl.items())}
+    n_positive = sum(1 for v in regime_pnl.values() if v > 0.0)
+
+    if unlabeled > 0:
+        return {**base, "passes": False, "reason": f"unlabeled_trades: {unlabeled}",
+                "regime_pnl": result_pnl, "n_positive_regimes": n_positive}
+
+    passes = n_positive >= min_positive_regimes
+    reason = "ok" if passes else (
+        f"positive_regimes={n_positive} < required={min_positive_regimes}"
+    )
+    return {**base, "passes": passes, "reason": reason,
+            "regime_pnl": result_pnl, "n_positive_regimes": n_positive}
+
+
+def panel_oos_with_warmup(
+    df: pd.DataFrame,
+    *,
+    timeframe: str,
+    declared_max_lookback_bars: int,
+    oos_split_ratio: float | None = None,
+    warmup_buffer_bars: int = 20,
+) -> tuple[pd.DataFrame, int]:
+    """OOS split for panel research with a strategy-aware warmup. Fail-closed.
+
+    warmup = max(warmup_bars_by_timeframe[timeframe],
+                 declared_max_lookback_bars + warmup_buffer_bars)
+
+    declared_max_lookback_bars is MANDATORY and must be positive: on 1d the
+    silent 401-bar default of oos_with_warmup() (~1.3 years) could undersize
+    or oversize the warmup relative to the declared strategy lookback. The
+    caller must align the backtest start index with the returned warmup_count.
+    """
+    tf = str(timeframe or "").lower().strip()
+    warmup_by_tf = PANEL_VALIDATION_CONFIG["warmup_bars_by_timeframe"]
+    if tf not in warmup_by_tf:
+        raise ValueError(
+            f"Unsupported panel timeframe {timeframe!r}: must be one of "
+            f"{sorted(warmup_by_tf)}."
+        )
+    if declared_max_lookback_bars is None or int(declared_max_lookback_bars) <= 0:
+        raise ValueError(
+            "declared_max_lookback_bars is required and must be > 0 "
+            "(no silent warmup default for panel research)."
+        )
+
+    warmup = max(
+        int(warmup_by_tf[tf]),
+        int(declared_max_lookback_bars) + int(warmup_buffer_bars),
+    )
+    return oos_with_warmup(df, warmup_bars=warmup, oos_split_ratio=oos_split_ratio)

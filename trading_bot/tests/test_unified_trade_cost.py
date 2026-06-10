@@ -821,8 +821,8 @@ def test_unsupported_timeframe_raises_in_bps():
 
 
 def test_supported_timeframes_all_valid():
-    """Only 5m and 15m are supported benchmark timeframes — do not raise."""
-    for tf in ("5m", "15m"):
+    """5m, 15m, 4h, 1d are the supported benchmark timeframes — do not raise."""
+    for tf in ("5m", "15m", "4h", "1d"):
         bps = UnifiedCostModel.bps_for_scenario("realistic", timeframe=tf)
         assert bps["total_round_trip_bps"] > 0, f"timeframe={tf}"
 
@@ -842,13 +842,94 @@ def test_1h_timeframe_rejected():
         )
 
 
-def test_4h_timeframe_rejected():
-    """4h has no validated cost parameters → ValueError."""
+def test_30m_timeframe_rejected():
+    """30m has no validated cost parameters → ValueError."""
     with pytest.raises(ValueError, match="timeframe"):
         UnifiedCostModel.compute_trade_outcome(
             side="BUY", entry_price=50000.0, exit_price=51000.0,
-            stop_price=49000.0, quantity=0.01, scenario="realistic", timeframe="4h",
+            stop_price=49000.0, quantity=0.01, scenario="realistic", timeframe="30m",
         )
+
+
+def test_empty_timeframe_rejected():
+    """Empty/None timeframe → ValueError (fail-closed, no silent 15m default)."""
+    for bad in ("", None):
+        with pytest.raises(ValueError, match="timeframe"):
+            UnifiedCostModel.bps_for_scenario("realistic", timeframe=bad)
+
+
+# ---------------------------------------------------------------------------
+# Test 31b: 4h/1d accepted by all public APIs (Edge Research 03)
+# tf_mult_4h = tf_mult_1d = 1.0 → bps identical to the 15m baseline.
+# ---------------------------------------------------------------------------
+
+def test_4h_1d_accepted_compute():
+    """compute_trade_outcome accepts 4h and 1d without raising."""
+    for tf in ("4h", "1d"):
+        o = UnifiedCostModel.compute_trade_outcome(
+            side="BUY", entry_price=50000.0, exit_price=55000.0,
+            stop_price=47500.0, quantity=0.01,
+            scenario="realistic", timeframe=tf,
+        )
+        assert o.timeframe == tf
+        assert o.total_cost_amt > 0
+
+
+def test_4h_1d_accepted_apply():
+    """apply_cost_to_backtest_trade accepts 4h and 1d without raising."""
+    for tf in ("4h", "1d"):
+        r = UnifiedCostModel.apply_cost_to_backtest_trade(
+            gross_pnl=50.0, initial_risk=25.0,
+            entry_price=50000.0, exit_price=55000.0, quantity=0.01,
+            scenario="realistic", timeframe=tf,
+        )
+        assert r["cost_amt"] > 0
+
+
+def test_4h_1d_bps_equal_15m_baseline():
+    """4h/1d bps exactly equal 15m bps per scenario/symbol (tf_mult = 1.0)."""
+    for symbol in ("BTC/USDT", "XRP/USDT"):
+        for sc in SCENARIO_NAMES:
+            if sc == "zero":
+                continue
+            bps_15m = UnifiedCostModel.bps_for_scenario(sc, symbol, "15m")
+            for tf in ("4h", "1d"):
+                bps_tf = UnifiedCostModel.bps_for_scenario(sc, symbol, tf)
+                assert bps_tf["total_round_trip_bps"] == bps_15m["total_round_trip_bps"], (
+                    f"{symbol} {tf} {sc}: bps={bps_tf['total_round_trip_bps']} "
+                    f"!= 15m baseline {bps_15m['total_round_trip_bps']}"
+                )
+
+
+def test_compute_vs_apply_parity_1d():
+    """Exact compute/apply parity on a 1d trade, all scenarios."""
+    entry, stop, exit_, qty = 50000.0, 47500.0, 58000.0, 0.01
+    initial_risk = abs(entry - stop) * qty
+    gross_pnl = (exit_ - entry) * qty
+    for sc in SCENARIO_NAMES:
+        o = UnifiedCostModel.compute_trade_outcome(
+            side="BUY", entry_price=entry, exit_price=exit_,
+            stop_price=stop, quantity=qty,
+            scenario=sc, symbol="BTC/USDT", timeframe="1d", atr_pct=0.0,
+        )
+        r = UnifiedCostModel.apply_cost_to_backtest_trade(
+            gross_pnl=gross_pnl, initial_risk=initial_risk,
+            entry_price=entry, exit_price=exit_, quantity=qty,
+            scenario=sc, symbol="BTC/USDT", timeframe="1d", atr_pct=0.0,
+        )
+        assert o.total_cost_amt == pytest.approx(r["cost_amt"], rel=1e-9), (
+            f"1d parity failure scenario={sc}: "
+            f"compute={o.total_cost_amt:.8f}, apply={r['cost_amt']:.8f}"
+        )
+
+
+def test_scenario_ordering_bps_1d():
+    """optimistic < realistic < conservative < severe also on 1d."""
+    seq = [
+        UnifiedCostModel.bps_for_scenario(sc, "BTC/USDT", "1d")["total_round_trip_bps"]
+        for sc in ("optimistic", "realistic", "conservative", "severe")
+    ]
+    assert seq[0] < seq[1] < seq[2] < seq[3], f"ordering violated on 1d: {seq}"
 
 
 # ---------------------------------------------------------------------------

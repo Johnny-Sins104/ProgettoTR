@@ -20,12 +20,26 @@ SYMBOL_CACHE_NAMES_BY_TIMEFRAME = {
     },
 }
 
+# Panel research timeframes (Edge Research 03) use a deterministic naming
+# convention instead of the explicit per-symbol dicts above:
+# {slug}_{tf}_cache.parquet, e.g. btcusdt_4h_cache.parquet.
+PANEL_TIMEFRAMES = frozenset({"4h", "1d"})
+
+
+def _panel_cache_name(symbol: str, timeframe: str) -> str:
+    slug = str(symbol or "").replace("/", "").replace(":", "").lower()
+    if not slug or not slug.isalnum():
+        raise ValueError(f"unsupported clean bot symbol for panel cache: {symbol!r}")
+    return f"{slug}_{timeframe}_cache.parquet"
+
 
 def cache_path(data_dir: Path, symbol: str, timeframe: str) -> Path:
     normalized_timeframe = str(timeframe or "5m").strip().lower()
+    if normalized_timeframe in PANEL_TIMEFRAMES:
+        return data_dir / _panel_cache_name(symbol, normalized_timeframe)
     names = SYMBOL_CACHE_NAMES_BY_TIMEFRAME.get(normalized_timeframe)
     if names is None:
-        supported = ", ".join(sorted(SYMBOL_CACHE_NAMES_BY_TIMEFRAME))
+        supported = ", ".join(sorted(set(SYMBOL_CACHE_NAMES_BY_TIMEFRAME) | PANEL_TIMEFRAMES))
         raise ValueError(f"unsupported clean bot timeframe: {timeframe}; supported={supported}")
     name = names.get(symbol.upper())
     if not name:

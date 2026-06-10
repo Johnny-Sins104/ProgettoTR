@@ -8,6 +8,7 @@ from typing import Any
 import pandas as pd
 
 from .data import load_ohlcv
+from .funding import accrue_funding_for_trade
 from .indicators import add_indicators
 from .models import BacktestSettings, Signal, Trade, validate_entry_price
 from .strategies import Strategy, default_strategies
@@ -116,6 +117,7 @@ def _trade_from_signal(
     symbol: str,
     balance: float,
     settings: BacktestSettings,
+    funding_df: pd.DataFrame | None = None,
 ) -> Trade:
     entry_row = df.iloc[entry_idx]
     signal_row = df.iloc[signal_idx]
@@ -154,6 +156,26 @@ def _trade_from_signal(
 
     gap_flag = exit_reason if "_GAP" in exit_reason else None
 
+    funding_pnl: float | None = None
+    funding_events: int | None = None
+    net_pnl_with_funding: float | None = None
+    if settings.funding_enabled:
+        if funding_df is None:
+            raise ValueError(
+                "funding_enabled requires funding_df; no silent skip."
+            )
+        # qty == 0 trades are discarded by the caller; nothing to accrue.
+        if qty > 0:
+            funding_pnl, funding_events = accrue_funding_for_trade(
+                funding_df=funding_df,
+                bars_df=df,
+                side=signal.side,
+                entry_time=_time(entry_row),
+                exit_time=_time(df.iloc[exit_idx]),
+                qty=qty,
+            )
+            net_pnl_with_funding = net_pnl + funding_pnl
+
     return Trade(
         strategy=signal.strategy,
         symbol=symbol,
@@ -177,6 +199,9 @@ def _trade_from_signal(
         entry_timing="open_n1",
         gap_flag=gap_flag,
         cost_bps_applied=cost_result.get("total_round_trip_bps"),
+        funding_pnl=funding_pnl,
+        funding_events=funding_events,
+        net_pnl_with_funding=net_pnl_with_funding,
     )
 
 
@@ -215,7 +240,7 @@ def _metrics(trades: list[Trade], starting_balance: float) -> dict[str, Any]:
             if by_strategy[strategy]["trades"]
             else 0.0
         )
-    return {
+    metrics = {
         "closed_trades": len(trades),
         "wins": wins,
         "losses": losses,
@@ -230,6 +255,13 @@ def _metrics(trades: list[Trade], starting_balance: float) -> dict[str, Any]:
         "average_r": sum(t.r_multiple for t in trades) / len(trades) if trades else 0.0,
         "by_strategy": dict(by_strategy),
     }
+    # Opt-in funding aggregates: reported alongside (never replacing) the
+    # cost-only keys above, and only when every trade carries the accrual.
+    if trades and all(t.net_pnl_with_funding is not None for t in trades):
+        metrics["funding_pnl_total"] = sum(t.funding_pnl for t in trades)
+        metrics["funding_events_total"] = sum(t.funding_events for t in trades)
+        metrics["net_pnl_with_funding"] = sum(t.net_pnl_with_funding for t in trades)
+    return metrics
 
 
 def run_backtest(
@@ -237,11 +269,15 @@ def run_backtest(
     data_dir: Path,
     settings: BacktestSettings,
     strategies: list[Strategy] | None = None,
+    funding_df: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     strategies = strategies or default_strategies()
     raw = load_ohlcv(data_dir, settings.symbol, settings.timeframe, settings.max_rows)
     df = add_indicators(raw).dropna().reset_index(drop=True)
-    return run_backtest_frame(raw_rows=len(raw), df=df, settings=settings, strategies=strategies)
+    return run_backtest_frame(
+        raw_rows=len(raw), df=df, settings=settings, strategies=strategies,
+        funding_df=funding_df,
+    )
 
 
 def run_backtest_frame(
@@ -250,7 +286,15 @@ def run_backtest_frame(
     df: pd.DataFrame,
     settings: BacktestSettings,
     strategies: list[Strategy],
+    funding_df: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
+    # Fail-closed pairing: funding accrual is opt-in and explicit on both sides.
+    if settings.funding_enabled and funding_df is None:
+        raise ValueError("funding_enabled requires funding_df; no silent skip.")
+    if funding_df is not None and not settings.funding_enabled:
+        raise ValueError(
+            "funding_df provided but settings.funding_enabled is False; no silent ignore."
+        )
     trades: list[Trade] = []
     balance = settings.starting_balance
     idx = 401
@@ -281,11 +325,15 @@ def run_backtest_frame(
             symbol=settings.symbol,
             balance=balance,
             settings=settings,
+            funding_df=funding_df,
         )
         if trade.qty <= 0:
             idx += 1
             continue
-        balance += trade.net_pnl
+        if settings.funding_enabled and trade.net_pnl_with_funding is not None:
+            balance += trade.net_pnl_with_funding
+        else:
+            balance += trade.net_pnl
         trades.append(trade)
         idx = max(exit_idx + 1, idx + 1)
     return {

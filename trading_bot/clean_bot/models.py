@@ -14,6 +14,9 @@ class BacktestSettings:
     max_hold_bars: int = 36
     cost_model: str = "conservative"
     max_rows: int = 50000
+    # Opt-in perpetual funding accrual (clean_bot/funding.py). When True,
+    # run_backtest_frame requires an explicit funding_df (fail-closed pairing).
+    funding_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,11 @@ class Trade:
     entry_timing: str | None = None  # "open_n1" for backtest
     gap_flag: str | None = None      # "SL_GAP" / "TP_GAP" when gap triggered exit
     cost_bps_applied: float | None = None  # total_round_trip_bps from UnifiedCostModel
+    # Funding accrual fields (populated only when settings.funding_enabled).
+    # Funding is a PnL accrual, never mixed into cost or net_pnl.
+    funding_pnl: float | None = None
+    funding_events: int | None = None
+    net_pnl_with_funding: float | None = None  # net_pnl + funding_pnl
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

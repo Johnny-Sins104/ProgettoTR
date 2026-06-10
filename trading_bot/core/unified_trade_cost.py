@@ -44,8 +44,27 @@ Unknown side, unknown scenario, non-positive prices/quantity, stop==entry,
 NaN/Inf in any numeric input, unsupported timeframe, stop on wrong side of entry
 all raise ValueError immediately. No silent defaults.
 
-Supported timeframes: 1m, 5m, 15m, 1h, 4h
+Supported timeframes: 5m, 15m, 4h, 1d
 (any other value raises ValueError — no silent fallback to 15m)
+
+Timeframe multiplier calibration (4h/1d)
+----------------------------------------
+tf_mult_4h = tf_mult_1d = 1.0 (same as the 15m baseline), because:
+- Fees are per-side, per-transaction: independent of holding period.
+- Spread/slippage/latency/partial fill are incurred only at the two execution
+  moments; a 4h/1d signal still executes as ONE order against the same book,
+  so variable costs do not grow with the timeframe.
+- The 5m uplift (tf_mult_5m = 1.20 in realistic+) exists because 5m breakout
+  entries cluster in volatile microstructure moments. 4h/1d entries fire at
+  scheduled bar closes with no urgency, so the 15m baseline applies. Entries
+  are still modeled MARKET/taker and stress_mult (1.75/2.75) applies in full.
+- Net effect: the same ~10 bps RT realistic cost per trade is diluted 10-50x
+  per unit of expected move because 4h/1d trades target larger moves. The
+  dilution comes from the trade economics, not from a cheaper cost model.
+
+Perpetual funding is a PnL accrual on the holding period, not a transaction
+cost; it is handled by clean_bot/funding.py and must never be added to
+_SCENARIO_PARAMS.
 
 Risk policy for Phases 3-5
 ---------------------------
@@ -68,9 +87,9 @@ if str(_HERE) not in sys.path:
 
 SCENARIO_NAMES = ("optimistic", "realistic", "conservative", "severe", "zero")
 
-# Only 5m and 15m have validated cost parameters for the benchmark.
-# 1m, 1h, 4h are rejected with ValueError until explicit calibrated params exist.
-SUPPORTED_TIMEFRAMES = frozenset({"5m", "15m"})
+# Only 5m, 15m, 4h and 1d have validated cost parameters for the benchmark.
+# 1m, 30m, 1h are rejected with ValueError until explicit calibrated params exist.
+SUPPORTED_TIMEFRAMES = frozenset({"5m", "15m", "4h", "1d"})
 
 # Fixed bps parameters per scenario (Binance USDT-M Futures baseline).
 # maker_fee and taker_fee are per-side (one-way). RT = entry + exit.
@@ -87,6 +106,8 @@ _SCENARIO_PARAMS: Dict[str, Dict[str, Any]] = {
         "stress_mult": 1.0,
         "tf_mult_5m": 1.0,           # no uplift in optimistic
         "tf_mult_15m": 1.0,
+        "tf_mult_4h": 1.0,   # scheduled bar-close entry, no microstructure uplift
+        "tf_mult_1d": 1.0,   # scheduled bar-close entry, no microstructure uplift
         "fill_probability": 0.98,
     },
     "realistic": {
@@ -101,6 +122,8 @@ _SCENARIO_PARAMS: Dict[str, Dict[str, Any]] = {
         "stress_mult": 1.0,
         "tf_mult_5m": 1.20,
         "tf_mult_15m": 1.0,
+        "tf_mult_4h": 1.0,   # scheduled bar-close entry, no microstructure uplift
+        "tf_mult_1d": 1.0,   # scheduled bar-close entry, no microstructure uplift
         "fill_probability": 0.96,
     },
     "conservative": {
@@ -115,6 +138,8 @@ _SCENARIO_PARAMS: Dict[str, Dict[str, Any]] = {
         "stress_mult": 1.75,
         "tf_mult_5m": 1.20,
         "tf_mult_15m": 1.0,
+        "tf_mult_4h": 1.0,   # scheduled bar-close entry, no microstructure uplift
+        "tf_mult_1d": 1.0,   # scheduled bar-close entry, no microstructure uplift
         "fill_probability": 0.93,
     },
     "severe": {
@@ -129,6 +154,8 @@ _SCENARIO_PARAMS: Dict[str, Dict[str, Any]] = {
         "stress_mult": 2.75,
         "tf_mult_5m": 1.20,
         "tf_mult_15m": 1.0,
+        "tf_mult_4h": 1.0,   # scheduled bar-close entry, no microstructure uplift
+        "tf_mult_1d": 1.0,   # scheduled bar-close entry, no microstructure uplift
         "fill_probability": 0.85,
     },
 }
@@ -201,11 +228,15 @@ def _bps_components(
     partial = float(p["partial_fill_bps"])
     stress = float(p["stress_mult"])
 
-    # Timeframe multiplier: only 5m and 15m have validated parameters
-    if tf == "5m":
-        tf_mult = float(p["tf_mult_5m"])
-    else:  # tf == "15m"
-        tf_mult = float(p["tf_mult_15m"])
+    # Timeframe multiplier: fail-closed explicit lookup, no "anything else is 15m"
+    # internal default. Public validation already restricts tf to SUPPORTED_TIMEFRAMES.
+    tf_key = f"tf_mult_{tf}"
+    if tf_key not in p:
+        raise ValueError(
+            f"No calibrated timeframe multiplier {tf_key!r} for scenario {scenario!r}. "
+            f"Supported timeframes: {sorted(SUPPORTED_TIMEFRAMES)}."
+        )
+    tf_mult = float(p[tf_key])
 
     variable = (spread + slippage + latency + partial) * stress * tf_mult
     total = entry_fee + exit_fee + variable

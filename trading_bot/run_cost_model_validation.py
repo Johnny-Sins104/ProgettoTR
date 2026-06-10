@@ -42,14 +42,14 @@ PAPER_TRADING_ACTIVATION_ALLOWED: bool = False
 # Import cost model
 # ---------------------------------------------------------------------------
 from core.unified_trade_cost import (  # noqa: E402  (after sys.path insert)
-    SCENARIO_NAMES as _ALL_SCENARIO_NAMES,
+    SCENARIO_NAMES,
     UnifiedCostModel,
 )
 
-# This gate validates only real-cost scenarios: "zero" is a diagnostic-only
-# scenario excluded by UnifiedCostModel.all_scenarios() and would violate the
-# total_cost > 0 assertions by construction.
-SCENARIO_NAMES = tuple(s for s in _ALL_SCENARIO_NAMES if s != "zero")
+# Real cost scenarios only: 'zero' is a research-only diagnostic, is excluded
+# by UnifiedCostModel.all_scenarios() and would break the >0 cost and strict
+# ordering checks below.
+REAL_SCENARIO_NAMES = tuple(s for s in SCENARIO_NAMES if s != "zero")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -119,7 +119,7 @@ def _run_case(
     by_scenario: Dict[str, Any] = {}
     costs_ordered: List[float] = []
 
-    for sc in SCENARIO_NAMES:
+    for sc in REAL_SCENARIO_NAMES:
         o = outcomes[sc]
         by_scenario[sc] = o.to_dict()
         costs_ordered.append(o.total_cost_amt)
@@ -152,9 +152,9 @@ def _run_case(
                 )
 
     # Scenario ordering: optimistic < realistic < conservative < severe
-    for i in range(len(SCENARIO_NAMES) - 1):
-        sc_a = SCENARIO_NAMES[i]
-        sc_b = SCENARIO_NAMES[i + 1]
+    for i in range(len(REAL_SCENARIO_NAMES) - 1):
+        sc_a = REAL_SCENARIO_NAMES[i]
+        sc_b = REAL_SCENARIO_NAMES[i + 1]
         if not (costs_ordered[i] < costs_ordered[i + 1]):
             failures.append(
                 f"[{label}] total_cost ordering violated: "
@@ -212,7 +212,7 @@ def run_numerical_cases() -> tuple[Dict[str, Any], List[str]]:
 
     # Print table for Case A
     print(_fmt("scenario", "total_cost_amt  net_pnl  gross_R  net_R  total_bps"))
-    for sc in SCENARIO_NAMES:
+    for sc in REAL_SCENARIO_NAMES:
         o_dict = cA["by_scenario"][sc]
         print(_fmt(
             sc,
@@ -239,7 +239,7 @@ def run_numerical_cases() -> tuple[Dict[str, Any], List[str]]:
 
     # Extra check: net_R < -1.0 in all scenarios
     print(_fmt("scenario", "gross_R   net_R"))
-    for sc in SCENARIO_NAMES:
+    for sc in REAL_SCENARIO_NAMES:
         o_dict = cB["by_scenario"][sc]
         net_R_ok = o_dict["net_R"] < -1.0
         if not net_R_ok:
@@ -273,7 +273,7 @@ def run_numerical_cases() -> tuple[Dict[str, Any], List[str]]:
         )
     print(_fmt("SELL gross_R", f"{sell_gross_R:.6f}  (BUY gross_R={buy_gross_R:.6f})  symmetry={_pass_fail(symmetry_ok)}"))
     print(_fmt("scenario", "gross_R   net_R"))
-    for sc in SCENARIO_NAMES:
+    for sc in REAL_SCENARIO_NAMES:
         o_dict = cC["by_scenario"][sc]
         print(_fmt(sc, f"{o_dict['gross_R']:.4f}   {o_dict['net_R']:.4f}"))
 
@@ -292,7 +292,7 @@ def run_numerical_cases() -> tuple[Dict[str, Any], List[str]]:
 
     # Extra check: net_R < -1.0 in all scenarios
     print(_fmt("scenario", "gross_R   net_R"))
-    for sc in SCENARIO_NAMES:
+    for sc in REAL_SCENARIO_NAMES:
         o_dict = cD["by_scenario"][sc]
         net_R_ok = o_dict["net_R"] < -1.0
         if not net_R_ok:
@@ -317,7 +317,7 @@ def run_numerical_cases() -> tuple[Dict[str, Any], List[str]]:
     all_failures.extend(fE)
 
     print(_fmt("scenario", "total_cost_amt  total_bps"))
-    for sc in SCENARIO_NAMES:
+    for sc in REAL_SCENARIO_NAMES:
         o_dict = cE["by_scenario"][sc]
         print(_fmt(sc, f"{o_dict['total_cost_amt']:.6f}  {o_dict['total_round_trip_bps']:.4f}"))
 
@@ -326,7 +326,7 @@ def run_numerical_cases() -> tuple[Dict[str, Any], List[str]]:
     xrp_5m_costs: Dict[str, float] = {}
     xrp_15m_costs: Dict[str, float] = {}
     tf_ok_all = True
-    for sc in SCENARIO_NAMES:
+    for sc in REAL_SCENARIO_NAMES:
         bps_5m = UnifiedCostModel.bps_for_scenario(sc, "XRP/USDT", "5m")["total_round_trip_bps"]
         bps_15m = UnifiedCostModel.bps_for_scenario(sc, "XRP/USDT", "15m")["total_round_trip_bps"]
         xrp_5m_costs[sc] = bps_5m
@@ -349,6 +349,46 @@ def run_numerical_cases() -> tuple[Dict[str, Any], List[str]]:
         "5m_higher_than_15m_for_realistic_and_above": tf_ok_all,
     }
 
+    # ------------------------------------------------------------------
+    # Case F — BUY win on 4h and 1d (tf_mult parity with 15m baseline)
+    # ------------------------------------------------------------------
+    print("\n[CASE F] BUY win — BTC/USDT 4h/1d — entry=50000 exit=55000 stop=47500 qty=0.01")
+    for tf in ("4h", "1d"):
+        cF, fF = _run_case(
+            label=f"F_btc_{tf}",
+            side="BUY",
+            entry=50000.0, exit_=55000.0, stop=47500.0,
+            qty=0.01, symbol="BTC/USDT", timeframe=tf,
+        )
+        cases[f"case_F_btc_{tf}"] = cF
+        all_failures.extend(fF)
+
+        print(_fmt(f"[{tf}] scenario", "total_cost_amt  total_bps"))
+        for sc in REAL_SCENARIO_NAMES:
+            o_dict = cF["by_scenario"][sc]
+            print(_fmt(f"  {sc}", f"{o_dict['total_cost_amt']:.6f}  {o_dict['total_round_trip_bps']:.4f}"))
+
+    # tf_mult parity: 4h and 1d bps must equal the 15m baseline exactly
+    # (tf_mult_4h = tf_mult_1d = tf_mult_15m = 1.0 in every scenario; mirrors
+    # the 5m>15m check above)
+    print("\n  [4h/1d vs 15m bps parity check]")
+    for symbol in ("BTC/USDT", "XRP/USDT"):
+        for tf in ("4h", "1d"):
+            for sc in REAL_SCENARIO_NAMES:
+                bps_tf = UnifiedCostModel.bps_for_scenario(sc, symbol, tf)["total_round_trip_bps"]
+                bps_15m = UnifiedCostModel.bps_for_scenario(sc, symbol, "15m")["total_round_trip_bps"]
+                parity_ok = bps_tf == bps_15m
+                if not parity_ok:
+                    all_failures.append(
+                        f"[F_tf_parity][{symbol} {tf}][{sc}] bps={bps_tf} != 15m bps={bps_15m}"
+                    )
+            print(_fmt(f"  {symbol} {tf} == 15m (all scenarios)",
+                       _pass_fail(all(
+                           UnifiedCostModel.bps_for_scenario(sc, symbol, tf)["total_round_trip_bps"]
+                           == UnifiedCostModel.bps_for_scenario(sc, symbol, "15m")["total_round_trip_bps"]
+                           for sc in REAL_SCENARIO_NAMES
+                       ))))
+
     return cases, all_failures
 
 
@@ -364,7 +404,7 @@ def print_summary_table(cases: Dict[str, Any]) -> None:
     print(header)
     print("-" * 84)
     for case_key, case_data in cases.items():
-        for sc in SCENARIO_NAMES:
+        for sc in REAL_SCENARIO_NAMES:
             o = case_data["by_scenario"][sc]
             print(
                 f"{case_key:<20} {sc:<14} "
@@ -389,8 +429,12 @@ def run_bps_breakeven_check() -> tuple[Dict[str, Any], List[str], bool]:
     combos = [
         ("BTC/USDT", "5m"),
         ("BTC/USDT", "15m"),
+        ("BTC/USDT", "4h"),
+        ("BTC/USDT", "1d"),
         ("XRP/USDT", "5m"),
         ("XRP/USDT", "15m"),
+        ("XRP/USDT", "4h"),
+        ("XRP/USDT", "1d"),
     ]
 
     failures: List[str] = []
@@ -403,7 +447,7 @@ def run_bps_breakeven_check() -> tuple[Dict[str, Any], List[str], bool]:
     for symbol, tf in combos:
         row: Dict[str, float] = {}
         costs_seq: List[float] = []
-        for sc in SCENARIO_NAMES:
+        for sc in REAL_SCENARIO_NAMES:
             bps = UnifiedCostModel.bps_for_scenario(sc, symbol, tf)
             total_bps = bps["total_round_trip_bps"]
             row[sc] = total_bps
@@ -411,12 +455,12 @@ def run_bps_breakeven_check() -> tuple[Dict[str, Any], List[str], bool]:
 
         # Verify strict ordering
         ordering_ok = all(
-            costs_seq[i] < costs_seq[i + 1] for i in range(len(SCENARIO_NAMES) - 1)
+            costs_seq[i] < costs_seq[i + 1] for i in range(len(REAL_SCENARIO_NAMES) - 1)
         )
         if not ordering_ok:
             ordering_ok_overall = False
             failures.append(
-                f"[bps_check][{symbol} {tf}] scenario bps ordering violated: {dict(zip(SCENARIO_NAMES, costs_seq))}"
+                f"[bps_check][{symbol} {tf}] scenario bps ordering violated: {dict(zip(REAL_SCENARIO_NAMES, costs_seq))}"
             )
 
         key = f"{symbol.replace('/', '')}_{tf}"
@@ -462,6 +506,15 @@ def build_report(
         "numerical_cases": cases,
         "bps_by_scenario_and_symbol": bps_table,
         "scenario_ordering_verified": ordering_verified,
+        "tf_mult_calibration_note": (
+            "tf_mult_4h = tf_mult_1d = 1.0 (15m baseline): fees are per-side and "
+            "holding-period independent; variable costs are incurred only at the two "
+            "execution moments (one order per signal regardless of timeframe); the 5m "
+            "uplift (1.20) models breakout-entry clustering in volatile microstructure, "
+            "which does not apply to scheduled 4h/1d bar-close entries. Entries stay "
+            "MARKET/taker and stress_mult applies in full. Funding is a PnL accrual "
+            "(clean_bot/funding.py), never a cost component."
+        ),
         "cost_formulas": {
             "gross_pnl": "(exit - entry) * qty * direction",
             "notional": "entry * qty",
