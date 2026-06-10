@@ -1,0 +1,10 @@
+{
+  "accessed_at_utc": "2026-06-10T09:53:05.212288+00:00",
+  "phase": "STRAT-03-FINAL-OOS",
+  "purpose": "single final-OOS gate evaluation of frozen shortlist",
+  "shortlist_config_ids": [
+    "XS04",
+    "XS08"
+  ],
+  "split_lock_sha256": "2023968f311cbf39480362d74e7c05786806e64f8975c93d67258b8cc6a71c65"
+}
