@@ -1,0 +1,768 @@
+{
+  "declared_at_utc": "2026-06-10T14:01:18.921459+00:00",
+  "cycle": 2,
+  "split_lock_sha256": "15c3457c70e2f7fb42c57b308f1d0b56af9f22bb795e7fb6186661d72dd271a2",
+  "risk_per_trade": 0.005,
+  "cost_scenario_default": "realistic",
+  "regime_filter_definition": "BTC daily SMA200 trend, causal at D-1 close: bull if close>sma200 and sma200 rising over 20d; bear if close<sma200 and sma200 falling; chop otherwise; unknown if <221 daily closes. See research/regime.py.",
+  "cycle1_knowledge_statement": "Cycle-1 NO_CANDIDATE (regime dependence) motivated the new XSR family and the regime-stratified gate, declared here a priori. No cycle-2 configuration was selected or tuned from cycle-1 validation/OOS metrics. Cycle-1 trials remain in the cumulative trial log.",
+  "n_configs": 48,
+  "configs": [
+    {
+      "config_id": "VB201",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 96,
+        "ema_alignment": true,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 1-day extreme on a closed 15m candle, volume_ratio_20>=1.2, EMA50/EMA200 stack aligned with the break (fakeout filter in mixed regimes). Stop 2.0xATR15, trail 4.0xATR15, max hold 6d.",
+      "config_hash": "336a3fc39291b6ab"
+    },
+    {
+      "config_id": "VB202",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 96,
+        "ema_alignment": true,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 1-day extreme on a closed 15m candle, volume_ratio_20>=1.2, EMA50/EMA200 stack aligned with the break (fakeout filter in mixed regimes). Stop 3.0xATR15, trail 6.0xATR15, max hold 6d.",
+      "config_hash": "57cdbfa9251b9642"
+    },
+    {
+      "config_id": "VB203",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 96,
+        "ema_alignment": false,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 1-day extreme on a closed 15m candle, volume_ratio_20>=1.2, no trend alignment (pure expansion bet). Stop 2.0xATR15, trail 4.0xATR15, max hold 6d.",
+      "config_hash": "ac647fe37c184632"
+    },
+    {
+      "config_id": "VB204",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 96,
+        "ema_alignment": false,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 1-day extreme on a closed 15m candle, volume_ratio_20>=1.2, no trend alignment (pure expansion bet). Stop 3.0xATR15, trail 6.0xATR15, max hold 6d.",
+      "config_hash": "8dfd6c5c89fcc9c7"
+    },
+    {
+      "config_id": "VB205",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 192,
+        "ema_alignment": true,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 2-day extreme on a closed 15m candle, volume_ratio_20>=1.2, EMA50/EMA200 stack aligned with the break (fakeout filter in mixed regimes). Stop 2.0xATR15, trail 4.0xATR15, max hold 6d.",
+      "config_hash": "a04adbb03a1d51e7"
+    },
+    {
+      "config_id": "VB206",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 192,
+        "ema_alignment": true,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 2-day extreme on a closed 15m candle, volume_ratio_20>=1.2, EMA50/EMA200 stack aligned with the break (fakeout filter in mixed regimes). Stop 3.0xATR15, trail 6.0xATR15, max hold 6d.",
+      "config_hash": "33c35d79721ccb1e"
+    },
+    {
+      "config_id": "VB207",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 192,
+        "ema_alignment": false,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 2-day extreme on a closed 15m candle, volume_ratio_20>=1.2, no trend alignment (pure expansion bet). Stop 2.0xATR15, trail 4.0xATR15, max hold 6d.",
+      "config_hash": "e0925c759c58cdc2"
+    },
+    {
+      "config_id": "VB208",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 192,
+        "ema_alignment": false,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 2-day extreme on a closed 15m candle, volume_ratio_20>=1.2, no trend alignment (pure expansion bet). Stop 3.0xATR15, trail 6.0xATR15, max hold 6d.",
+      "config_hash": "f711019bad8b0cc3"
+    },
+    {
+      "config_id": "VB209",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 288,
+        "ema_alignment": true,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 3-day extreme on a closed 15m candle, volume_ratio_20>=1.2, EMA50/EMA200 stack aligned with the break (fakeout filter in mixed regimes). Stop 2.0xATR15, trail 4.0xATR15, max hold 6d.",
+      "config_hash": "5e6a162ed8fd81ee"
+    },
+    {
+      "config_id": "VB210",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 288,
+        "ema_alignment": true,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 3-day extreme on a closed 15m candle, volume_ratio_20>=1.2, EMA50/EMA200 stack aligned with the break (fakeout filter in mixed regimes). Stop 3.0xATR15, trail 6.0xATR15, max hold 6d.",
+      "config_hash": "35d415fde1901af9"
+    },
+    {
+      "config_id": "VB211",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 288,
+        "ema_alignment": false,
+        "volume_min": 1.2,
+        "stop_atr_mult": 2.0,
+        "trail_atr_mult": 4.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 3-day extreme on a closed 15m candle, volume_ratio_20>=1.2, no trend alignment (pure expansion bet). Stop 2.0xATR15, trail 4.0xATR15, max hold 6d.",
+      "config_hash": "7e99482d43760ead"
+    },
+    {
+      "config_id": "VB212",
+      "family": "volatility_breakout_c2",
+      "params": {
+        "lookback_bars_15m": 288,
+        "ema_alignment": false,
+        "volume_min": 1.2,
+        "stop_atr_mult": 3.0,
+        "trail_atr_mult": 6.0,
+        "max_hold_days": 6
+      },
+      "rationale": "Break of the prior 3-day extreme on a closed 15m candle, volume_ratio_20>=1.2, no trend alignment (pure expansion bet). Stop 3.0xATR15, trail 6.0xATR15, max hold 6d.",
+      "config_hash": "389d76e3154157dd"
+    },
+    {
+      "config_id": "TP201",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 1.5,
+        "target_rr": 1.5,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema20 (0.2% band), reclaim entry, stop 1.5xATR15, target 1.5R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "d4e1ab3c8bb40e15"
+    },
+    {
+      "config_id": "TP202",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 1.5,
+        "target_rr": 2.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema20 (0.2% band), reclaim entry, stop 1.5xATR15, target 2.0R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "6aaaff7d01190bc3"
+    },
+    {
+      "config_id": "TP203",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 1.5,
+        "target_rr": 3.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema20 (0.2% band), reclaim entry, stop 1.5xATR15, target 3.0R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "47c2d9c5f2a4268a"
+    },
+    {
+      "config_id": "TP204",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 2.5,
+        "target_rr": 1.5,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema20 (0.2% band), reclaim entry, stop 2.5xATR15, target 1.5R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "2e00fefa65d403b7"
+    },
+    {
+      "config_id": "TP205",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 2.5,
+        "target_rr": 2.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema20 (0.2% band), reclaim entry, stop 2.5xATR15, target 2.0R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "b883066efdc3151f"
+    },
+    {
+      "config_id": "TP206",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema20",
+        "stop_atr_mult": 2.5,
+        "target_rr": 3.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema20 (0.2% band), reclaim entry, stop 2.5xATR15, target 3.0R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "bec81ca58d0a0626"
+    },
+    {
+      "config_id": "TP207",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 1.5,
+        "target_rr": 1.5,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema50 (0.2% band), reclaim entry, stop 1.5xATR15, target 1.5R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "c0756af1149748b2"
+    },
+    {
+      "config_id": "TP208",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 1.5,
+        "target_rr": 2.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema50 (0.2% band), reclaim entry, stop 1.5xATR15, target 2.0R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "981113097e35c768"
+    },
+    {
+      "config_id": "TP209",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 1.5,
+        "target_rr": 3.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema50 (0.2% band), reclaim entry, stop 1.5xATR15, target 3.0R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "37e3ac4bfe58a791"
+    },
+    {
+      "config_id": "TP210",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 2.5,
+        "target_rr": 1.5,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema50 (0.2% band), reclaim entry, stop 2.5xATR15, target 1.5R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "915f93ea8aa27c55"
+    },
+    {
+      "config_id": "TP211",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 2.5,
+        "target_rr": 2.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema50 (0.2% band), reclaim entry, stop 2.5xATR15, target 2.0R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "a43cca2f883ede3a"
+    },
+    {
+      "config_id": "TP212",
+      "family": "trend_pullback_c2",
+      "params": {
+        "ref_ema": "ema50",
+        "stop_atr_mult": 2.5,
+        "target_rr": 3.0,
+        "rsi_long": [
+          40.0,
+          65.0
+        ],
+        "rsi_short": [
+          35.0,
+          60.0
+        ],
+        "band_pct": 0.002,
+        "max_hold_days": 2
+      },
+      "rationale": "EMA-stack trend, pullback to ema50 (0.2% band), reclaim entry, stop 2.5xATR15, target 3.0R, hold<=2d. Re-test of the canonical pullback premise on the multi-regime 2019+ train.",
+      "config_hash": "ae39cdfcc57d3818"
+    },
+    {
+      "config_id": "XS201",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 1,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 1d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 3d return; hold top long / bottom short 1d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "7c085b33cee7b31a"
+    },
+    {
+      "config_id": "XS202",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 1,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 1d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 3d return; hold top long 1d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "b7dfefb1e19753e7"
+    },
+    {
+      "config_id": "XS203",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 3,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 3d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 3d return; hold top long / bottom short 3d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "475622b43827bb8c"
+    },
+    {
+      "config_id": "XS204",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 3,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 3d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 3d return; hold top long 3d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "ef3e8b2d6e545385"
+    },
+    {
+      "config_id": "XS205",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 1,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 1d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 7d return; hold top long / bottom short 1d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "e4fa17efb42bf99f"
+    },
+    {
+      "config_id": "XS206",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 1,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 1d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 7d return; hold top long 1d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "ffa82199a62c3a3f"
+    },
+    {
+      "config_id": "XS207",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 3,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 3d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 7d return; hold top long / bottom short 3d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "327bae203451f5e8"
+    },
+    {
+      "config_id": "XS208",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 3,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 3d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 7d return; hold top long 3d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "4b51ce038d3ae681"
+    },
+    {
+      "config_id": "XS209",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 1,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 1d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 14d return; hold top long / bottom short 1d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "b9a0fc15a7b2b7ca"
+    },
+    {
+      "config_id": "XS210",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 1,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 1d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 14d return; hold top long 1d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "2cda87a50c55db03"
+    },
+    {
+      "config_id": "XS211",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 3,
+        "mode": "long_short",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 3d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 14d return; hold top long / bottom short 3d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "ce4050a61b8bbdee"
+    },
+    {
+      "config_id": "XS212",
+      "family": "xs_momentum_c2",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 3,
+        "mode": "long_only",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "Every 3d rank ALL panel symbols tradable at the rebalance (point-in-time set, >= 8) by 14d return; hold top long 3d, 2.5xATR15 disaster stop. Wider breadth is the statistical fix over the 5-asset cycle-1 panel.",
+      "config_hash": "cee1dd155ffeeed2"
+    },
+    {
+      "config_id": "XSR01",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 1,
+        "mode": "long_only",
+        "regime_rule": "bull_only",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (3d formation, 1d hold) but NEW entries gated by the causal BTC regime filter (bull_only): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "6b067d8b53ec5fbc"
+    },
+    {
+      "config_id": "XSR02",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 1,
+        "mode": "long_only",
+        "regime_rule": "not_bear",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (3d formation, 1d hold) but NEW entries gated by the causal BTC regime filter (not_bear): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "47163e7e8f619715"
+    },
+    {
+      "config_id": "XSR03",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 3,
+        "mode": "long_only",
+        "regime_rule": "bull_only",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (3d formation, 3d hold) but NEW entries gated by the causal BTC regime filter (bull_only): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "71782823188cae40"
+    },
+    {
+      "config_id": "XSR04",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 3,
+        "hold_days": 3,
+        "mode": "long_only",
+        "regime_rule": "not_bear",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (3d formation, 3d hold) but NEW entries gated by the causal BTC regime filter (not_bear): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "f486a9094cc47489"
+    },
+    {
+      "config_id": "XSR05",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 1,
+        "mode": "long_only",
+        "regime_rule": "bull_only",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (7d formation, 1d hold) but NEW entries gated by the causal BTC regime filter (bull_only): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "f1fff38f694bb1b3"
+    },
+    {
+      "config_id": "XSR06",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 1,
+        "mode": "long_only",
+        "regime_rule": "not_bear",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (7d formation, 1d hold) but NEW entries gated by the causal BTC regime filter (not_bear): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "8e54a42c7cafacbc"
+    },
+    {
+      "config_id": "XSR07",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 3,
+        "mode": "long_only",
+        "regime_rule": "bull_only",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (7d formation, 3d hold) but NEW entries gated by the causal BTC regime filter (bull_only): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "e41aab9fc693814c"
+    },
+    {
+      "config_id": "XSR08",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 7,
+        "hold_days": 3,
+        "mode": "long_only",
+        "regime_rule": "not_bear",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (7d formation, 3d hold) but NEW entries gated by the causal BTC regime filter (not_bear): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "36fc36a74d193a29"
+    },
+    {
+      "config_id": "XSR09",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 1,
+        "mode": "long_only",
+        "regime_rule": "bull_only",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (14d formation, 1d hold) but NEW entries gated by the causal BTC regime filter (bull_only): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "0c3b430e1d504407"
+    },
+    {
+      "config_id": "XSR10",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 1,
+        "mode": "long_only",
+        "regime_rule": "not_bear",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (14d formation, 1d hold) but NEW entries gated by the causal BTC regime filter (not_bear): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "d1a73767d6ae0ef9"
+    },
+    {
+      "config_id": "XSR11",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 3,
+        "mode": "long_only",
+        "regime_rule": "bull_only",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (14d formation, 3d hold) but NEW entries gated by the causal BTC regime filter (bull_only): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "526e01bcb93a3e99"
+    },
+    {
+      "config_id": "XSR12",
+      "family": "xs_momentum_regime_c2",
+      "params": {
+        "formation_days": 14,
+        "hold_days": 3,
+        "mode": "long_only",
+        "regime_rule": "not_bear",
+        "regime_filter": "BTC daily SMA200 trend, causal D-1 (research/regime.py)",
+        "stop_atr_mult": 2.5,
+        "min_panel": 8
+      },
+      "rationale": "As XS2 long-only (14d formation, 3d hold) but NEW entries gated by the causal BTC regime filter (not_bear): long relative-strength harvesting only works when the market supports directional longs. The filter is declared a priori and counted as parameters.",
+      "config_hash": "887c62a9889225f6"
+    }
+  ]
+}

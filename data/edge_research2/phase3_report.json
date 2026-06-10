@@ -1,0 +1,1561 @@
+{
+  "report_type": "c2_strat03_selection_report",
+  "diagnostic_only": true,
+  "opens_orders": false,
+  "cycle": 2,
+  "generated_at_utc": "2026-06-10T14:14:35.912108+00:00",
+  "split_lock_sha256": "15c3457c70e2f7fb42c57b308f1d0b56af9f22bb795e7fb6186661d72dd271a2",
+  "final_oos_accessed": false,
+  "n_trials_counted_cumulative": 84,
+  "selection_rule": "validation-only ranking with eligibility (trades>=40, PF>1.0, DD<=20.0%, train consistency) PLUS regime gate (net-positive in >= 2 regimes with >= 10 trades), then plateau and walk-forward",
+  "cscv_pbo_c2_panel": {
+    "pbo": 0.4082362082362082,
+    "n_combinations": 12870,
+    "n_blocks": 16,
+    "mean_logit": 0.7974743924706265
+  },
+  "eligibility": {
+    "VB201": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.6186778922768351 <= 1.0",
+        "val DD 98.7% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 4933,
+          "sum_net_R": -290.15269473,
+          "net_pnl": -958.76398396
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 179,
+          "sum_net_R": 1.7979126399999998,
+          "net_pnl": -0.4607272000000001
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 1040,
+          "sum_net_R": -84.34229004,
+          "net_pnl": -12.13277361
+        }
+      }
+    },
+    "VB202": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8923957853891249 <= 1.0",
+        "val DD 90.0% > 20.0%",
+        "train sum_net_R <= 0"
+      ],
+      "regimes_positive": 3,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 3751,
+          "sum_net_R": 59.14737397999999,
+          "net_pnl": -554.0669050500001
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 125,
+          "sum_net_R": 20.57850743,
+          "net_pnl": 15.153535810000001
+        },
+        "chop": {
+          "counted": true,
+          "positive": true,
+          "trades": 763,
+          "sum_net_R": 47.91905229,
+          "net_pnl": 2.467022219999995
+        }
+      }
+    },
+    "VB203": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.6071280060649189 <= 1.0",
+        "val DD 99.7% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 6343,
+          "sum_net_R": -620.12331792,
+          "net_pnl": -991.92000217
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 214,
+          "sum_net_R": 24.38643285,
+          "net_pnl": 0.39053916
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 1311,
+          "sum_net_R": -132.25933486,
+          "net_pnl": -5.09020693
+        }
+      }
+    },
+    "VB204": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8064744456550877 <= 1.0",
+        "val DD 95.1% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 4822,
+          "sum_net_R": -106.55746393,
+          "net_pnl": -861.7635368
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 150,
+          "sum_net_R": 34.447285699999995,
+          "net_pnl": 10.7277519
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 988,
+          "sum_net_R": -14.040103490000002,
+          "net_pnl": -26.687966030000002
+        }
+      }
+    },
+    "VB205": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.7005251719514549 <= 1.0",
+        "val DD 96.9% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 3936,
+          "sum_net_R": -105.33145206,
+          "net_pnl": -876.45289879
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 165,
+          "sum_net_R": -12.99953377,
+          "net_pnl": -3.8321729799999993
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 846,
+          "sum_net_R": -103.9458305,
+          "net_pnl": -33.39506067
+        }
+      }
+    },
+    "VB206": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9144309606169767 <= 1.0",
+        "val DD 84.9% > 20.0%",
+        "train sum_net_R <= 0"
+      ],
+      "regimes_positive": 2,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 3021,
+          "sum_net_R": 124.38065311,
+          "net_pnl": -377.57101539
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 115,
+          "sum_net_R": 12.62632967,
+          "net_pnl": 11.8605795
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 628,
+          "sum_net_R": -3.9263651600000014,
+          "net_pnl": -42.808919689999996
+        }
+      }
+    },
+    "VB207": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.6768818503632028 <= 1.0",
+        "val DD 97.6% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 4171,
+          "sum_net_R": -151.49160051,
+          "net_pnl": -907.41009411
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 172,
+          "sum_net_R": -20.70343533,
+          "net_pnl": -4.4295998999999995
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 877,
+          "sum_net_R": -98.85577483,
+          "net_pnl": -25.41874988
+        }
+      }
+    },
+    "VB208": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8776996766501748 <= 1.0",
+        "val DD 88.5% > 20.0%",
+        "train sum_net_R <= 0"
+      ],
+      "regimes_positive": 3,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 3220,
+          "sum_net_R": 82.01766196999999,
+          "net_pnl": -515.11280633
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 120,
+          "sum_net_R": 8.1870226,
+          "net_pnl": 5.111662089999999
+        },
+        "chop": {
+          "counted": true,
+          "positive": true,
+          "trades": 649,
+          "sum_net_R": 7.598861909999998,
+          "net_pnl": -22.300346940000004
+        }
+      }
+    },
+    "VB209": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.80117941718732 <= 1.0",
+        "val DD 90.6% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 3152,
+          "sum_net_R": -37.71271480000001,
+          "net_pnl": -707.68105165
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 132,
+          "sum_net_R": -11.5594926,
+          "net_pnl": -10.554153430000001
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 667,
+          "sum_net_R": -36.63390104,
+          "net_pnl": -42.04818676
+        }
+      }
+    },
+    "VB210": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.978598703474828 <= 1.0",
+        "val DD 78.9% > 20.0%",
+        "train sum_net_R <= 0"
+      ],
+      "regimes_positive": 3,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 2430,
+          "sum_net_R": 93.80510383,
+          "net_pnl": -122.43293089000002
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 95,
+          "sum_net_R": 3.406856000000001,
+          "net_pnl": 3.827025700000003
+        },
+        "chop": {
+          "counted": true,
+          "positive": true,
+          "trades": 479,
+          "sum_net_R": 42.722258679999996,
+          "net_pnl": 12.309568800000003
+        }
+      }
+    },
+    "VB211": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.7929358510971835 <= 1.0",
+        "val DD 91.4% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 3208,
+          "sum_net_R": -33.938565200000006,
+          "net_pnl": -716.64031148
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 134,
+          "sum_net_R": -13.916165410000001,
+          "net_pnl": -11.44398455
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 676,
+          "sum_net_R": -39.1145295,
+          "net_pnl": -41.03989979
+        }
+      }
+    },
+    "VB212": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9726074882611349 <= 1.0",
+        "val DD 79.6% > 20.0%",
+        "train sum_net_R <= 0"
+      ],
+      "regimes_positive": 3,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 2477,
+          "sum_net_R": 95.91400924999999,
+          "net_pnl": -141.85975623
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 95,
+          "sum_net_R": 4.426616600000001,
+          "net_pnl": 5.549964220000001
+        },
+        "chop": {
+          "counted": true,
+          "positive": true,
+          "trades": 488,
+          "sum_net_R": 38.63213487,
+          "net_pnl": 4.398723309999996
+        }
+      }
+    },
+    "TP201": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.7436039706266905 <= 1.0",
+        "val DD 100.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 27027,
+          "sum_net_R": -4028.03502025,
+          "net_pnl": -999.99950577
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 1071,
+          "sum_net_R": -180.19917236,
+          "net_pnl": -3.17e-06
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 5947,
+          "sum_net_R": -968.28686872,
+          "net_pnl": -0.00048965
+        }
+      }
+    },
+    "TP202": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.7803502035808568 <= 1.0",
+        "val DD 100.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 22535,
+          "sum_net_R": -3181.82423993,
+          "net_pnl": -999.9966462
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 852,
+          "sum_net_R": -118.26880695,
+          "net_pnl": -5.328e-05
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 4908,
+          "sum_net_R": -739.63721715,
+          "net_pnl": -0.00329875
+        }
+      }
+    },
+    "TP203": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.81414531933539 <= 1.0",
+        "val DD 100.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 17452,
+          "sum_net_R": -2282.92365158,
+          "net_pnl": -999.9345299199999
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 630,
+          "sum_net_R": -81.88734637,
+          "net_pnl": -0.00169225
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 3797,
+          "sum_net_R": -490.06076463,
+          "net_pnl": -0.06360237
+        }
+      }
+    },
+    "TP204": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8579957252011101 <= 1.0",
+        "val DD 99.8% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 12851,
+          "sum_net_R": -851.65054621,
+          "net_pnl": -989.12709784
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 484,
+          "sum_net_R": -5.283562259999999,
+          "net_pnl": -0.25888441
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 2710,
+          "sum_net_R": -140.50536361,
+          "net_pnl": -8.26140817
+        }
+      }
+    },
+    "TP205": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8688503133807189 <= 1.0",
+        "val DD 99.3% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 10579,
+          "sum_net_R": -586.92848192,
+          "net_pnl": -971.73676732
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 378,
+          "sum_net_R": 0.7372292600000021,
+          "net_pnl": -0.34530065000000026
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 2240,
+          "sum_net_R": -98.13937440000001,
+          "net_pnl": -18.02202193
+        }
+      }
+    },
+    "TP206": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8864931557886693 <= 1.0",
+        "val DD 97.7% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 8585,
+          "sum_net_R": -353.50114651999996,
+          "net_pnl": -947.49860138
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 306,
+          "sum_net_R": 16.338245410000003,
+          "net_pnl": 1.7383343299999996
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 1849,
+          "sum_net_R": -24.51668476,
+          "net_pnl": -19.41447843
+        }
+      }
+    },
+    "TP207": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.7807527395733914 <= 1.0",
+        "val DD 100.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 19934,
+          "sum_net_R": -3179.9294094800002,
+          "net_pnl": -999.99494687
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 794,
+          "sum_net_R": -94.32151596,
+          "net_pnl": -0.00017582
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 4366,
+          "sum_net_R": -629.24493552,
+          "net_pnl": -0.00486157
+        }
+      }
+    },
+    "TP208": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8212423609882816 <= 1.0",
+        "val DD 100.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 17062,
+          "sum_net_R": -2620.30492141,
+          "net_pnl": -999.97338537
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 636,
+          "sum_net_R": -59.27550217,
+          "net_pnl": -0.00096132
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 3694,
+          "sum_net_R": -493.59691003,
+          "net_pnl": -0.02540167
+        }
+      }
+    },
+    "TP209": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8153690157266648 <= 1.0",
+        "val DD 100.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 13909,
+          "sum_net_R": -1917.37359811,
+          "net_pnl": -999.84184619
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 511,
+          "sum_net_R": -2.110232660000004,
+          "net_pnl": 0.0017388100000000004
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 3074,
+          "sum_net_R": -224.54002178,
+          "net_pnl": -0.14678728
+        }
+      }
+    },
+    "TP210": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8706678216764161 <= 1.0",
+        "val DD 99.4% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 10432,
+          "sum_net_R": -763.73841969,
+          "net_pnl": -982.61258446
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 404,
+          "sum_net_R": 16.94128963,
+          "net_pnl": 1.31493133
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 2314,
+          "sum_net_R": -87.21840561,
+          "net_pnl": -10.92108247
+        }
+      }
+    },
+    "TP211": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8914682032501314 <= 1.0",
+        "val DD 97.9% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0"
+      ],
+      "regimes_positive": 2,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 8922,
+          "sum_net_R": -562.61170893,
+          "net_pnl": -971.14002376
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 324,
+          "sum_net_R": 10.534233350000003,
+          "net_pnl": 2.3427616099999997
+        },
+        "chop": {
+          "counted": true,
+          "positive": true,
+          "trades": 1997,
+          "sum_net_R": 18.671980129999998,
+          "net_pnl": -3.23792272
+        }
+      }
+    },
+    "TP212": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.892221475346839 <= 1.0",
+        "val DD 97.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0"
+      ],
+      "regimes_positive": 2,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 7539,
+          "sum_net_R": -415.95554953,
+          "net_pnl": -953.35201062
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 262,
+          "sum_net_R": 35.35608425,
+          "net_pnl": 8.95538563
+        },
+        "chop": {
+          "counted": true,
+          "positive": true,
+          "trades": 1602,
+          "sum_net_R": 8.01351039,
+          "net_pnl": -10.95088869
+        }
+      }
+    },
+    "XS201": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.796131631389836 <= 1.0",
+        "val DD 55.7% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 750,
+          "sum_net_R": -97.72860195999999,
+          "net_pnl": -382.96923063
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 28,
+          "sum_net_R": -14.97357192,
+          "net_pnl": -36.85411606
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 162,
+          "sum_net_R": -41.76162831,
+          "net_pnl": -110.8994562
+        }
+      }
+    },
+    "XS202": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8609820878768712 <= 1.0",
+        "val DD 29.8% > 20.0%",
+        "val sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 375,
+          "sum_net_R": -24.02083366,
+          "net_pnl": -146.96141235
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 14,
+          "sum_net_R": -2.8850570999999996,
+          "net_pnl": -9.38380089
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 81,
+          "sum_net_R": -19.45812952,
+          "net_pnl": -65.18383922999999
+        }
+      }
+    },
+    "XS203": {
+      "eligible": false,
+      "reasons": [
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 250,
+          "sum_net_R": 52.2514611,
+          "net_pnl": 266.79581923
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 10,
+          "sum_net_R": -9.83192422,
+          "net_pnl": -54.203878950000004
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 54,
+          "sum_net_R": -18.13423438,
+          "net_pnl": -83.99320476000001
+        }
+      }
+    },
+    "XS204": {
+      "eligible": false,
+      "reasons": [
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 125,
+          "sum_net_R": 61.90441559,
+          "net_pnl": 313.66377159
+        },
+        "bear": {
+          "counted": false,
+          "trades": 5,
+          "sum_net_R": -5.67231142,
+          "net_pnl": -30.59516754
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 27,
+          "sum_net_R": -3.194186670000001,
+          "net_pnl": -9.71689185
+        }
+      }
+    },
+    "XS205": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9103364850868029 <= 1.0",
+        "val DD 42.2% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 750,
+          "sum_net_R": -40.972991,
+          "net_pnl": -229.80986273000002
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 28,
+          "sum_net_R": -5.8961982299999995,
+          "net_pnl": -17.80405159
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 162,
+          "sum_net_R": -14.205900009999997,
+          "net_pnl": -50.63758103
+        }
+      }
+    },
+    "XS206": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9545714120237365 <= 1.0",
+        "val DD 20.5% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 375,
+          "sum_net_R": -19.2290296,
+          "net_pnl": -127.98736652000001
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 14,
+          "sum_net_R": 9.94035961,
+          "net_pnl": 55.34362581
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 81,
+          "sum_net_R": -0.6100071699999987,
+          "net_pnl": -9.290020189999996
+        }
+      }
+    },
+    "XS207": {
+      "eligible": false,
+      "reasons": [
+        "val DD 24.5% > 20.0%",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 250,
+          "sum_net_R": 32.5110948,
+          "net_pnl": 152.51080399999998
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 10,
+          "sum_net_R": -11.67807665,
+          "net_pnl": -60.64194114
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 54,
+          "sum_net_R": -3.2164216199999998,
+          "net_pnl": -25.023503540000004
+        }
+      }
+    },
+    "XS208": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9241796918736895 <= 1.0",
+        "val DD 21.8% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 125,
+          "sum_net_R": -0.2003498099999988,
+          "net_pnl": -12.544314130000004
+        },
+        "bear": {
+          "counted": false,
+          "trades": 5,
+          "sum_net_R": -6.02634203,
+          "net_pnl": -26.356773710000002
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 27,
+          "sum_net_R": -4.190867760000001,
+          "net_pnl": -18.224237750000004
+        }
+      }
+    },
+    "XS209": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9653962229380749 <= 1.0",
+        "val DD 31.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 750,
+          "sum_net_R": -1.717857390000001,
+          "net_pnl": -90.59572730999999
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 28,
+          "sum_net_R": -8.85528011,
+          "net_pnl": -36.228426580000004
+        },
+        "chop": {
+          "counted": true,
+          "positive": true,
+          "trades": 162,
+          "sum_net_R": 2.2029325500000034,
+          "net_pnl": 10.445329130000006
+        }
+      }
+    },
+    "XS210": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9663075295966826 <= 1.0",
+        "val DD 20.1% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0"
+      ],
+      "regimes_positive": 2,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 375,
+          "sum_net_R": 1.9600588899999989,
+          "net_pnl": -48.83458610000001
+        },
+        "bear": {
+          "counted": true,
+          "positive": true,
+          "trades": 14,
+          "sum_net_R": 2.42299712,
+          "net_pnl": 14.48467856
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 81,
+          "sum_net_R": -5.020862499999997,
+          "net_pnl": -26.441443729999996
+        }
+      }
+    },
+    "XS211": {
+      "eligible": false,
+      "reasons": [
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 250,
+          "sum_net_R": 40.081597120000005,
+          "net_pnl": 158.48408118
+        },
+        "bear": {
+          "counted": true,
+          "positive": false,
+          "trades": 10,
+          "sum_net_R": -11.84636719,
+          "net_pnl": -53.84675321
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 54,
+          "sum_net_R": -8.01138555,
+          "net_pnl": -24.689302850000004
+        }
+      }
+    },
+    "XS212": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9026372124281251 <= 1.0",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 125,
+          "sum_net_R": -0.1556554299999972,
+          "net_pnl": -39.08808410000002
+        },
+        "bear": {
+          "counted": false,
+          "trades": 5,
+          "sum_net_R": -6.18635632,
+          "net_pnl": -24.874599080000003
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 27,
+          "sum_net_R": -1.4239255300000004,
+          "net_pnl": -6.244943450000004
+        }
+      }
+    },
+    "XSR01": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9015367155349623 <= 1.0",
+        "val DD 22.9% > 20.0%",
+        "val sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 370,
+          "sum_net_R": -20.70518515,
+          "net_pnl": -127.76861505
+        },
+        "bear": {
+          "counted": false
+        },
+        "chop": {
+          "counted": false,
+          "trades": 5,
+          "sum_net_R": -0.8377768999999999,
+          "net_pnl": -3.49975432
+        }
+      }
+    },
+    "XSR02": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.8636664966764479 <= 1.0",
+        "val DD 29.0% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 375,
+          "sum_net_R": -24.02083366,
+          "net_pnl": -146.55178966999998
+        },
+        "bear": {
+          "counted": false,
+          "trades": 1,
+          "sum_net_R": -1.05441135,
+          "net_pnl": -4.27778509
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 80,
+          "sum_net_R": -18.36633362,
+          "net_pnl": -61.392628079999994
+        }
+      }
+    },
+    "XSR03": {
+      "eligible": false,
+      "reasons": [
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 123,
+          "sum_net_R": 64.25735896,
+          "net_pnl": 341.47138215
+        },
+        "bear": {
+          "counted": false
+        },
+        "chop": {
+          "counted": false,
+          "trades": 2,
+          "sum_net_R": 3.1721581599999995,
+          "net_pnl": 17.744673669999997
+        }
+      }
+    },
+    "XSR04": {
+      "eligible": false,
+      "reasons": [
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 125,
+          "sum_net_R": 61.90441559,
+          "net_pnl": 318.62083481
+        },
+        "bear": {
+          "counted": false,
+          "trades": 1,
+          "sum_net_R": -1.05441135,
+          "net_pnl": -5.84126791
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 27,
+          "sum_net_R": -3.194186670000001,
+          "net_pnl": -10.171099609999999
+        }
+      }
+    },
+    "XSR05": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9470263287174969 <= 1.0",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 370,
+          "sum_net_R": -13.722834849999998,
+          "net_pnl": -95.83515577000001
+        },
+        "bear": {
+          "counted": false
+        },
+        "chop": {
+          "counted": false,
+          "trades": 5,
+          "sum_net_R": 4.08566636,
+          "net_pnl": 19.549930919999998
+        }
+      }
+    },
+    "XSR06": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9318014713494965 <= 1.0",
+        "val DD 23.6% > 20.0%",
+        "val sum_net_R <= 0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 375,
+          "sum_net_R": -19.2290296,
+          "net_pnl": -128.17621827
+        },
+        "bear": {
+          "counted": false,
+          "trades": 1,
+          "sum_net_R": 2.22209925,
+          "net_pnl": 10.51023513
+        },
+        "chop": {
+          "counted": true,
+          "positive": true,
+          "trades": 80,
+          "sum_net_R": 0.4817887300000012,
+          "net_pnl": -0.8275021999999941
+        }
+      }
+    },
+    "XSR07": {
+      "eligible": false,
+      "reasons": [
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 123,
+          "sum_net_R": 1.9896439200000013,
+          "net_pnl": -4.018777580000008
+        },
+        "bear": {
+          "counted": false
+        },
+        "chop": {
+          "counted": false,
+          "trades": 2,
+          "sum_net_R": 5.0388242299999995,
+          "net_pnl": 26.89693946
+        }
+      }
+    },
+    "XSR08": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9489187078702294 <= 1.0",
+        "val DD 20.2% > 20.0%",
+        "val sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 125,
+          "sum_net_R": -0.2003498099999988,
+          "net_pnl": -13.185166880000006
+        },
+        "bear": {
+          "counted": false,
+          "trades": 1,
+          "sum_net_R": -1.08706607,
+          "net_pnl": -5.60167115
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 27,
+          "sum_net_R": -4.190867760000001,
+          "net_pnl": -18.85178411
+        }
+      }
+    },
+    "XSR09": {
+      "eligible": false,
+      "reasons": [
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 370,
+          "sum_net_R": 7.529946689999999,
+          "net_pnl": -17.248819160000007
+        },
+        "bear": {
+          "counted": false
+        },
+        "chop": {
+          "counted": false,
+          "trades": 5,
+          "sum_net_R": 2.9797405400000003,
+          "net_pnl": 20.509442820000004
+        }
+      }
+    },
+    "XSR10": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.966292975375102 <= 1.0",
+        "train sum_net_R <= 0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 375,
+          "sum_net_R": 1.9600588899999989,
+          "net_pnl": -48.85119783000001
+        },
+        "bear": {
+          "counted": false,
+          "trades": 1,
+          "sum_net_R": 2.22209925,
+          "net_pnl": 10.86854821
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 80,
+          "sum_net_R": -3.921946069999997,
+          "net_pnl": -21.13563009
+        }
+      }
+    },
+    "XSR11": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9933259192898126 <= 1.0",
+        "regime gate: positive in 1 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 1,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": true,
+          "trades": 123,
+          "sum_net_R": 2.034338300000003,
+          "net_pnl": -30.013832490000016
+        },
+        "bear": {
+          "counted": false
+        },
+        "chop": {
+          "counted": false,
+          "trades": 2,
+          "sum_net_R": 5.03721909,
+          "net_pnl": 26.11103196
+        }
+      }
+    },
+    "XSR12": {
+      "eligible": false,
+      "reasons": [
+        "val PF 0.9268373931605164 <= 1.0",
+        "val sum_net_R <= 0",
+        "regime gate: positive in 0 regime(s) (need >= 2 with >= 10 trades)"
+      ],
+      "regimes_positive": 0,
+      "regime_detail": {
+        "bull": {
+          "counted": true,
+          "positive": false,
+          "trades": 125,
+          "sum_net_R": -0.1556554299999972,
+          "net_pnl": -39.558554950000016
+        },
+        "bear": {
+          "counted": false,
+          "trades": 1,
+          "sum_net_R": -1.08706607,
+          "net_pnl": -5.42219965
+        },
+        "chop": {
+          "counted": true,
+          "positive": false,
+          "trades": 27,
+          "sum_net_R": -1.4239255300000004,
+          "net_pnl": -6.632737940000004
+        }
+      }
+    }
+  },
+  "ranking_audit": [],
+  "shortlist": []
+}
