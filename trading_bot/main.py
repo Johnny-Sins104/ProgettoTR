@@ -527,7 +527,7 @@ async def monitor_active_trade(active_trade: dict) -> None:
                 print(f"  Motivazione         : {BOLD}{WHITE}Score {score}{RESET} (Soglia {threshold}, {regime})")
             print(f"  Prezzo Ingresso     : {BOLD}{WHITE}{entry:.2f} USDT{RESET}")
             print(f"  Prezzo Attuale      : {BOLD}{YELLOW}{current_price:.2f} USDT{RESET}")
-            print(f"  Dimensione Attiva   : {BOLD}{WHITE}{active_size:.6f} BTC{RESET} {"(Seconda Metà)" if tp1_hit else "(Intera size)"}")
+            print(f"  Dimensione Attiva   : {BOLD}{WHITE}{active_size:.6f} BTC{RESET} {'(Seconda Metà)' if tp1_hit else '(Intera size)'}")
             print(f"  Margine Attivo      : {BOLD}{YELLOW}{active_margin:.2f} EUR{RESET} (Leva {leverage:.1f}x)")
             print(sep)
             print(f"  Take Profit 1 (TP1) : {BOLD}{WHITE}{tp1:.2f} USDT{RESET} | {GREEN if tp1_hit else YELLOW}{'✓ HIT' if tp1_hit else '⏳ PENDING'}{RESET}")
