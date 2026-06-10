@@ -99,7 +99,7 @@ def _check_ohlcv_file(path: Path) -> dict[str, Any]:
 
     # ---- timestamp column detection ----------------------------------------
     ts_col: str | None = None
-    for candidate in ("datetime", "timestamp", "time", "date", "index"):
+    for candidate in ("datetime", "open_time_utc", "timestamp", "time", "date", "index"):
         if candidate in df.columns:
             ts_col = candidate
             break
@@ -875,7 +875,9 @@ def main() -> None:
     # Exclude market_features.parquet (not raw OHLCV)
     _NON_OHLCV = {"market_features.parquet"}
     parquet_files = sorted(
-        p for p in DATA_DIR.glob("*.parquet") if p.name not in _NON_OHLCV
+        [p for p in DATA_DIR.glob("*.parquet") if p.name not in _NON_OHLCV]
+        # STRAT-01 research cache (atomic parquet + manifest, closed candles)
+        + list((DATA_DIR / "strat01_cache").glob("*.parquet"))
     )
 
     inventory: list[dict] = []
@@ -914,7 +916,7 @@ def main() -> None:
     # Known 5m-only assets (no 15m parquet found)
     _MISSING_15M = ["XRP/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
     # Verify dynamically: if a 15m file exists for any of these, remove from list
-    existing_names = {p.name for p in parquet_files}
+    existing_names = {p.name.lower() for p in parquet_files}
     missing_15m: list[str] = []
     _ASSET_TO_PREFIX = {
         "XRP/USDT": "xrpusdt",

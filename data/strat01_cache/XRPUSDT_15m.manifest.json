@@ -1,0 +1,17 @@
+{
+  "asset": "XRPUSDT",
+  "timeframe": "15m",
+  "source_url": "https://fapi.binance.com/fapi/v1/klines",
+  "provenance": "binance_futures_public_api",
+  "download_utc": "2026-06-10T09:40:45+00:00",
+  "row_count": 140255,
+  "first_ts": "2022-06-10T09:30:00+00:00",
+  "last_ts": "2026-06-10T09:00:00+00:00",
+  "coverage_days": 1460.98,
+  "coverage_years": 3.9999,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "0cdb7709dc5bf47583c2a70bb18160896a903ae0efcd22f535ca3d1b48e2d378",
+  "path": "data\\strat01_cache\\XRPUSDT_15m.parquet",
+  "timeframe_minutes": 15
+}

@@ -1,0 +1,17 @@
+{
+  "asset": "BTCUSDT",
+  "timeframe": "5m",
+  "source_url": "https://fapi.binance.com/fapi/v1/klines",
+  "provenance": "binance_futures_public_api",
+  "download_utc": "2026-06-10T09:40:46+00:00",
+  "row_count": 420767,
+  "first_ts": "2022-06-10T09:15:00+00:00",
+  "last_ts": "2026-06-10T09:05:00+00:00",
+  "coverage_days": 1460.99,
+  "coverage_years": 4.0,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "0e9eb3f1b5868f40d35025c7c6c73b54888effd9564b8436bd253ddc6acb30cc",
+  "path": "data\\strat01_cache\\BTCUSDT_5m.parquet",
+  "timeframe_minutes": 5
+}

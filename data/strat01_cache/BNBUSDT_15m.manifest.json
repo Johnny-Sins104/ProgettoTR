@@ -1,0 +1,17 @@
+{
+  "asset": "BNBUSDT",
+  "timeframe": "15m",
+  "source_url": "https://fapi.binance.com/fapi/v1/klines",
+  "provenance": "binance_futures_public_api",
+  "download_utc": "2026-06-10T09:40:46+00:00",
+  "row_count": 140255,
+  "first_ts": "2022-06-10T09:45:00+00:00",
+  "last_ts": "2026-06-10T09:15:00+00:00",
+  "coverage_days": 1460.98,
+  "coverage_years": 3.9999,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "934a3fbb28f08cd997ec0b5cac254b135210312caf9341ba1741cd8018a9d0b0",
+  "path": "data\\strat01_cache\\BNBUSDT_15m.parquet",
+  "timeframe_minutes": 15
+}

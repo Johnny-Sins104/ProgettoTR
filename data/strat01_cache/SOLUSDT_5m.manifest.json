@@ -1,0 +1,17 @@
+{
+  "asset": "SOLUSDT",
+  "timeframe": "5m",
+  "source_url": "https://fapi.binance.com/fapi/v1/klines",
+  "provenance": "binance_futures_public_api",
+  "download_utc": "2026-06-10T09:40:46+00:00",
+  "row_count": 420767,
+  "first_ts": "2022-06-10T09:30:00+00:00",
+  "last_ts": "2026-06-10T09:20:00+00:00",
+  "coverage_days": 1460.99,
+  "coverage_years": 4.0,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "3d70ae805b222bc101fc81b398df53ca7d45ac0de845e35c58546115b6ef268b",
+  "path": "data\\strat01_cache\\SOLUSDT_5m.parquet",
+  "timeframe_minutes": 5
+}

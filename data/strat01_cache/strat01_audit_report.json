@@ -1,0 +1,148 @@
+{
+  "generated_at": "2026-06-10T09:40:47+00:00",
+  "assets_audited": [
+    "BNBUSDT",
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "XRPUSDT"
+  ],
+  "timeframes_audited": [
+    "15m",
+    "5m"
+  ],
+  "sufficiency": [
+    {
+      "asset": "BTCUSDT",
+      "timeframe": "15m",
+      "coverage_years": 3.9999,
+      "target_years": 4.0,
+      "sufficient": false,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": "insufficient_history: 4.000y < 4.0y target"
+    },
+    {
+      "asset": "ETHUSDT",
+      "timeframe": "15m",
+      "coverage_years": 3.9999,
+      "target_years": 4.0,
+      "sufficient": false,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": "insufficient_history: 4.000y < 4.0y target"
+    },
+    {
+      "asset": "XRPUSDT",
+      "timeframe": "15m",
+      "coverage_years": 3.9999,
+      "target_years": 4.0,
+      "sufficient": false,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": "insufficient_history: 4.000y < 4.0y target"
+    },
+    {
+      "asset": "SOLUSDT",
+      "timeframe": "15m",
+      "coverage_years": 3.9999,
+      "target_years": 4.0,
+      "sufficient": false,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": "insufficient_history: 4.000y < 4.0y target"
+    },
+    {
+      "asset": "BNBUSDT",
+      "timeframe": "15m",
+      "coverage_years": 3.9999,
+      "target_years": 4.0,
+      "sufficient": false,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": "insufficient_history: 4.000y < 4.0y target"
+    },
+    {
+      "asset": "BTCUSDT",
+      "timeframe": "5m",
+      "coverage_years": 4.0,
+      "target_years": 4.0,
+      "sufficient": true,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": ""
+    },
+    {
+      "asset": "ETHUSDT",
+      "timeframe": "5m",
+      "coverage_years": 4.0,
+      "target_years": 4.0,
+      "sufficient": true,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": ""
+    },
+    {
+      "asset": "XRPUSDT",
+      "timeframe": "5m",
+      "coverage_years": 4.0,
+      "target_years": 4.0,
+      "sufficient": true,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": ""
+    },
+    {
+      "asset": "SOLUSDT",
+      "timeframe": "5m",
+      "coverage_years": 4.0,
+      "target_years": 4.0,
+      "sufficient": true,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": ""
+    },
+    {
+      "asset": "BNBUSDT",
+      "timeframe": "5m",
+      "coverage_years": 4.0,
+      "target_years": 4.0,
+      "sufficient": true,
+      "gap_count": 0,
+      "gap_bars_total": 0,
+      "synthetic_substitution": false,
+      "note": ""
+    }
+  ],
+  "splits": {
+    "frozen_at": "2026-06-10T09:40:47+00:00",
+    "input_hash": "219ddba3db1b98b9",
+    "train_start": "2022-06-10T09:15:00+00:00",
+    "train_end": "2024-11-02T23:39:00.000000016+00:00",
+    "val_start": "2024-11-02T23:39:00.000000016+00:00",
+    "val_end": "2025-08-22T04:27:00.000000016+00:00",
+    "oos_start": "2025-08-22T04:27:00.000000016+00:00",
+    "oos_end": "2026-06-10T09:15:00+00:00",
+    "oos_fraction_actual": 0.2,
+    "oos_fraction_min": 0.2,
+    "val_fraction_actual": 0.2
+  },
+  "global_sufficient": false,
+  "warnings": [
+    "BTCUSDT/15m: only 4.000y available (target 4.0y); history NOT synthesized",
+    "ETHUSDT/15m: only 4.000y available (target 4.0y); history NOT synthesized",
+    "XRPUSDT/15m: only 4.000y available (target 4.0y); history NOT synthesized",
+    "SOLUSDT/15m: only 4.000y available (target 4.0y); history NOT synthesized",
+    "BNBUSDT/15m: only 4.000y available (target 4.0y); history NOT synthesized"
+  ],
+  "synthetic_substitution_used": false
+}

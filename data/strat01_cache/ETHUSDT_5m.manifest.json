@@ -1,0 +1,17 @@
+{
+  "asset": "ETHUSDT",
+  "timeframe": "5m",
+  "source_url": "https://fapi.binance.com/fapi/v1/klines",
+  "provenance": "binance_futures_public_api",
+  "download_utc": "2026-06-10T09:40:46+00:00",
+  "row_count": 420767,
+  "first_ts": "2022-06-10T09:20:00+00:00",
+  "last_ts": "2026-06-10T09:10:00+00:00",
+  "coverage_days": 1460.99,
+  "coverage_years": 4.0,
+  "gap_count": 0,
+  "gap_bars_total": 0,
+  "sha256": "9ca59b95fa32ca0cb57566858e68f8047d3bb5122e3a1b75250be5ac0461b07f",
+  "path": "data\\strat01_cache\\ETHUSDT_5m.parquet",
+  "timeframe_minutes": 5
+}
